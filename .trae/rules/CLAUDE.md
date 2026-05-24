@@ -38,3 +38,10 @@
     9. **不要担心时间太长！！！** 。
     10. **仔细！仔细！仔细！**
 10. 不允许修改memory.md文件，只允许添加记忆条目。
+
+11. **版本控制最佳实践（强制执行）**
+    - **破坏性操作前必须先备份**：修改文件前运行 `git status` 确认状态，至少 `git add` + `git commit` 确保有可回退点。无 commit 历史时，手动复制 `src/` 目录到临时备份。
+    - **创建分支执行关键变更**：重构、大规模重写或删除操作前，创建独立分支：`git checkout -b feature/<name>`。
+    - **定期提交**：每个逻辑变更完成后立即提交，不累积改动。
+    - **提交信息规范**：使用 Conventional Commits 格式：`<type>(<scope>): <description>`。类型包括 feat/fix/refactor/perf/chore/docs。
+    - **执行重大操作前**：运行 `git stash list` 确认无悬空 stash，运行 `git status --porcelain` 确认工作区干净。
