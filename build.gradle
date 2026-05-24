@@ -1,0 +1,32 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.125'
+}
+
+neoForge {
+    version = "21.1.219"
+
+    mods {
+        worldscape {
+            sourceSet sourceSets.main
+        }
+    }
+
+    // Mixin configuration for NeoForge 21.1.219
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+    }
+
+    // Access Transformer for exposing final fields
+    accessTransformers = files('src/main/resources/META-INF/accesstransformer.cfg')
+}
+
+dependencies {
+    // Mixin annotation processor
+    compileOnly 'org.spongepowered:mixin:0.8.7'
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+}

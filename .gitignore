@@ -1,0 +1,38 @@
+# Gradle
+.gradle/
+build/
+!build/libs/*.jar
+!build/classes/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.eclipse/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+local.properties
+
+# Minecraft run directory
+run/
+
+# Temp / debug output
+bin/
+temp_*/
+tfc_temp/
+worldscape_debug/
+compile_output.txt
+compile_full.txt
+build_errors.txt
+sessions.json
+
+# External jars (not source code)
+*.jar

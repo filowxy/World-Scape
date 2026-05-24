@@ -1,0 +1,85 @@
+# =============================================================================
+# World Scape — JVM Module System --add-opens Parameters
+# =============================================================================
+#
+# World Scape uses Java reflection to access Minecraft internal APIs for:
+# - Surface building (ReflectionSurfaceAdapter)
+# - Biome override injection via PalettedContainer.biomes field
+# - NoiseChunk construction
+# - RandomState method access
+#
+# On Java 17+, these internal API accesses may be blocked by the Java module
+# system unless the appropriate --add-opens flags are provided.
+#
+# =============================================================================
+# Required Parameters
+# =============================================================================
+#
+# Add these to your JVM arguments when launching Minecraft:
+#
+--add-opens java.base/java.lang.reflect=ALL-UNNAMED
+--add-opens java.base/java.lang=ALL-UNNAMED
+--add-opens java.base/java.util=ALL-UNNAMED
+--add-opens java.base/java.util.concurrent=ALL-UNNAMED
+--add-opens minecraft/net.minecraft.world.level.levelgen=ALL-UNNAMED
+--add-opens minecraft/net.minecraft.world.level.levelgen.synth=ALL-UNNAMED
+--add-opens minecraft/net.minecraft.world.level.levelgen.blending=ALL-UNNAMED
+--add-opens minecraft/net.minecraft.world.level.chunk=ALL-UNNAMED
+--add-opens minecraft/net.minecraft.world.level.biome=ALL-UNNAMED
+#
+# =============================================================================
+# Full Example
+# =============================================================================
+#
+# For MultiMC/Prism Launcher:
+#   Settings -> Java -> JVM Arguments:
+#   (Copy all --add-opens lines above)
+#
+# For Vanilla Launcher:
+#   Installations -> [your profile] -> More Options -> JVM Arguments
+#
+# For Server (startup script):
+#   java @user_jvm_args.txt @libraries/net/neoforged/neoforge/.../unix_args.txt
+#   (Add --add-opens flags to user_jvm_args.txt)
+#
+# =============================================================================
+# What Happens Without These Parameters
+# =============================================================================
+#
+# Without --add-opens, World Scape may encounter:
+#
+# 1. ReflectionSurfaceAdapter fails:
+#    - Error: "java.lang.reflect.InaccessibleObjectException"
+#    - Effect: Surface build silently falls back to FallbackSurfaceAdapter
+#    - Result: Terrain uses basic stone/grass blocks, no biome-specific surfaces
+#
+# 2. LevelChunkSection.biomes field access fails:
+#    - Error: "java.lang.reflect.InaccessibleObjectException"
+#    - Effect: Biome override is DISABLED; biomes default to vanilla ClimateSampler
+#    - Result: 29 terrain types lose biome mapping, all biomes controlled by vanilla
+#
+# =============================================================================
+# Troubleshooting
+# =============================================================================
+#
+# Q: How do I know if --add-opens is working?
+# A: Check the game log for "[World Scape] Surface adapter: REFLECTION (reflection OK)"
+#    If you see "Surface adapter: FALLBACK", the reflection access is blocked.
+#
+# Q: The log shows "Surface adapter: FALLBACK" even with --add-opens set.
+# A: Possible reasons:
+#    - You are using a mod that replaces the target methods (e.g., ModernFix)
+#    - The Minecraft version's method signatures changed
+#    - The mod's internal package name differs from "minecraft"
+#    -> WS will still work, just with reduced surface quality.
+#
+# Q: Can I ignore these warnings?
+# A: World Scape has fallback mechanisms. Without --add-opens:
+#    - World generation still works (no crashes)
+#    - Biome surface blocks will use simple grass/stone/fill
+#    - Biome assignment falls back to vanilla ClimateSampler distribution
+#    -> Add --add-opens for full terrain aesthetics.
+#
+# =============================================================================
+# Generated: 2026-05-23 | World Scape v1.3.1-beta | NeoForge 1.21.1
+# =============================================================================

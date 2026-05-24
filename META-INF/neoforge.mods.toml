@@ -1,0 +1,28 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+authors="Filowxy"
+description="A terrain generation overhaul mod for Minecraft"
+showAsResourcePack=false
+
+[[mods]]
+modId="worldscape"
+version="1.0.0"
+displayName="World Scape"
+description="Completely overhauls Minecraft's terrain generation with realistic landforms"
+authors="Filowxy"
+mixins=["worldscape.mixins.json"]
+
+[[dependencies.worldscape]]
+modId="neoforge"
+mandatory=true
+versionRange="[21.1.219,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.worldscape]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.21.1,)"
+ordering="NONE"
+side="BOTH"
