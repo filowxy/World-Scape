@@ -104,6 +104,14 @@ extends ChunkGenerator {
     private static final AtomicInteger voidWarningCount = new AtomicInteger(0);
     private static final AtomicInteger extremeSlopeCount = new AtomicInteger(0);
 
+    // --- Ocean/Land Diagnostic ---
+    // turn on to trace "fake ocean" bug: land terrain below sea level getting water on top
+    private static final boolean DIAGNOSE_OCEAN = true;
+    // only dump first N chunks to avoid log spam
+    private static final int DIAGNOSE_MAX_CHUNKS = 10;
+    private static final AtomicInteger diagChunkCount = new AtomicInteger(0);
+    // --- End Diagnostic ---
+
     public LandscapeChunkGenerator(BiomeSource biomeSource, long worldSeed) {
         super(biomeSource);
         this.biomeSource = biomeSource;
@@ -404,6 +412,12 @@ extends ChunkGenerator {
                     pos.set(worldX, y, worldZ);
                     chunk.setBlockState((BlockPos)pos, Blocks.WATER.defaultBlockState(), false);
                 }
+                // --- OCEAN DIAGNOSTIC: log water placement on land terrain ---
+                if (DIAGNOSE_OCEAN && diagChunkCount.get() <= DIAGNOSE_MAX_CHUNKS && surfaceY >= 20) {
+                    LOGGER.warn("[World Scape] [OCEAN-DIAG] FALLBACK WATER fill at col(world={},{}) surfaceY={} seaLevel={} waterLayer={}",
+                        worldX, worldZ, surfaceY, this.seaLevel, this.seaLevel - surfaceY);
+                }
+                // --- END OCEAN DIAGNOSTIC ---
             }
         }
     }
@@ -548,6 +562,34 @@ extends ChunkGenerator {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[World Scape] [PERF]   Phase4 terrain blend query (256 cells): {}ms", (Object)((t4 - t3) / 1000000L));
         }
+        // --- OCEAN DIAGNOSTIC: dump per-column chain for first N chunks ---
+        if (DIAGNOSE_OCEAN) {
+            int chunkDiag = diagChunkCount.getAndIncrement();
+            if (chunkDiag < DIAGNOSE_MAX_CHUNKS) {
+                LOGGER.warn("[World Scape] [OCEAN-DIAG] ===== Chunk ({},{}) terrain chain dump (sample #{} of {}) =====",
+                    chunkX, chunkZ, chunkDiag + 1, DIAGNOSE_MAX_CHUNKS);
+                // sample every 4th column to limit output
+                for (int x = 0; x < 16; x += 4) {
+                    for (int z = 0; z < 16; z += 4) {
+                        int worldX = minX + x;
+                        int worldZ = minZ + z;
+                        RegionController.TerrainBlendResult blend = cachedBlends[x][z];
+                        int macroTier = blend.macroInfo.elevationTier;
+                        double macroBase = blend.macroInfo.blendedBaseHeight;
+                        double microHeight = blend.blendedHeight;
+                        double dominantWt = blend.dominantWeight;
+                        TerrainType domType = blend.dominantType;
+                        TerrainType finalType = typeMap[x][z];
+                        int finalHt = heightMap[x][z];
+                        double contHt = cachedContinuousHeights[x][z];
+                        LOGGER.warn("[World Scape] [OCEAN-DIAG] col(world={},{}) chunk({},{}) tier={} macroBase={} microHt={} domType={} domWt={} finalType={} finalHt={} contHt={}",
+                            worldX, worldZ, x, z, macroTier, String.format("%.1f", macroBase), String.format("%.1f", microHeight), domType.getId(), String.format("%.3f", dominantWt), finalType.getId(), finalHt, String.format("%.1f", contHt));
+                    }
+                }
+                LOGGER.warn("[World Scape] [OCEAN-DIAG] ===== End chunk ({},{}) =====", chunkX, chunkZ);
+            }
+        }
+        // --- END OCEAN DIAGNOSTIC ---
         try {
             Class<?> debugSystemClass = Class.forName("com.worldscape.debug.TerrainDebugSystem");
             Object instance = debugSystemClass.getField("INSTANCE").get(null);
@@ -738,6 +780,15 @@ extends ChunkGenerator {
                 if (!overrideSucceeded) continue;
                 overrideCounts.merge(terrainType, 1, Integer::sum);
                 ++totalOverridden;
+                // --- OCEAN DIAGNOSTIC: log biome assignment from terrain type ---
+                if (DIAGNOSE_OCEAN && diagChunkCount.get() <= DIAGNOSE_MAX_CHUNKS) {
+                    String selName = selectedBiome != null && selectedBiome.isBound()
+                        ? selectedBiome.unwrapKey().map(k -> k.location().toString()).orElse("unbound")
+                        : "null";
+                    LOGGER.warn("[World Scape] [OCEAN-DIAG] biomeOverride cell({},{}) terrainType={} -> selectedBiome={}",
+                        centerX, centerZ, terrainType.getId(), selName);
+                }
+                // --- END OCEAN DIAGNOSTIC ---
             }
         }
         if (totalOverridden > 0 && LOGGER.isDebugEnabled()) {
