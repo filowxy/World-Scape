@@ -36,8 +36,8 @@ sessions.json
 logs/
 seed_analysis/
 
-# Trae IDE
-.trae/commands/
+# Trae IDE (entire .trae directory - IDE config, memory, rules)
+.trae/
 
 # External jars (not source code)
 *.jar
