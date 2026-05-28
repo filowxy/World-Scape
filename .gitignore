@@ -41,3 +41,8 @@ seed_analysis/
 
 # External jars (not source code)
 *.jar
+
+# Root-level stale duplicates (old build artifacts)
+/META-INF/
+/data/
+/config/
