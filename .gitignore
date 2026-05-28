@@ -33,6 +33,11 @@ compile_output.txt
 compile_full.txt
 build_errors.txt
 sessions.json
+logs/
+seed_analysis/
+
+# Trae IDE
+.trae/commands/
 
 # External jars (not source code)
 *.jar
