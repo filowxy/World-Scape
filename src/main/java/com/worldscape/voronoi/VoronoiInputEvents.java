@@ -1,3 +1,20 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.client.Minecraft
+ *  net.minecraft.client.player.Input
+ *  net.neoforged.api.distmarker.Dist
+ *  net.neoforged.bus.api.SubscribeEvent
+ *  net.neoforged.fml.common.EventBusSubscriber
+ *  net.neoforged.neoforge.client.event.CalculatePlayerTurnEvent
+ *  net.neoforged.neoforge.client.event.ClientTickEvent$Post
+ *  net.neoforged.neoforge.client.event.InputEvent$Key
+ *  net.neoforged.neoforge.client.event.InputEvent$MouseButton$Post
+ *  net.neoforged.neoforge.client.event.InputEvent$MouseScrollingEvent
+ *  net.neoforged.neoforge.client.event.MovementInputUpdateEvent
+ *  net.neoforged.neoforge.event.level.LevelEvent$Unload
+ */
 package com.worldscape.voronoi;
 
 import com.worldscape.voronoi.VoronoiCamera;
@@ -57,13 +74,13 @@ public class VoronoiInputEvents {
 
     @SubscribeEvent
     public static void onMouseButtonPost(InputEvent.MouseButton.Post event) {
-        boolean isPressed;
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != null) {
             return;
         }
         int button = event.getButton();
-        boolean bl = isPressed = event.getAction() == 1;
+        boolean isPressed = event.getAction() == 1;
+        boolean bl = isPressed;
         if (button == 0) {
             if (isPressed) {
                 int mouseX = (int)mc.mouseHandler.xpos();

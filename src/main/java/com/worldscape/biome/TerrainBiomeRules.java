@@ -1,3 +1,20 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.google.gson.JsonElement
+ *  com.google.gson.JsonObject
+ *  com.google.gson.JsonParser
+ *  com.mojang.logging.LogUtils
+ *  net.minecraft.core.Holder
+ *  net.minecraft.core.Registry
+ *  net.minecraft.core.registries.Registries
+ *  net.minecraft.resources.ResourceKey
+ *  net.minecraft.resources.ResourceLocation
+ *  net.minecraft.tags.TagKey
+ *  net.minecraft.world.level.biome.Biome
+ *  org.slf4j.Logger
+ */
 package com.worldscape.biome;
 
 import com.google.gson.JsonElement;
@@ -211,8 +228,8 @@ public class TerrainBiomeRules {
             String tagId = string.substring(1);
             try {
                 ResourceLocation rl = ResourceLocation.parse((String)tagId);
-                TagKey<Biome> tagKey = TagKey.create(Registries.BIOME, rl);
-                HashSet<Holder<Biome>> biomes = new HashSet<>();
+                TagKey tagKey = TagKey.create((ResourceKey)Registries.BIOME, (ResourceLocation)rl);
+                HashSet biomes = new HashSet();
                 this.biomeRegistry.getTag(tagKey).ifPresent(tag -> tag.stream().forEach(biomes::add));
                 this.tagCache.put(string, biomes);
                 LOGGER.debug("[World Scape] Expanded tag {} \u2192 {} biomes", (Object)string, (Object)biomes.size());
@@ -222,13 +239,13 @@ public class TerrainBiomeRules {
                 this.tagCache.put(string, Set.of());
             }
         }
-        for (Map.Entry<TerrainType, TerrainBiomeRule> entry : this.rules.entrySet()) {
-            TerrainType terrain = entry.getKey();
-            TerrainBiomeRule rule = entry.getValue();
-            HashSet<Holder<Biome>> allowed = new HashSet<>();
-            HashSet<Holder<Biome>> excluded = new HashSet<>();
+        for (Map.Entry entry : this.rules.entrySet()) {
+            TerrainType terrain = (TerrainType)((Object)entry.getKey());
+            TerrainBiomeRule rule = (TerrainBiomeRule)entry.getValue();
+            HashSet allowed = new HashSet();
+            HashSet excluded = new HashSet();
             for (String tagPath : rule.tagPaths) {
-                Set<Holder<Biome>> tagBiomes = this.tagCache.getOrDefault(tagPath, Set.of());
+                Set tagBiomes = this.tagCache.getOrDefault(tagPath, Set.of());
                 if (rule.useWhitelist) {
                     allowed.addAll(tagBiomes);
                     continue;

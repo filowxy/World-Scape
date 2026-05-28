@@ -1,3 +1,6 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
 package com.worldscape.voronoi;
 
 import com.worldscape.voronoi.VoronoiCell;
@@ -79,7 +82,6 @@ public class VoronoiCalculator {
 
     private void handleCircleEvent(CircleEvent event, BeachLine beachLine, PriorityQueue<Event> eventQueue, VoronoiDiagram diagram) {
         VoronoiEdge newEdge;
-        VoronoiEdge rightEdge;
         BeachNode node = event.node;
         if (node == null || node.deleted) {
             return;
@@ -87,7 +89,8 @@ public class VoronoiCalculator {
         VoronoiVertex vertex = new VoronoiVertex(event.x, event.y);
         diagram.addVertex(vertex);
         VoronoiEdge leftEdge = node.edge;
-        VoronoiEdge voronoiEdge = rightEdge = node.next != null ? node.next.edge : null;
+        VoronoiEdge rightEdge = node.next != null ? node.next.edge : null;
+        VoronoiEdge voronoiEdge = rightEdge;
         if (leftEdge != null) {
             if (leftEdge.getStart() == null) {
                 leftEdge.setStart(vertex);
@@ -123,13 +126,13 @@ public class VoronoiCalculator {
     }
 
     private VoronoiEdge mergeEdges(VoronoiEdge leftEdge, VoronoiEdge rightEdge, BeachNode prev, BeachNode next, VoronoiDiagram diagram) {
-        VoronoiCell rightCell;
         if (prev == null || next == null) {
             return null;
         }
         VoronoiEdge merged = new VoronoiEdge(leftEdge != null ? leftEdge.getStart() : null, rightEdge != null ? rightEdge.getEnd() : null);
         VoronoiCell leftCell = prev.site != null ? diagram.getCell(prev.site.id) : null;
-        VoronoiCell voronoiCell = rightCell = next.site != null ? diagram.getCell(next.site.id) : null;
+        VoronoiCell rightCell = next.site != null ? diagram.getCell(next.site.id) : null;
+        VoronoiCell voronoiCell = rightCell;
         if (leftCell != null) {
             merged.setLeftCell(leftCell);
             leftCell.addEdge(merged);

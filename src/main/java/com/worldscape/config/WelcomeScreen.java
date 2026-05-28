@@ -1,3 +1,14 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.ChatFormatting
+ *  net.minecraft.client.gui.GuiGraphics
+ *  net.minecraft.client.gui.components.Button
+ *  net.minecraft.client.gui.components.events.GuiEventListener
+ *  net.minecraft.client.gui.screens.Screen
+ *  net.minecraft.network.chat.Component
+ */
 package com.worldscape.config;
 
 import com.worldscape.compat.IncompatibleModWarningScreen;
@@ -7,6 +18,7 @@ import java.util.Arrays;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -57,8 +69,8 @@ extends Screen {
             WelcomeScreenConfig.setDebugMode(this.isDebugMode);
             button.setMessage((Component)Component.literal((String)(this.isDebugMode ? "Debug: ON" : "Debug: OFF")));
         }).bounds(centerX - 300 + 15, buttonY, 100, 24).build();
-        this.addRenderableWidget(this.continueButton);
-        this.addRenderableWidget(this.debugModeButton);
+        this.addRenderableWidget((GuiEventListener)this.continueButton);
+        this.addRenderableWidget((GuiEventListener)this.debugModeButton);
     }
 
     private void saveSettings() {

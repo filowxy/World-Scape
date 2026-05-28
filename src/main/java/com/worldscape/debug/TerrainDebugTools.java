@@ -1,3 +1,10 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.debug;
 
 import com.worldscape.terrain.MacroRegionInfo;
@@ -159,9 +166,9 @@ public class TerrainDebugTools {
         sb.append(String.format("  \u9ad8\u5ea6\u8de8\u5ea6 / Range: %.1f\n", maxHeight - minHeight));
         sb.append("\n");
         sb.append("\u3010\u4e3b\u5bfc\u5730\u5f62\u7c7b\u578b\u5206\u5e03 / Dominant Terrain Type Distribution\u3011\n");
-        typeCount.entrySet().stream().sorted(Map.Entry.<TerrainType, Integer>comparingByValue().reversed()).limit(10L).forEach(e -> {
+        typeCount.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).limit(10L).forEach(e -> {
             double percent = 100.0 * (double)((Integer)e.getValue()).intValue() / (double)finalTotalSamples;
-            sb.append(String.format("  %-20s: %5d (%5.1f%%)\n", ((TerrainType)e.getKey()).getId(), e.getValue(), percent));
+            sb.append(String.format("  %-20s: %5d (%5.1f%%)\n", ((TerrainType)((Object)((Object)e.getKey()))).getId(), e.getValue(), percent));
         });
         sb.append("\n");
         sb.append("\u3010\u6d77\u62d4\u7b49\u7ea7\u5206\u5e03 / Elevation Tier Distribution\u3011\n");
@@ -172,19 +179,19 @@ public class TerrainDebugTools {
         }
         sb.append("\n");
         sb.append("\u3010\u6c14\u5019\u5e26\u5206\u5e03 / Climate Zone Distribution\u3011\n");
-        climateCount.entrySet().stream().sorted(Map.Entry.<MacroRegionInfo.ClimateZone, Integer>comparingByValue().reversed()).forEach(e -> {
+        climateCount.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).forEach(e -> {
             double percent = 100.0 * (double)((Integer)e.getValue()).intValue() / (double)finalTotalSamples;
-            sb.append(String.format("  %-10s: %5d (%5.1f%%)\n", ((MacroRegionInfo.ClimateZone)e.getKey()).name(), e.getValue(), percent));
+            sb.append(String.format("  %-10s: %5d (%5.1f%%)\n", ((MacroRegionInfo.ClimateZone)((Object)((Object)e.getKey()))).name(), e.getValue(), percent));
         });
         sb.append("\n");
         sb.append("\u3010\u6784\u9020\u7c7b\u578b\u5206\u5e03 / Tectonic Type Distribution\u3011\n");
-        tectonicCount.entrySet().stream().sorted(Map.Entry.<MacroRegionInfo.TectonicType, Integer>comparingByValue().reversed()).forEach(e -> {
+        tectonicCount.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).forEach(e -> {
             double percent = 100.0 * (double)((Integer)e.getValue()).intValue() / (double)finalTotalSamples;
-            sb.append(String.format("  %-15s: %5d (%5.1f%%)\n", ((MacroRegionInfo.TectonicType)e.getKey()).name(), e.getValue(), percent));
+            sb.append(String.format("  %-15s: %5d (%5.1f%%)\n", ((MacroRegionInfo.TectonicType)((Object)((Object)e.getKey()))).name(), e.getValue(), percent));
         });
         sb.append("\n");
         sb.append("\u3010\u4e3b\u8981\u7ec4\u5408\u7c7b\u578b / Major Combinations\u3011\n");
-        combinedCount.entrySet().stream().sorted(Map.Entry.<String, Integer>comparingByValue().reversed()).limit(8L).forEach(e -> {
+        combinedCount.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).limit(8L).forEach(e -> {
             double percent = 100.0 * (double)((Integer)e.getValue()).intValue() / (double)finalTotalSamples;
             sb.append(String.format("  %-25s: %5d (%5.1f%%)\n", e.getKey(), e.getValue(), percent));
         });
@@ -379,9 +386,9 @@ public class TerrainDebugTools {
                     isContour = true;
                 }
                 if (isContour) {
-                    boolean isMajorContour;
                     int heightInt = Math.round(height);
-                    boolean bl = isMajorContour = heightInt % (contourInterval * 5) == 0;
+                    boolean isMajorContour = heightInt % (contourInterval * 5) == 0;
+                    boolean bl = isMajorContour;
                     rgb = isMajorContour ? (gray > 127 ? 0 : 0xFFFFFF) : TerrainDebugTools.blendColors(rgb, gray > 127 ? 0 : 0xFFFFFF, 0.3);
                 }
                 image.setRGB(px, pz, rgb);
@@ -475,12 +482,12 @@ public class TerrainDebugTools {
         int barY = 60;
         int barMaxWidth = chartWidth - 100;
         g.setFont(new Font("Monospaced", 0, 11));
-        LinkedHashMap<TerrainType, Integer> sortedTypes = new LinkedHashMap<>();
-        typeCounts.entrySet().stream().sorted(Map.Entry.<TerrainType, Integer>comparingByValue().reversed()).forEach(e -> sortedTypes.put(e.getKey(), e.getValue()));
+        LinkedHashMap sortedTypes = new LinkedHashMap();
+        typeCounts.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).forEach(e -> sortedTypes.put((TerrainType)((Object)((Object)e.getKey())), (Integer)e.getValue()));
         int barIndex = 0;
-        for (Map.Entry<TerrainType, Integer> entry : sortedTypes.entrySet()) {
-            TerrainType type = entry.getKey();
-            int count = entry.getValue();
+        for (Map.Entry entry : sortedTypes.entrySet()) {
+            TerrainType type = (TerrainType)((Object)entry.getKey());
+            int count = (Integer)entry.getValue();
             double percent = totalPixels > 0 ? (double)count / (double)totalPixels * 100.0 : 0.0;
             int color = TerrainDebugTools.getTerrainTypeColor(type);
             g.setColor(new Color(color));
@@ -489,7 +496,6 @@ public class TerrainDebugTools {
             g.setColor(Color.BLACK);
             g.drawString(String.format("%s: %.1f%%", type.getId(), percent), 10, barY + 11);
             if (++barIndex < 12 && (barY += 18) <= chartHeight - 20) continue;
-            break;
         }
         g.dispose();
         try {

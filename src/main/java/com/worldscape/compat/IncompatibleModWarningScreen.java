@@ -1,3 +1,14 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.ChatFormatting
+ *  net.minecraft.client.gui.GuiGraphics
+ *  net.minecraft.client.gui.components.Button
+ *  net.minecraft.client.gui.components.events.GuiEventListener
+ *  net.minecraft.client.gui.screens.Screen
+ *  net.minecraft.network.chat.Component
+ */
 package com.worldscape.compat;
 
 import com.worldscape.compat.ModCompatibilityChecker;
@@ -5,6 +16,7 @@ import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -31,8 +43,8 @@ extends Screen {
         int centerY = this.height / 2;
         Button continueButton = Button.builder((Component)Component.literal((String)"Continue Anyway / \u7ee7\u7eed\u4f7f\u7528"), button -> this.onClose()).bounds(centerX - 150, centerY + 190 - 30, 140, 24).build();
         Button backButton = Button.builder((Component)Component.literal((String)"Back / \u8fd4\u56de"), button -> this.minecraft.setScreen(this.parentScreen)).bounds(centerX + 10, centerY + 190 - 30, 140, 24).build();
-        this.addRenderableWidget(continueButton);
-        this.addRenderableWidget(backButton);
+        this.addRenderableWidget((GuiEventListener)continueButton);
+        this.addRenderableWidget((GuiEventListener)backButton);
     }
 
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {

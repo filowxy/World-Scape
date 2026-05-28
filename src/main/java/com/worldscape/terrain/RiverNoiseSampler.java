@@ -1,3 +1,10 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.util.RandomSource
+ *  net.minecraft.world.level.levelgen.synth.NormalNoise
+ */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.RiverInfo;
@@ -26,9 +33,9 @@ public class RiverNoiseSampler {
     }
 
     public RiverInfo sampleRiverInfo(int worldX, int worldZ) {
-        boolean isRiver;
         double pathValue = this.pathNoise.getValue((double)worldX / 64.0, (double)worldZ / 64.0, 0.0);
-        boolean bl = isRiver = Math.abs(pathValue) < 0.15;
+        boolean isRiver = Math.abs(pathValue) < 0.15;
+        boolean bl = isRiver;
         if (!isRiver) {
             return RiverInfo.EMPTY;
         }

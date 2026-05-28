@@ -1,3 +1,15 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.google.gson.Gson
+ *  com.google.gson.GsonBuilder
+ *  com.google.gson.JsonArray
+ *  com.google.gson.JsonElement
+ *  com.google.gson.JsonObject
+ *  com.google.gson.JsonParser
+ *  com.worldscape.WorldScape
+ */
 package com.worldscape.voronoi;
 
 import com.google.gson.Gson;
@@ -189,7 +201,8 @@ public class VoronoiDataPersistence {
                 }
                 string = sb.toString();
             }
-            return string;
+            String string2 = string;
+            return string2;
         }
     }
 

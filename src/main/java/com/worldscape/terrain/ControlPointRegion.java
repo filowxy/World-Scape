@@ -1,3 +1,11 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.util.RandomSource
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.TerrainControlPoint;
@@ -120,7 +128,6 @@ public class ControlPointRegion {
     }
 
     private int calculateAdaptiveMaxHeightDiff(TerrainType t1, TerrainType t2) {
-        boolean hasExtreme;
         if (this.isNaturalCliffPair(t1, t2)) {
             return 300;
         }
@@ -128,7 +135,8 @@ public class ControlPointRegion {
         int level2 = this.getTerrainLevel(t2);
         int levelDiff = Math.abs(level1 - level2);
         int baseDiff = 100 + levelDiff * 100;
-        boolean bl = hasExtreme = this.isExtremeTerrain(t1) || this.isExtremeTerrain(t2);
+        boolean hasExtreme = this.isExtremeTerrain(t1) || this.isExtremeTerrain(t2);
+        boolean bl = hasExtreme;
         if (hasExtreme && levelDiff >= 3) {
             baseDiff += 100;
         }
@@ -136,10 +144,9 @@ public class ControlPointRegion {
     }
 
     private boolean isNaturalCliffPair(TerrainType t1, TerrainType t2) {
-        boolean isLowlandErosion;
         if (t1 == TerrainType.CLIFF || t2 == TerrainType.CLIFF) {
-            TerrainType other;
-            TerrainType terrainType = other = t1 == TerrainType.CLIFF ? t2 : t1;
+            TerrainType other = t1 == TerrainType.CLIFF ? t2 : t1;
+            TerrainType terrainType = other;
             if (other == TerrainType.CLIFF) {
                 return true;
             }
@@ -153,7 +160,8 @@ public class ControlPointRegion {
         }
         boolean isHighMountain = t1 == TerrainType.HIGH_MOUNTAINS || t2 == TerrainType.HIGH_MOUNTAINS;
         boolean isHorn = t1 == TerrainType.HORN || t2 == TerrainType.HORN;
-        boolean bl = isLowlandErosion = t1 == TerrainType.CANYON || t2 == TerrainType.CANYON || t1 == TerrainType.TRENCH || t2 == TerrainType.TRENCH || t1 == TerrainType.GLACIAL_VALLEY || t2 == TerrainType.GLACIAL_VALLEY || t1 == TerrainType.SINKHOLE || t2 == TerrainType.SINKHOLE;
+        boolean isLowlandErosion = t1 == TerrainType.CANYON || t2 == TerrainType.CANYON || t1 == TerrainType.TRENCH || t2 == TerrainType.TRENCH || t1 == TerrainType.GLACIAL_VALLEY || t2 == TerrainType.GLACIAL_VALLEY || t1 == TerrainType.SINKHOLE || t2 == TerrainType.SINKHOLE;
+        boolean bl = isLowlandErosion;
         if ((isHighMountain || isHorn) && isLowlandErosion) {
             return true;
         }

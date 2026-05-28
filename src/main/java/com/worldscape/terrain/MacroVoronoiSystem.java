@@ -1,3 +1,9 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.util.RandomSource
+ */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.MacroRegionInfo;
@@ -15,6 +21,8 @@ public class MacroVoronoiSystem {
     private static final int MAX_TRANSITION_WIDTH = 2400;
     private static final double WATER_TRANSITION_MULTIPLIER = 6.0;
     private static final int OCEAN_TIER_THRESHOLD = 2;
+    private static final int SPAWN_OCEAN_RADIUS_CELLS = 2;
+    private static final double SPAWN_MAX_OCEAN_WEIGHT = 0.4;
     private final long worldSeed;
     private final int seaLevel;
     private final long voronoiXSeed;
@@ -111,8 +119,6 @@ public class MacroVoronoiSystem {
         int transitionWidth = 800;
         int secondTier = primaryTier;
         if (secondCellX != -1) {
-            double minHalfBand;
-            boolean secondIsOcean;
             secondTier = this.getAdjustedElevationTier(secondCellX, secondCellZ);
             int tierDiff = Math.abs(primaryTier - secondTier);
             int primaryBase = MacroVoronoiSystem.getBaseHeightForTier(primaryTier);
@@ -122,7 +128,8 @@ public class MacroVoronoiSystem {
             transitionWidth = Math.max(800, Math.min(2400, calculatedWidth));
             boolean bothUnderwater = primaryBase < this.seaLevel && secondBase < this.seaLevel;
             boolean primaryIsOcean = primaryTier < 2;
-            boolean bl = secondIsOcean = secondTier < 2;
+            boolean secondIsOcean = secondTier < 2;
+            boolean bl = secondIsOcean;
             if (bothUnderwater && primaryIsOcean && secondIsOcean) {
                 transitionWidth = (int)((double)transitionWidth * 6.0);
                 transitionWidth = Math.min(2400, transitionWidth);
@@ -131,7 +138,8 @@ public class MacroVoronoiSystem {
             double secondDist = Math.sqrt(secondMinDistSq);
             double distRatio = primaryDist / (primaryDist + secondDist + 0.001);
             double halfBand = Math.min(0.45, (double)(transitionWidth / 2048) * 2.0);
-            if (halfBand < (minHalfBand = 0.08)) {
+            double minHalfBand = 0.08;
+            if (halfBand < 0.08) {
                 halfBand = minHalfBand;
             }
             double edge0 = 0.5 - halfBand;
@@ -162,11 +170,18 @@ public class MacroVoronoiSystem {
     }
 
     private int getRawElevationTier(int cellX, int cellZ) {
+        double r;
         long seed = SeedDeriver.deriveSeed(this.elevationSeed, (long)cellX * 31L + (long)cellZ * 17L);
         RandomSource random = RandomSource.create((long)seed);
         int tier = random.nextInt(6);
-        double r = random.nextDouble();
-        tier = r < 0.25 ? Math.min(tier, 2) : (r < 0.55 ? Math.min(tier, 3) : (r < 0.8 ? Math.min(tier, 4) : Math.min(tier, 5)));
+        int distFromSpawn = Math.max(Math.abs(cellX), Math.abs(cellZ));
+        if (distFromSpawn <= 2) {
+            double oceanWeight = 0.4 * (1.0 - (double)distFromSpawn / 3.0);
+            if (random.nextDouble() < oceanWeight && tier > 1) {
+                tier = random.nextInt(2);
+            }
+        }
+        tier = (r = random.nextDouble()) < 0.25 ? Math.min(tier, 2) : (r < 0.55 ? Math.min(tier, 3) : (r < 0.8 ? Math.min(tier, 4) : Math.min(tier, 5)));
         return tier;
     }
 

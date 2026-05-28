@@ -1,3 +1,29 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.core.Registry
+ *  net.minecraft.core.registries.Registries
+ *  net.minecraft.server.level.WorldGenRegion
+ *  net.minecraft.world.level.LevelHeightAccessor
+ *  net.minecraft.world.level.biome.BiomeManager
+ *  net.minecraft.world.level.block.Blocks
+ *  net.minecraft.world.level.chunk.ChunkAccess
+ *  net.minecraft.world.level.chunk.ChunkGenerator
+ *  net.minecraft.world.level.levelgen.Aquifer$FluidPicker
+ *  net.minecraft.world.level.levelgen.Aquifer$FluidStatus
+ *  net.minecraft.world.level.levelgen.DensityFunctions$BeardifierOrMarker
+ *  net.minecraft.world.level.levelgen.NoiseChunk
+ *  net.minecraft.world.level.levelgen.NoiseGeneratorSettings
+ *  net.minecraft.world.level.levelgen.PositionalRandomFactory
+ *  net.minecraft.world.level.levelgen.RandomState
+ *  net.minecraft.world.level.levelgen.SurfaceRules$RuleSource
+ *  net.minecraft.world.level.levelgen.SurfaceSystem
+ *  net.minecraft.world.level.levelgen.WorldGenerationContext
+ *  net.minecraft.world.level.levelgen.blending.Blender
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.generator;
 
 import com.worldscape.generator.SurfaceAdapter;
@@ -9,6 +35,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.BiomeManager;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Aquifer;
@@ -70,12 +97,12 @@ implements SurfaceAdapter {
         RandomState randomState = (RandomState)context.getRandomState();
         ChunkAccess chunk = (ChunkAccess)context.getChunk();
         WorldGenRegion region = (WorldGenRegion)context.getRegion();
-        Method fluidPickerMethod = cache.fluidPickerMethod;
-        fluidPickerMethod.setAccessible(true);
-        Object fluidPicker = fluidPickerMethod.invoke((Object)randomState, new Object[0]);
-        Method beardifierMethod = cache.beardifierMethod;
-        beardifierMethod.setAccessible(true);
-        Object beardifier = beardifierMethod.invoke((Object)randomState, new Object[0]);
+        Aquifer.FluidPicker fluidPicker = this.createDefaultFluidPicker();
+        DensityFunctions.BeardifierOrMarker beardifier = this.createDefaultBeardifier();
+        if (beardifier == null) {
+            LOGGER.error("{} Failed to create BeardifierOrMarker, surface build aborted", (Object)MOD_ID);
+            return false;
+        }
         Object noBlendBlender = this.getNoBlendBlender(cache);
         Method forChunkMethod = cache.forChunkMethod;
         forChunkMethod.setAccessible(true);
@@ -97,6 +124,35 @@ implements SurfaceAdapter {
         buildSurfaceMethod.invoke((Object)surfaceSystem, randomState, biomeManager, biomeRegistry, false, worldGenContext, chunk, noiseChunk, ruleSource);
         LOGGER.debug("{} Surface built successfully", (Object)MOD_ID);
         return true;
+    }
+
+    private Aquifer.FluidPicker createDefaultFluidPicker() {
+        final int seaLevel = this.settings.seaLevel();
+        return new Aquifer.FluidPicker(){
+
+            public Aquifer.FluidStatus computeFluid(int x, int y, int z) {
+                return new Aquifer.FluidStatus(seaLevel, Blocks.WATER.defaultBlockState());
+            }
+        };
+    }
+
+    private DensityFunctions.BeardifierOrMarker createDefaultBeardifier() {
+        try {
+            Field emptyField = DensityFunctions.BeardifierOrMarker.class.getDeclaredField("EMPTY");
+            emptyField.setAccessible(true);
+            return (DensityFunctions.BeardifierOrMarker)emptyField.get(null);
+        }
+        catch (Exception e1) {
+            try {
+                Field srgField = DensityFunctions.BeardifierOrMarker.class.getDeclaredField("field_37113");
+                srgField.setAccessible(true);
+                return (DensityFunctions.BeardifierOrMarker)srgField.get(null);
+            }
+            catch (Exception e2) {
+                LOGGER.warn("{} Could not create default BeardifierOrMarker", (Object)MOD_ID);
+                return null;
+            }
+        }
     }
 
     private ChunkGenerator getGeneratorReference() {
@@ -217,11 +273,25 @@ implements SurfaceAdapter {
         ReflectionCache() {
             try {
                 this.forChunkMethod = NoiseChunk.class.getDeclaredMethod("forChunk", ChunkAccess.class, RandomState.class, DensityFunctions.BeardifierOrMarker.class, NoiseGeneratorSettings.class, Aquifer.FluidPicker.class, Blender.class);
-                this.fluidPickerMethod = RandomState.class.getDeclaredMethod("fluidPicker", new Class[0]);
-                this.beardifierMethod = RandomState.class.getDeclaredMethod("beardifier", new Class[0]);
-                this.noiseRouterMethod = RandomState.class.getDeclaredMethod("noiseRouter", new Class[0]);
-                Class<?> noiseRouterClass = this.noiseRouterMethod.getReturnType();
-                this.noiseRandomMethod = noiseRouterClass.getDeclaredMethod("noiseRandom", new Class[0]);
+                this.fluidPickerMethod = null;
+                this.beardifierMethod = null;
+                try {
+                    this.noiseRouterMethod = RandomState.class.getDeclaredMethod("router", new Class[0]);
+                }
+                catch (NoSuchMethodException nsme1) {
+                    try {
+                        this.noiseRouterMethod = RandomState.class.getDeclaredMethod("noiseRouter", new Class[0]);
+                    }
+                    catch (NoSuchMethodException nsme2) {
+                        this.noiseRouterMethod = null;
+                    }
+                }
+                if (this.noiseRouterMethod != null) {
+                    Class<?> noiseRouterClass = this.noiseRouterMethod.getReturnType();
+                    this.noiseRandomMethod = noiseRouterClass.getDeclaredMethod("noiseRandom", new Class[0]);
+                } else {
+                    this.noiseRandomMethod = null;
+                }
                 Class<SurfaceSystem> surfaceSystemClass = SurfaceSystem.class;
                 this.buildSurfaceMethod = surfaceSystemClass.getDeclaredMethod("buildSurface", RandomState.class, BiomeManager.class, Registry.class, Boolean.TYPE, WorldGenerationContext.class, ChunkAccess.class, NoiseChunk.class, SurfaceRules.RuleSource.class);
                 for (String fieldName : new String[]{"preliminarySurfaceLevel", "surfaceHeightEstimateCache", "f_224353_"}) {

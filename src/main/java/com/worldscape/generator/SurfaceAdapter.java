@@ -1,3 +1,6 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
 package com.worldscape.generator;
 
 public interface SurfaceAdapter {

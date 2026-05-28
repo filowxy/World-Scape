@@ -1,3 +1,6 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
 package com.worldscape.voronoi;
 
 import com.worldscape.voronoi.VoronoiCalculator;

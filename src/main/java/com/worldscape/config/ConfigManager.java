@@ -1,3 +1,15 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.neoforged.fml.event.config.ModConfigEvent$Loading
+ *  net.neoforged.fml.event.config.ModConfigEvent$Reloading
+ *  net.neoforged.neoforge.common.ModConfigSpec
+ *  net.neoforged.neoforge.common.ModConfigSpec$BooleanValue
+ *  net.neoforged.neoforge.common.ModConfigSpec$Builder
+ *  net.neoforged.neoforge.common.ModConfigSpec$DoubleValue
+ *  net.neoforged.neoforge.common.ModConfigSpec$IntValue
+ */
 package com.worldscape.config;
 
 import java.util.concurrent.atomic.AtomicReference;

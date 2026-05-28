@@ -1,3 +1,16 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.core.Holder
+ *  net.minecraft.core.Registry
+ *  net.minecraft.resources.ResourceKey
+ *  net.minecraft.resources.ResourceLocation
+ *  net.minecraft.tags.BiomeTags
+ *  net.minecraft.world.level.biome.Biome
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.compat;
 
 import com.worldscape.terrain.TerrainType;
@@ -55,8 +68,8 @@ public class TerraBlenderCompat {
             LOGGER.debug("[TerraBlender Compat] Found {} TerraBlender regions", (Object)regions.size());
             HashSet<ResourceLocation> seenBiomes = new HashSet<ResourceLocation>();
             for (Object region : regions) {
-                List<Holder<Biome>> biomes = (List<Holder<Biome>>)getBiomesMethod.invoke(region, new Object[0]);
-                for (Holder<Biome> biome : biomes) {
+                List biomes = (List)getBiomesMethod.invoke(region, new Object[0]);
+                for (Holder biome : biomes) {
                     ResourceLocation biomeId;
                     if (!this.isOverworldBiome((Holder<Biome>)biome) || seenBiomes.contains(biomeId = ((ResourceKey)biome.unwrapKey().orElseThrow()).location())) continue;
                     this.allOverworldBiomes.add(biomeId);

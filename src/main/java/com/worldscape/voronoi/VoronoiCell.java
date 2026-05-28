@@ -1,3 +1,6 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
 package com.worldscape.voronoi;
 
 import com.worldscape.voronoi.VoronoiControlPoint;
@@ -127,11 +130,12 @@ public class VoronoiCell {
         int i = 0;
         int j = n - 1;
         while (i < n) {
-            double yj;
+            double d;
             double xi = this.vertices.get(i).getX();
             double yi = this.vertices.get(i).getY();
             double xj = this.vertices.get(j).getX();
-            if (yi > y != (yj = this.vertices.get(j).getY()) > y && x < (xj - xi) * (y - yi) / (yj - yi) + xi) {
+            double yj = this.vertices.get(j).getY();
+            if (yi > y != d > y && x < (xj - xi) * (y - yi) / (yj - yi) + xi) {
                 inside = !inside;
             }
             j = i++;

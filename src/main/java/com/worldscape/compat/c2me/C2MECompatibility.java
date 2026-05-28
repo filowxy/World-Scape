@@ -1,3 +1,10 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.worldscape.WorldScape
+ *  net.minecraft.world.level.chunk.ChunkGenerator
+ */
 package com.worldscape.compat.c2me;
 
 import com.worldscape.WorldScape;

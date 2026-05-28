@@ -1,3 +1,9 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.util.RandomSource
+ */
 package com.worldscape.util;
 
 import net.minecraft.util.RandomSource;

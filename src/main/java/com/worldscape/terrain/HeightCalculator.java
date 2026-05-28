@@ -1,3 +1,10 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.util.RandomSource
+ *  net.minecraft.world.level.levelgen.synth.NormalNoise
+ */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.ControlPointManager;
@@ -60,12 +67,12 @@ public class HeightCalculator {
         double tierMinHeight = this.getTierMinimumHeight(elevationTier);
         microHeight = Math.max(microHeight, tierMinHeight);
         double tierAdjustment = (double)(elevationTier - 4) * 8.0 * 0.15;
-        double finalHeight;
         if (blendWeight > 0.8) {
             finalHeight = microHeight + tierAdjustment;
         } else {
-            double boundaryProximity = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
-            boundaryProximity = Math.max(0.0, Math.min(1.0, boundaryProximity));
+            double boundaryProximityRaw = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
+            boundaryProximityRaw = Math.max(0.0, Math.min(1.0, boundaryProximityRaw));
+            double boundaryProximity = WorldScapeUtils.smoothstep(0.0, 1.0, boundaryProximityRaw);
             double macroInfluence = boundaryProximity * 0.15;
             if (elevationTier == 0) {
                 macroInfluence *= 0.33;
@@ -122,12 +129,12 @@ public class HeightCalculator {
         HeightCache cache = null;
         for (int z = 0; z < size; ++z) {
             for (int x = 0; x < size; ++x) {
-                boolean cacheValid;
                 int worldX = startX + x;
                 int worldZ = startZ + z;
                 int regionX = Math.floorDiv(worldX, regionSize);
                 int regionZ = Math.floorDiv(worldZ, regionSize);
-                boolean bl = cacheValid = regionX == lastRegionX && regionZ == lastRegionZ;
+                boolean cacheValid = regionX == lastRegionX && regionZ == lastRegionZ;
+                boolean bl = cacheValid;
                 if (!cacheValid) {
                     cachedPoints = this.controlPointManager.getNearbyControlPoints(worldX, worldZ, 600.0);
                     lastN1 = this.n1Noise.getValue((double)worldX / 512.0, (double)worldZ / 512.0, 0.0);
@@ -184,6 +191,7 @@ public class HeightCalculator {
         TerrainType[] types = new TerrainType[size * size];
         for (int z = 0; z < size; ++z) {
             for (int x = 0; x < size; ++x) {
+                TerrainType type;
                 int idx = z * size + x;
                 int worldX = startX + x;
                 int worldZ = startZ + z;
@@ -191,8 +199,7 @@ public class HeightCalculator {
                 int tier = macroInfo.getElevationTier();
                 double height = heightMap[idx];
                 double gradient = gradientMap[idx];
-                TerrainType type = gradient > 25.0 ? (height > 120.0 ? TerrainType.HIGH_MOUNTAINS : TerrainType.CLIFF) : (gradient > 15.0 ? (height > 150.0 ? TerrainType.HIGH_MOUNTAINS : (height > 100.0 ? TerrainType.RIDGE : (height < 25.0 ? TerrainType.CANYON : TerrainType.HILLS))) : (gradient > 8.0 ? (height > 120.0 ? TerrainType.RIDGE : (height > 70.0 ? TerrainType.PLATEAU : TerrainType.HILLS)) : (gradient > 3.0 ? (height > 80.0 ? TerrainType.DOME : TerrainType.HILLS) : (height > 80.0 ? TerrainType.DOME : (height > 25.0 ? TerrainType.PLAINS : (height > 15.0 ? TerrainType.BEACH : TerrainType.PLAINS))))));
-                types[idx] = type;
+                types[idx] = type = gradient > 25.0 ? (height > 120.0 ? TerrainType.HIGH_MOUNTAINS : TerrainType.CLIFF) : (gradient > 15.0 ? (height > 150.0 ? TerrainType.HIGH_MOUNTAINS : (height > 100.0 ? TerrainType.RIDGE : (height < 25.0 ? TerrainType.CANYON : TerrainType.HILLS))) : (gradient > 8.0 ? (height > 120.0 ? TerrainType.RIDGE : (height > 70.0 ? TerrainType.PLATEAU : TerrainType.HILLS)) : (gradient > 3.0 ? (height > 80.0 ? TerrainType.DOME : TerrainType.HILLS) : (height > 80.0 ? TerrainType.DOME : (height > 25.0 ? TerrainType.PLAINS : (height > 15.0 ? TerrainType.BEACH : TerrainType.PLAINS))))));
             }
         }
         return types;

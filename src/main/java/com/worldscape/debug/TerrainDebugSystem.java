@@ -1,3 +1,10 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.debug;
 
 import com.worldscape.config.WelcomeScreenConfig;
@@ -26,9 +33,10 @@ public class TerrainDebugSystem {
             return;
         }
         Class<TerrainDebugSystem> clazz = TerrainDebugSystem.class;
+        Class<TerrainDebugSystem> clazz2 = TerrainDebugSystem.class;
         synchronized (TerrainDebugSystem.class) {
             if (initialized) {
-                // ** MonitorExit[var0] (shouldn't be in output)
+                // ** MonitorExit[var1_1] (shouldn't be in output)
                 return;
             }
             initialized = true;
@@ -47,7 +55,7 @@ public class TerrainDebugSystem {
                 LOGGER.info("[World Scape] Debug Mode INACTIVE - Standard mode active");
             }
             LOGGER.info("[World Scape] TerrainDebugSystem initialized (debugMode={}, logging={}, pillars={}, sampleRate={})", new Object[]{debugMode, debugLoggingEnabled, debugPillarsEnabled, chunkSampleRate});
-            // ** MonitorExit[var0] (shouldn't be in output)
+            // ** MonitorExit[var1_1] (shouldn't be in output)
             return;
         }
     }

@@ -1,3 +1,9 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.worldscape.WorldScape
+ */
 package com.worldscape.voronoi;
 
 import com.worldscape.WorldScape;
@@ -24,11 +30,12 @@ public class WorldScapeVoronoiSystem {
      * WARNING - Removed try catching itself - possible behaviour change.
      */
     public static void init(File gameDir) {
+        Object object;
         if (initialized) {
             return;
         }
-        Object object = INIT_LOCK;
-        synchronized (object) {
+        Object object2 = object = INIT_LOCK;
+        synchronized (object2) {
             if (initialized) {
                 return;
             }
@@ -79,7 +86,8 @@ public class WorldScapeVoronoiSystem {
 
     public static boolean toggle() {
         WorldScapeVoronoiSystem.ensureInitialized();
-        boolean bl = enabled = !enabled;
+        enabled = !enabled;
+        boolean bl = enabled;
         if (enabled) {
             WorldScape.LOGGER.info("[WorldScapeVoronoi] Voronoi visualization enabled");
             VoronoiOverlayRenderer.setEnabled(true);

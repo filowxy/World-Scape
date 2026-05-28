@@ -1,3 +1,12 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.world.level.chunk.ChunkGenerator
+ *  net.minecraft.world.level.levelgen.NoiseGeneratorSettings
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.generator;
 
 import com.worldscape.generator.FallbackSurfaceAdapter;

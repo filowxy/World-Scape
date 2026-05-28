@@ -1,5 +1,43 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.mojang.datafixers.kinds.App
+ *  com.mojang.datafixers.kinds.Applicative
+ *  com.mojang.serialization.Codec
+ *  com.mojang.serialization.MapCodec
+ *  com.mojang.serialization.codecs.RecordCodecBuilder
+ *  javax.annotation.ParametersAreNonnullByDefault
+ *  net.minecraft.core.BlockPos
+ *  net.minecraft.core.BlockPos$MutableBlockPos
+ *  net.minecraft.core.Holder
+ *  net.minecraft.server.level.WorldGenRegion
+ *  net.minecraft.util.RandomSource
+ *  net.minecraft.world.level.ChunkPos
+ *  net.minecraft.world.level.LevelHeightAccessor
+ *  net.minecraft.world.level.NoiseColumn
+ *  net.minecraft.world.level.StructureManager
+ *  net.minecraft.world.level.biome.Biome
+ *  net.minecraft.world.level.biome.BiomeManager
+ *  net.minecraft.world.level.biome.BiomeSource
+ *  net.minecraft.world.level.block.Blocks
+ *  net.minecraft.world.level.block.state.BlockState
+ *  net.minecraft.world.level.chunk.ChunkAccess
+ *  net.minecraft.world.level.chunk.ChunkGenerator
+ *  net.minecraft.world.level.chunk.LevelChunkSection
+ *  net.minecraft.world.level.chunk.ProtoChunk
+ *  net.minecraft.world.level.levelgen.GenerationStep$Carving
+ *  net.minecraft.world.level.levelgen.Heightmap$Types
+ *  net.minecraft.world.level.levelgen.NoiseGeneratorSettings
+ *  net.minecraft.world.level.levelgen.RandomState
+ *  net.minecraft.world.level.levelgen.blending.Blender
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.generator;
 
+import com.mojang.datafixers.kinds.App;
+import com.mojang.datafixers.kinds.Applicative;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -12,6 +50,7 @@ import com.worldscape.terrain.MacroRegionInfo;
 import com.worldscape.terrain.MacroVoronoiSystem;
 import com.worldscape.terrain.NoiseSet;
 import com.worldscape.terrain.RegionController;
+import com.worldscape.terrain.TerrainCalculator;
 import com.worldscape.terrain.TerrainControlPoint;
 import com.worldscape.terrain.TerrainFieldSampler;
 import com.worldscape.terrain.TerrainType;
@@ -21,10 +60,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -63,24 +102,8 @@ extends ChunkGenerator {
     private final int seaLevel;
     private final int minY;
     private final int height;
-    private final ThreadLocal<Map<Long, RiverCacheData>> riverCache =
-        ThreadLocal.withInitial(() -> new HashMap<>(4));
-    public static final MapCodec<LandscapeChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-        BiomeSource.CODEC.fieldOf("biome_source").forGetter(LandscapeChunkGenerator::getBiomeSource),
-        NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(LandscapeChunkGenerator::getSettings),
-        Codec.LONG.fieldOf("seed").orElse(0L).forGetter(LandscapeChunkGenerator::getWorldSeed)
-    ).apply(instance, LandscapeChunkGenerator::new));
-    public static final int FALLBACK_SEA_LEVEL = 63;
-    private static final int OVERWORLD_MIN_Y = -64;
-    private static final int OVERWORLD_HEIGHT = 384;
-    private static final double RIVER_DIFF_THRESHOLD = 0.1;
-    private static final int HILLS_TIER_THRESHOLD = 3;
-    private static final int MOUNTAINS_TIER_THRESHOLD = 5;
-    private static final int EROSION_TIER_THRESHOLD = 3;
-    private static final double EROSION_NOISE_THRESHOLD = 0.45;
-    private static final double EROSION_INTENSITY_FACTOR = 0.8;
-    private static final double ALLUVIAL_THRESHOLD = 0.45;
-    private static final double ALLUVIAL_FACTOR = 0.4;
+    private final ThreadLocal<Map<Long, RiverCacheData>> riverCache = ThreadLocal.withInitial(() -> new HashMap(4));
+    public static final MapCodec<LandscapeChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group((App)BiomeSource.CODEC.fieldOf("biome_source").forGetter(LandscapeChunkGenerator::getBiomeSource), (App)NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(LandscapeChunkGenerator::getSettings), (App)Codec.LONG.fieldOf("seed").orElse((Object)0L).forGetter(LandscapeChunkGenerator::getWorldSeed)).apply((Applicative)instance, LandscapeChunkGenerator::new));
     private final AtomicReference<Method> forChunkMethodRef = new AtomicReference();
     private final AtomicReference<Method> fluidPickerMethodRef = new AtomicReference();
     private final AtomicReference<Method> beardifierMethodRef = new AtomicReference();
@@ -93,16 +116,12 @@ extends ChunkGenerator {
     private final AtomicReference<HeightCalculator> heightCalculatorRef = new AtomicReference();
     private final AtomicReference<TerrainFieldSampler> fieldSamplerRef = new AtomicReference();
     private final AtomicReference<SurfaceAdapter> surfaceAdapterRef = new AtomicReference();
-    private static final double SLOPE_ANOMALY_THRESHOLD = 30.0;
-    private static final int HEIGHT_CHANGE_WARNING_THRESHOLD = 100;
-    private static final int HEIGHT_CHANGE_CRITICAL_THRESHOLD = 150;
-    private static final int VOID_MIN_HEIGHT = -64;
-    private static final int MAX_BEDROCK_LAYERS = 3;
-    private static final long BEDROCK_SEED = 388350381470L;
-    private static final int DEEPSLATE_TOP_Y = 0;
     private static final AtomicInteger warningCount = new AtomicInteger(0);
     private static final AtomicInteger voidWarningCount = new AtomicInteger(0);
     private static final AtomicInteger extremeSlopeCount = new AtomicInteger(0);
+    private static final boolean DIAGNOSE_OCEAN = true;
+    private static final int DIAGNOSE_MAX_CHUNKS = 10;
+    private static final AtomicInteger diagChunkCount = new AtomicInteger(0);
 
     public LandscapeChunkGenerator(BiomeSource biomeSource, long worldSeed) {
         super(biomeSource);
@@ -197,116 +216,43 @@ extends ChunkGenerator {
     }
 
     private double calculateFinalHeight(int x, int z, RegionController.TerrainBlendResult blend, TerrainType type, NoiseSet noiseSet) {
-        double finalHeight;
-        double baseHeight = blend.blendedHeight;
-        double dominantWeight = blend.dominantWeight;
-        TerrainType dominantType = blend.dominantType;
-        double dominantHeight = baseHeight;
-        if (dominantWeight >= 0.4) {
-            finalHeight = dominantHeight = this.calcHeightForType(x, z, baseHeight, dominantType);
-        } else {
-            double dominantTypeHeight = this.calcHeightForType(x, z, baseHeight, dominantType);
-            double currentTypeHeight = this.calcHeightForType(x, z, baseHeight, type);
-            double blendFactor = dominantWeight / 0.4;
-            finalHeight = dominantTypeHeight * blendFactor + currentTypeHeight * (1.0 - blendFactor);
-        }
-        return finalHeight;
+        return TerrainCalculator.calculateFinalHeight(x, z, blend, type, noiseSet, this.getFieldSampler());
     }
 
     private double getRiverErosionIntensity(int worldX, int worldZ, NoiseSet noiseSet, double baseHeight, int seaLevel, RegionController.TerrainBlendResult blend) {
-        if (blend.macroInfo.elevationTier < 3) {
-            return 0.0;
-        }
-        double erosionNoise = noiseSet.sample(NoiseSet.NoiseProfile.DRAINAGE, worldX, worldZ);
-        if (erosionNoise < 0.45) {
-            return 0.0;
-        }
-        double intensity = (erosionNoise - 0.45) / 0.55;
-        double elevationFactor = Math.max(0.0, (baseHeight - (double)seaLevel) / 100.0);
-        return intensity * elevationFactor * 0.8;
+        return TerrainCalculator.getRiverErosionIntensity(worldX, worldZ, noiseSet, baseHeight, seaLevel, blend);
     }
 
     private double getAlluvialFactor(int worldX, int worldZ, NoiseSet noiseSet, double baseHeight, int seaLevel) {
-        if (baseHeight > (double)(seaLevel + 20)) {
-            return 0.0;
-        }
-        double alluvialNoise = noiseSet.sample(NoiseSet.NoiseProfile.SEABED, worldX, worldZ);
-        if (alluvialNoise < 0.45) {
-            return 0.0;
-        }
-        double factor = (alluvialNoise - 0.45) / 0.55;
-        double distanceFactor = Math.max(0.0, 1.0 - (baseHeight - (double)seaLevel) / 20.0);
-        return factor * distanceFactor * 0.4;
+        return TerrainCalculator.getAlluvialFactor(worldX, worldZ, noiseSet, baseHeight, seaLevel);
     }
 
     private TerrainType determineTerrainType(RegionController.TerrainBlendResult blend) {
-        TerrainType dominantType = blend.dominantType;
-        double dominantWeight = blend.dominantWeight;
-        if (dominantType != null && dominantWeight >= 0.4) {
-            return dominantType;
-        }
-        int tier = blend.macroInfo.elevationTier;
-        if (tier <= 0) {
-            return TerrainType.TRENCH;
-        }
-        if (tier == 1) {
-            return TerrainType.SEA_PLATEAU;
-        }
-        if (tier == 2) {
-            return TerrainType.BEACH;
-        }
-        if (tier == 3) {
-            return TerrainType.PLAINS;
-        }
-        if (tier == 4) {
-            return TerrainType.HILLS;
-        }
-        return TerrainType.HIGH_MOUNTAINS;
+        return TerrainCalculator.determineTerrainType(blend);
     }
 
     private int calculateActualSurfaceHeight(int terrainHeight, boolean isRiver, double riverDepth, int minY) {
-        if (isRiver && riverDepth > 0.5) {
-            return (int)Math.max((double)minY, (double)terrainHeight - riverDepth);
-        }
-        return terrainHeight;
+        return TerrainCalculator.calculateActualSurfaceHeight(terrainHeight, isRiver, riverDepth, minY);
     }
 
     private int calculateErodedHeight(int worldX, int worldZ, double continuousHeight, boolean isRiver, double riverDepth, int seaLevel, NoiseSet noiseSet, RegionController.TerrainBlendResult blend) {
-        double erosionIntensity = this.getRiverErosionIntensity(worldX, worldZ, noiseSet, continuousHeight, seaLevel, blend);
-        return this.calculateErodedHeight(worldX, worldZ, continuousHeight, isRiver, riverDepth, seaLevel, noiseSet, blend, erosionIntensity);
+        return TerrainCalculator.calculateErodedHeight(worldX, worldZ, continuousHeight, isRiver, riverDepth, seaLevel, noiseSet, blend);
     }
 
     private int calculateErodedHeight(int worldX, int worldZ, double continuousHeight, boolean isRiver, double riverDepth, int seaLevel, NoiseSet noiseSet, RegionController.TerrainBlendResult blend, double erosionIntensity) {
-        double alluvialFactor = this.getAlluvialFactor(worldX, worldZ, noiseSet, continuousHeight, seaLevel);
-        return this.calculateErodedHeight(continuousHeight, isRiver, riverDepth, seaLevel, erosionIntensity, alluvialFactor);
+        return TerrainCalculator.calculateErodedHeight(worldX, worldZ, continuousHeight, isRiver, riverDepth, seaLevel, noiseSet, blend, erosionIntensity);
     }
 
     private int calculateErodedHeight(double continuousHeight, boolean isRiver, double riverDepth, int seaLevel, double erosionIntensity, double alluvialFactor) {
-        double erodedHeight = continuousHeight;
-        if (isRiver && erosionIntensity > 0.1) {
-            double erosionCut = erosionIntensity * 30.0;
-            erodedHeight = continuousHeight - erosionCut;
-        }
-        if (alluvialFactor > 0.1) {
-            double alluvialRaise = alluvialFactor * 5.0;
-            erodedHeight += alluvialRaise;
-        }
-        return (int)Math.floor(erodedHeight);
+        return TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, seaLevel, erosionIntensity, alluvialFactor);
     }
 
     private boolean isRiverAt(int worldX, int worldZ, NoiseSet noiseSet) {
-        double riverNoise = noiseSet.sample(NoiseSet.NoiseProfile.RIVER_PATH, worldX, worldZ);
-        double riverPath = noiseSet.sample(NoiseSet.NoiseProfile.RIVER_WIDTH, worldX, worldZ);
-        return riverNoise > 0.1 && Math.abs(riverPath) < 0.15;
+        return TerrainCalculator.isRiverAt(worldX, worldZ, noiseSet);
     }
 
     private double getRiverDepthAt(int worldX, int worldZ, NoiseSet noiseSet, int surfaceHeight, int seaLevel) {
-        if (!this.isRiverAt(worldX, worldZ, noiseSet)) {
-            return 0.0;
-        }
-        double riverNoise = noiseSet.sample(NoiseSet.NoiseProfile.RIVER_PATH, worldX, worldZ);
-        double depth = (riverNoise - 0.1) * 2.5 * 10.0;
-        return Math.max(3.0, Math.min(depth, 20.0));
+        return TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel);
     }
 
     private int calculateRiverWaterLevel(int surfaceHeight, boolean isRiver, double riverDepth, int seaLevel, int minY) {
@@ -319,7 +265,7 @@ extends ChunkGenerator {
     private void world_scape_fillColumn(ProtoChunk protoChunk, int worldX, int worldZ, int minY, int terrainHeight, int seaLevel, TerrainType terrainType, boolean isRiver, double riverDepth, RandomState randomState, RegionController controller, NoiseSet noiseSet, RegionController.TerrainBlendResult cachedBlend, TerrainType cachedType, double cachedContinuousHeight, double cachedErosionIntensity, double cachedAlluvialFactor) {
         int stoneStartY;
         int y;
-        double alluvialFactor;
+        double d;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         RegionController.TerrainBlendResult currentBlend = cachedBlend != null ? cachedBlend : controller.getTerrainBlend(worldX, worldZ);
         TerrainType currentType = cachedType != null ? cachedType : this.determineTerrainType(currentBlend);
@@ -334,7 +280,8 @@ extends ChunkGenerator {
             double erosionCut = erosionIntensity * 30.0;
             erodedHeight = continuousHeight - erosionCut;
         }
-        if ((alluvialFactor = cachedAlluvialFactor) > 0.1) {
+        double alluvialFactor = cachedAlluvialFactor;
+        if (d > 0.1) {
             double alluvialRaise = alluvialFactor * 5.0;
             erodedHeight += alluvialRaise;
         }
@@ -373,6 +320,7 @@ extends ChunkGenerator {
         int minZ = chunk.getPos().getMinBlockZ();
         for (int x = 0; x < 16; ++x) {
             for (int z = 0; z < 16; ++z) {
+                boolean isOceanBiome;
                 int stoneStartY;
                 int y;
                 int worldX = minX + x;
@@ -400,6 +348,10 @@ extends ChunkGenerator {
                     chunk.setBlockState((BlockPos)pos, Blocks.STONE.defaultBlockState(), false);
                 }
                 if (surfaceY >= this.seaLevel) continue;
+                int biomeSampleY = Math.max(this.minY, Math.min(surfaceY, this.minY + this.height - 1));
+                String biomeId = region.getBiome((BlockPos)pos.set(worldX, biomeSampleY, worldZ)).unwrapKey().map(k -> k.location().toString()).orElse("");
+                boolean bl = isOceanBiome = biomeId.contains("ocean") || biomeId.contains("deep_ocean") || biomeId.contains("sea") || biomeId.contains("cold_ocean") || biomeId.contains("frozen_ocean") || biomeId.contains("lukewarm_ocean") || biomeId.contains("warm_ocean");
+                if (!isOceanBiome) continue;
                 for (y = surfaceY + 1; y <= this.seaLevel; ++y) {
                     pos.set(worldX, y, worldZ);
                     chunk.setBlockState((BlockPos)pos, Blocks.WATER.defaultBlockState(), false);
@@ -427,7 +379,7 @@ extends ChunkGenerator {
             int minX = chunk.getPos().getMinBlockX();
             int minZ = chunk.getPos().getMinBlockZ();
             NoiseSet noiseSet = this.getNoiseSet();
-            RiverCacheData cachedRiver = this.riverCache.get().remove(ChunkPos.asLong((int)chunk.getPos().x, (int)chunk.getPos().z));
+            RiverCacheData cachedRiver = this.riverCache.get().get(ChunkPos.asLong((int)chunk.getPos().x, (int)chunk.getPos().z));
             for (int x = 0; x < 16; ++x) {
                 for (int z = 0; z < 16; ++z) {
                     int worldX = minX + x;
@@ -469,8 +421,9 @@ extends ChunkGenerator {
     private SurfaceAdapter getOrCreateSurfaceAdapter() {
         SurfaceAdapter adapter = this.surfaceAdapterRef.get();
         if (adapter == null) {
-            LandscapeChunkGenerator landscapeChunkGenerator = this;
-            synchronized (landscapeChunkGenerator) {
+            LandscapeChunkGenerator landscapeChunkGenerator;
+            LandscapeChunkGenerator landscapeChunkGenerator2 = landscapeChunkGenerator = this;
+            synchronized (landscapeChunkGenerator2) {
                 adapter = this.surfaceAdapterRef.get();
                 if (adapter == null) {
                     if (this.settings == null) {
@@ -540,7 +493,7 @@ extends ChunkGenerator {
                 cachedAlluvialFactors[x][z] = alluvialFactor = this.getAlluvialFactor(worldX, worldZ, noiseSet, finalHeight, this.seaLevel);
                 riverMap[x][z] = isRiver = this.isRiverAt(worldX, worldZ, noiseSet);
                 riverDepthMap[x][z] = riverDepth = this.getRiverDepthAt(worldX, worldZ, noiseSet, (int)finalHeight, this.seaLevel);
-                int erodedHeight = this.calculateErodedHeight((int)finalHeight, isRiver, riverDepth, this.seaLevel, erosionIntensity, alluvialFactor);
+                int erodedHeight = this.calculateErodedHeight(finalHeight, isRiver, riverDepth, this.seaLevel, erosionIntensity, alluvialFactor);
                 heightMap[x][z] = this.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, this.minY);
             }
         }
@@ -589,8 +542,9 @@ extends ChunkGenerator {
     private RegionController getRegionController() {
         RegionController controller = this.regionControllerRef.get();
         if (controller == null) {
-            LandscapeChunkGenerator landscapeChunkGenerator = this;
-            synchronized (landscapeChunkGenerator) {
+            LandscapeChunkGenerator landscapeChunkGenerator;
+            LandscapeChunkGenerator landscapeChunkGenerator2 = landscapeChunkGenerator = this;
+            synchronized (landscapeChunkGenerator2) {
                 controller = this.regionControllerRef.get();
                 if (controller == null) {
                     int effectiveSeaLevel = this.settings != null ? ((NoiseGeneratorSettings)this.settings.value()).seaLevel() : this.seaLevel;
@@ -603,8 +557,8 @@ extends ChunkGenerator {
     }
 
     private RegionController.BlendCache buildChunkBlendCache(RegionController controller, int minX, int minZ) {
-        int regionX = Math.floorDiv(minX, 512);
-        int regionZ = Math.floorDiv(minZ, 512);
+        int regionX = Math.floorDiv(minX, 256);
+        int regionZ = Math.floorDiv(minZ, 256);
         ArrayList<TerrainControlPoint> allPoints = new ArrayList<TerrainControlPoint>();
         for (int dx = -1; dx <= 1; ++dx) {
             for (int dz = -1; dz <= 1; ++dz) {
@@ -623,8 +577,9 @@ extends ChunkGenerator {
     private NoiseSet getNoiseSet() {
         NoiseSet noiseSet = this.noiseSetRef.get();
         if (noiseSet == null) {
-            LandscapeChunkGenerator landscapeChunkGenerator = this;
-            synchronized (landscapeChunkGenerator) {
+            LandscapeChunkGenerator landscapeChunkGenerator;
+            LandscapeChunkGenerator landscapeChunkGenerator2 = landscapeChunkGenerator = this;
+            synchronized (landscapeChunkGenerator2) {
                 noiseSet = this.noiseSetRef.get();
                 if (noiseSet == null) {
                     noiseSet = NoiseSet.getOrCreate(this.worldSeed);
@@ -641,8 +596,9 @@ extends ChunkGenerator {
     private TerrainFieldSampler getFieldSampler() {
         TerrainFieldSampler sampler = this.fieldSamplerRef.get();
         if (sampler == null) {
-            LandscapeChunkGenerator landscapeChunkGenerator = this;
-            synchronized (landscapeChunkGenerator) {
+            LandscapeChunkGenerator landscapeChunkGenerator;
+            LandscapeChunkGenerator landscapeChunkGenerator2 = landscapeChunkGenerator = this;
+            synchronized (landscapeChunkGenerator2) {
                 sampler = this.fieldSamplerRef.get();
                 if (sampler == null) {
                     sampler = TerrainFieldSampler.getOrCreate(this.worldSeed);
@@ -659,8 +615,9 @@ extends ChunkGenerator {
     private HeightCalculator getHeightCalculator() {
         HeightCalculator calc = this.heightCalculatorRef.get();
         if (calc == null) {
-            LandscapeChunkGenerator landscapeChunkGenerator = this;
-            synchronized (landscapeChunkGenerator) {
+            LandscapeChunkGenerator landscapeChunkGenerator;
+            LandscapeChunkGenerator landscapeChunkGenerator2 = landscapeChunkGenerator = this;
+            synchronized (landscapeChunkGenerator2) {
                 calc = this.heightCalculatorRef.get();
                 if (calc == null) {
                     MacroVoronoiSystem sharedMacro = this.getRegionController().getMacroSystem();
@@ -722,7 +679,7 @@ extends ChunkGenerator {
                     reflectionAvailable = false;
                 }
                 catch (InvocationTargetException e) {
-                    LOGGER.error("[World Scape] Biome set method threw exception: {}", (Object)e.getCause().getMessage(), (Object)e);
+                    LOGGER.error("[World Scape] Biome set method threw exception: {}", (Object)(e.getCause() != null ? e.getCause().getMessage() : "null"), (Object)e);
                 }
                 catch (NoSuchMethodException e) {
                     LOGGER.error("[World Scape] Biome set method not found in PalettedContainer, API may have changed in this Minecraft version.", (Throwable)e);
@@ -734,6 +691,7 @@ extends ChunkGenerator {
                 }
                 catch (Exception e) {
                     LOGGER.error("[World Scape] Unexpected error setting biome via reflection: {}", (Object)e.getMessage(), (Object)e);
+                    reflectionAvailable = false;
                 }
                 if (!overrideSucceeded) continue;
                 overrideCounts.merge(terrainType, 1, Integer::sum);
@@ -744,7 +702,7 @@ extends ChunkGenerator {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("[World Scape] Terrain biome override: %d cells overridden in chunk (%d, %d)", totalOverridden, minX >> 4, minZ >> 4));
             for (Map.Entry entry : overrideCounts.entrySet()) {
-                sb.append(String.format(", %s=%d", ((TerrainType)((Object)entry.getKey())).getId(), entry.getValue()));
+                sb.append(String.format(", %s=%d", entry.getKey().getId(), entry.getValue()));
             }
             LOGGER.debug(sb.toString());
         }
@@ -817,218 +775,7 @@ extends ChunkGenerator {
     }
 
     private double calcHeightForType(int worldX, int worldZ, double baseHeight, TerrainType type) {
-        double height = baseHeight;
-        TerrainFieldSampler fs = this.getFieldSampler();
-        switch (type) {
-            case HIGH_MOUNTAINS: {
-                double hmFbm = fs.sampleFbm(worldX, worldZ, 6, 0.5);
-                double hmHeight = hmFbm * 200.0;
-                double hmDomain = fs.sampleDomainRotated(worldX, worldZ, 0.15) * 15.0;
-                double hmTurb = fs.sampleTurbulence(worldX, worldZ, 0.6) * 20.0;
-                height = baseHeight + hmHeight + hmDomain + hmTurb;
-                height = Math.min(height, baseHeight + 250.0);
-                break;
-            }
-            case RIDGE: {
-                double rPrimarySine = Math.sin((double)worldX * 0.007 + (double)worldZ * 0.004);
-                double rSecondarySine = Math.sin((double)worldX * 0.025 - (double)worldZ * 0.018);
-                double rSineRaw = rPrimarySine * 35.0 + rSecondarySine * 18.0;
-                double rGx = Math.sin((double)(worldX + 1) * 0.007 + (double)worldZ * 0.004) - Math.sin((double)(worldX - 1) * 0.007 + (double)worldZ * 0.004);
-                double rGz = Math.sin((double)worldX * 0.007 + (double)(worldZ + 1) * 0.004) - Math.sin((double)worldX * 0.007 + (double)(worldZ - 1) * 0.004);
-                double rGradMag = Math.sqrt(rGx * rGx + rGz * rGz);
-                double rSensitivity = 0.6;
-                double rSineWeight = rGradMag > rSensitivity ? 0.3 : (rGradMag < rSensitivity * 0.5 ? 1.0 : 0.3 + 0.7 * (rSensitivity - rGradMag) / (rSensitivity * 0.5));
-                double rSine = rSineRaw * rSineWeight;
-                double rFbm = fs.sampleFbm(worldX, worldZ, 6, 0.5) * 150.0;
-                double rTurb = fs.sampleTurbulence(worldX, worldZ, 0.6) * 15.0;
-                double rDomain = fs.sampleDomainRotated(worldX, worldZ, 0.15) * 10.0;
-                height = baseHeight + rFbm + rSine + rTurb + rDomain;
-                break;
-            }
-            case PEAK: {
-                double pFbm = fs.sampleFbm(worldX, worldZ, 6, 0.4);
-                double pHeight = pFbm * 120.0;
-                double pTurb = fs.sampleTurbulence(worldX, worldZ, 0.6) * 80.0;
-                double pDomain = fs.sampleDomainRotated(worldX, worldZ, 0.15) * 12.0;
-                height = baseHeight + pHeight + pTurb + pDomain;
-                height = Math.min(height, 500.0);
-                break;
-            }
-            case HORN: {
-                double hFbm = fs.sampleFbm(worldX, worldZ, 6, 0.3);
-                double hHeight = hFbm * 100.0;
-                double hTurb = fs.sampleTurbulence(worldX, worldZ, 0.8) * 120.0;
-                height = baseHeight + hHeight + hTurb;
-                height = Math.min(height, 500.0);
-                break;
-            }
-            case CLIFF: {
-                double cFbm = fs.sampleFbm(worldX, worldZ, 6, 0.5);
-                double cRaw = cFbm * 80.0;
-                double cTanh = TerrainFieldSampler.tanhScaled(cFbm, 2.0) * 40.0;
-                height = baseHeight + cRaw + cTanh;
-                break;
-            }
-            case PLATEAU: {
-                double plFbm = fs.sampleFbm(worldX, worldZ, 3, 0.3);
-                height = baseHeight + plFbm * 100.0;
-                break;
-            }
-            case DOME: {
-                double dOffsetX = fs.sampleFbm(worldX, worldZ, 2, 0.2) * 50.0;
-                double dOffsetZ = fs.sampleFbm(worldX + 10000, worldZ + 10000, 2, 0.2) * 50.0;
-                double dGauss = TerrainFieldSampler.gaussian((double)worldX - dOffsetX, (double)worldZ - dOffsetZ, 200.0);
-                height = baseHeight + dGauss * 150.0;
-                break;
-            }
-            case DUNE: {
-                double duPrimary = Math.sin((double)worldX * 0.02 + (double)worldZ * 0.005) * 25.0;
-                double duSecondary = Math.sin((double)worldX * 0.005 - (double)worldZ * 0.015) * 8.0;
-                double duRidge = Math.abs(duPrimary) + duSecondary;
-                double duFbm = fs.sampleFbm(worldX, worldZ, 2, 0.1) * 5.0;
-                height = baseHeight + duRidge + duFbm;
-                break;
-            }
-            case YARDANG: {
-                double yaPrimary = Math.sin((double)worldX * 0.015 + (double)worldZ * 0.003) * 30.0;
-                double yaDomain = fs.sampleDomainRotated(worldX, worldZ, 0.2) * 15.0;
-                height = baseHeight + yaPrimary + yaDomain;
-                break;
-            }
-            case GOBI: {
-                double goFbm = fs.sampleFbm(worldX, worldZ, 4, 0.7);
-                height = baseHeight + goFbm * 15.0;
-                break;
-            }
-            case SALT_FLAT: {
-                double sfFbm = fs.sampleFbm(worldX, worldZ, 2, 0.1);
-                height = baseHeight + sfFbm * 3.0;
-                break;
-            }
-            case CANYON: {
-                double caGradDir = fs.sampleFbm(worldX, worldZ, 3, 0.4);
-                double caDepth = Math.abs(caGradDir) * 60.0;
-                double caFbm = fs.sampleFbm(worldX, worldZ, 4, 0.5) * 10.0;
-                height = baseHeight - caDepth + caFbm;
-                break;
-            }
-            case VALLEY: {
-                double vGradMag = fs.calculateGradient(worldX, worldZ);
-                double vDepth = TerrainFieldSampler.sigmoid(vGradMag * 5.0) * 40.0;
-                double vFbm = fs.sampleFbm(worldX, worldZ, 4, 0.5) * 10.0;
-                height = baseHeight - vDepth + vFbm;
-                break;
-            }
-            case FLOODPLAIN: {
-                double fpFbm = fs.sampleFbm(worldX, worldZ, 3, 0.15);
-                height = baseHeight + fpFbm * 5.0;
-                break;
-            }
-            case DELTA: {
-                double dtGrad = fs.calculateGradient(worldX, worldZ);
-                double dtHeight = dtGrad * 10.0;
-                double dtDomain = fs.sampleDomainRotated(worldX, worldZ, 0.05) * 8.0;
-                height = baseHeight + dtHeight + dtDomain;
-                break;
-            }
-            case ALLUVIAL_FAN: {
-                double afDist = Math.sqrt((double)worldX * (double)worldX + (double)worldZ * (double)worldZ) % 200.0;
-                double afErf = Math.tanh(afDist / 100.0 * 0.886);
-                double afSlope = afErf * 25.0;
-                double afFbm = fs.sampleFbm(worldX, worldZ, 3, 0.3) * 5.0;
-                height = baseHeight + afSlope + afFbm;
-                break;
-            }
-            case BASIN: {
-                double bOffsetX = fs.sampleFbm(worldX, worldZ, 2, 0.2) * 80.0;
-                double bOffsetZ = fs.sampleFbm(worldX + 20000, worldZ + 20000, 2, 0.2) * 80.0;
-                double bGauss = TerrainFieldSampler.gaussian((double)worldX - bOffsetX, (double)worldZ - bOffsetZ, 300.0);
-                double bDepth = bGauss * 30.0;
-                height = baseHeight - bDepth;
-                break;
-            }
-            case FJORD: {
-                double fjTurb = fs.sampleTurbulence(worldX, worldZ, 0.7) * 100.0;
-                double fjCliffEdge = fs.sampleFbm(worldX, worldZ, 3, 0.3);
-                double fjTanh = TerrainFieldSampler.tanhScaled(fjCliffEdge, 2.0) * 80.0;
-                height = baseHeight - fjTurb + fjTanh;
-                break;
-            }
-            case GLACIAL_VALLEY: {
-                double gvGradMag = fs.calculateGradient(worldX, worldZ);
-                double gvDepth = TerrainFieldSampler.sigmoid(gvGradMag * 5.0) * 60.0;
-                double gvFbm = fs.sampleFbm(worldX, worldZ, 4, 0.5) * 8.0;
-                height = baseHeight - gvDepth + gvFbm;
-                break;
-            }
-            case CIRQUE: {
-                double ciOffsetX = fs.sampleFbm(worldX, worldZ, 2, 0.2) * 40.0;
-                double ciOffsetZ = fs.sampleFbm(worldX + 30000, worldZ + 30000, 2, 0.2) * 40.0;
-                double ciGauss = TerrainFieldSampler.gaussian((double)worldX - ciOffsetX, (double)worldZ - ciOffsetZ, 150.0);
-                double ciDepth = ciGauss * 120.0;
-                double ciEdgeTurb = fs.sampleTurbulence(worldX, worldZ, 0.5) * 60.0;
-                height = baseHeight - ciDepth + ciEdgeTurb;
-                break;
-            }
-            case ICE_SHEET: {
-                double isFbm = fs.sampleFbm(worldX, worldZ, 3, 0.2);
-                height = baseHeight + isFbm * 8.0;
-                break;
-            }
-            case SEA_CLIFF: {
-                double scEdge = fs.sampleFbm(worldX, worldZ, 4, 0.4);
-                double scTanh = TerrainFieldSampler.tanhScaled(scEdge, 3.0) * 100.0;
-                height = baseHeight + scTanh;
-                break;
-            }
-            case BEACH: {
-                double beDist = fs.sampleFbm(worldX, worldZ, 2, 0.2);
-                double beSigmoid = TerrainFieldSampler.sigmoid(beDist * 3.0) * 5.0;
-                height = baseHeight + beSigmoid;
-                break;
-            }
-            case SINKHOLE: {
-                double skOffsetX = fs.sampleFbm(worldX, worldZ, 2, 0.2) * 30.0;
-                double skOffsetZ = fs.sampleFbm(worldX + 40000, worldZ + 40000, 2, 0.2) * 30.0;
-                double skGauss = TerrainFieldSampler.gaussian((double)worldX - skOffsetX, (double)worldZ - skOffsetZ, 80.0);
-                double skDepth = skGauss * 40.0;
-                height = baseHeight - skDepth;
-                break;
-            }
-            case PEAK_FOREST: {
-                double pfTurb = fs.sampleTurbulence(worldX, worldZ, 0.7) * 80.0;
-                double pfFbm = fs.sampleFbm(worldX, worldZ, 4, 0.5) * 40.0;
-                height = baseHeight + pfTurb + pfFbm;
-                break;
-            }
-            case TRENCH: {
-                double trAxis = fs.sampleFbm(worldX, worldZ, 3, 0.3);
-                double trDepth = TerrainFieldSampler.sigmoid(-trAxis * 3.0) * 30.0;
-                height = baseHeight - 20.0 - trDepth;
-                break;
-            }
-            case SEA_PLATEAU: {
-                double spFbm = fs.sampleFbm(worldX, worldZ, 3, 0.15);
-                height = baseHeight + spFbm * 15.0;
-                break;
-            }
-            case HILLS: {
-                double hiFbm = fs.sampleFbm(worldX, worldZ, 6, 0.65);
-                height = baseHeight + hiFbm * 40.0;
-                break;
-            }
-            case PLAINS: {
-                double plFbm2 = fs.sampleFbm(worldX, worldZ, 4, 0.2);
-                height = baseHeight + plFbm2 * 15.0;
-                break;
-            }
-            default: {
-                double defFbm = fs.sampleFbm(worldX, worldZ, 6, 0.5);
-                height = baseHeight + defFbm * 20.0;
-            }
-        }
-        height = Math.max(-64.0, Math.min(300.0, height));
-        return height;
+        return TerrainCalculator.calcHeightForType(worldX, worldZ, baseHeight, type, this.getFieldSampler());
     }
 
     public BiomeSource getBiomeSource() {

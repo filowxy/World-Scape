@@ -1,3 +1,14 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.client.Minecraft
+ *  net.minecraft.client.gui.screens.Screen
+ *  net.neoforged.bus.api.SubscribeEvent
+ *  net.neoforged.neoforge.client.event.ClientTickEvent$Post
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.config;
 
 import com.worldscape.config.WelcomeScreen;
@@ -35,8 +46,9 @@ public class WelcomeScreenConfig {
      */
     private static void ensureLoaded() {
         if (!hasChecked) {
-            Object object = CONFIG_LOCK;
-            synchronized (object) {
+            Object object;
+            Object object2 = object = CONFIG_LOCK;
+            synchronized (object2) {
                 if (!hasChecked) {
                     WelcomeScreenConfig.load();
                     hasChecked = true;

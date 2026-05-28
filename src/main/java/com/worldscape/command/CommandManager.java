@@ -1,3 +1,40 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.mojang.brigadier.arguments.ArgumentType
+ *  com.mojang.brigadier.arguments.BoolArgumentType
+ *  com.mojang.brigadier.arguments.IntegerArgumentType
+ *  com.mojang.brigadier.builder.LiteralArgumentBuilder
+ *  com.mojang.brigadier.builder.RequiredArgumentBuilder
+ *  com.mojang.brigadier.context.CommandContext
+ *  com.worldscape.WorldScape
+ *  net.minecraft.commands.CommandSourceStack
+ *  net.minecraft.commands.Commands
+ *  net.minecraft.commands.arguments.ResourceLocationArgument
+ *  net.minecraft.core.BlockPos
+ *  net.minecraft.core.BlockPos$MutableBlockPos
+ *  net.minecraft.network.chat.ClickEvent
+ *  net.minecraft.network.chat.ClickEvent$Action
+ *  net.minecraft.network.chat.Component
+ *  net.minecraft.network.chat.HoverEvent
+ *  net.minecraft.network.chat.HoverEvent$Action
+ *  net.minecraft.network.chat.MutableComponent
+ *  net.minecraft.network.chat.Style
+ *  net.minecraft.network.chat.TextColor
+ *  net.minecraft.resources.ResourceKey
+ *  net.minecraft.resources.ResourceLocation
+ *  net.minecraft.server.level.ServerLevel
+ *  net.minecraft.server.level.ServerPlayer
+ *  net.minecraft.tags.FluidTags
+ *  net.minecraft.world.level.Level
+ *  net.minecraft.world.level.block.Blocks
+ *  net.minecraft.world.level.block.state.BlockState
+ *  net.neoforged.bus.api.IEventBus
+ *  net.neoforged.bus.api.SubscribeEvent
+ *  net.neoforged.fml.common.EventBusSubscriber
+ *  net.neoforged.neoforge.event.RegisterCommandsEvent
+ */
 package com.worldscape.command;
 
 import com.mojang.brigadier.arguments.ArgumentType;
@@ -86,7 +123,7 @@ public class CommandManager {
             }
             return CommandManager.locateLandscape((CommandSourceStack)context.getSource(), terrainType);
         }))));
-        event.getDispatcher().register((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"worldscape").then(Commands.literal((String)"seedinfo").executes(context -> CommandManager.showSeedInfo((CommandSourceStack)context.getSource())))).then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"debug").requires(source -> ((CommandSourceStack)source).hasPermission(2))).then(((LiteralArgumentBuilder)Commands.literal((String)"export_heightmap").then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)100, (int)5000)).executes(context -> {
+        event.getDispatcher().register((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"worldscape").then(Commands.literal((String)"seedinfo").executes(context -> CommandManager.showSeedInfo((CommandSourceStack)context.getSource())))).then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"debug").requires(source -> source.hasPermission(2))).then(((LiteralArgumentBuilder)Commands.literal((String)"export_heightmap").then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)100, (int)5000)).executes(context -> {
             int radius = IntegerArgumentType.getInteger((CommandContext)context, (String)"radius");
             return CommandManager.exportHeightmap((CommandSourceStack)context.getSource(), radius, 1);
         }))).executes(context -> CommandManager.exportHeightmap((CommandSourceStack)context.getSource(), 500, 1)))).then(((LiteralArgumentBuilder)Commands.literal((String)"export_voronoi").then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)100, (int)5000)).executes(context -> {
@@ -157,7 +194,7 @@ public class CommandManager {
             }
         }
         if (found) {
-            MutableComponent coordinateComponent = Component.literal((String)("[" + closestX + ", ~, " + closestZ + "]")).withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)65280)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/tp @s " + closestX + " ~ " + closestZ)).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal((String)("Click to teleport to " + terrainType.getId() + " (" + minDistance + " blocks away)")))));
+            MutableComponent coordinateComponent = Component.literal((String)("[" + closestX + ", ~, " + closestZ + "]")).withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)65280)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/tp @s " + closestX + " ~ " + closestZ)).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, (Object)Component.literal((String)("Click to teleport to " + terrainType.getId() + " (" + minDistance + " blocks away)")))));
             MutableComponent message = Component.literal((String)("Found " + terrainType.getId() + " at ")).append((Component)coordinateComponent).append((Component)Component.literal((String)(" (" + minDistance + " blocks away)")));
             source.sendSuccess(() -> CommandManager.lambda$locateLandscape$39((Component)message), false);
             return 1;
@@ -225,7 +262,7 @@ public class CommandManager {
             RegionController controller = new RegionController(seed, seaLevel);
             Path outputPath = DEBUG_OUTPUT_DIR.resolve("heightmap_" + centerX + "_" + centerZ + "_r" + radiusBlocks + ".png");
             TerrainDebugTools.exportHeightMapImage(controller, centerX, centerZ, radiusBlocks, pixelsPerBlock, outputPath);
-            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
+            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, (Object)Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
             source.sendSuccess(() -> CommandManager.lambda$exportHeightmap$43((Component)linkComponent), false);
             return 1;
         }
@@ -255,7 +292,7 @@ public class CommandManager {
             MacroVoronoiSystem macroSystem = new MacroVoronoiSystem(seed, seaLevel);
             Path outputPath = DEBUG_OUTPUT_DIR.resolve("voronoi_" + centerX + "_" + centerZ + "_r" + radiusBlocks + ".png");
             TerrainDebugTools.exportMacroVoronoiImage(macroSystem, centerX, centerZ, radiusBlocks, pixelsPerBlock, outputPath);
-            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
+            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, (Object)Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
             source.sendSuccess(() -> CommandManager.lambda$exportVoronoi$45((Component)linkComponent), false);
             return 1;
         }
@@ -362,7 +399,7 @@ public class CommandManager {
             RegionController controller = new RegionController(seed, seaLevel);
             Path outputPath = DEBUG_OUTPUT_DIR.resolve("terrain_enhanced_" + centerX + "_" + centerZ + "_r" + radiusBlocks + ".png");
             TerrainDebugTools.exportEnhancedTerrainMap(controller, centerX, centerZ, radiusBlocks, pixelsPerBlock, outputPath);
-            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
+            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, (Object)Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
             source.sendSuccess(() -> CommandManager.lambda$exportEnhancedTerrainMap$55((Component)linkComponent), false);
             return 1;
         }
@@ -392,7 +429,7 @@ public class CommandManager {
             RegionController controller = new RegionController(seed, seaLevel);
             Path outputPath = DEBUG_OUTPUT_DIR.resolve("terrain_contour_" + centerX + "_" + centerZ + "_r" + radiusBlocks + "_i" + contourInterval + ".png");
             TerrainDebugTools.exportContourTerrainMap(controller, centerX, centerZ, radiusBlocks, pixelsPerBlock, contourInterval, outputPath);
-            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
+            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, (Object)Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
             source.sendSuccess(() -> CommandManager.lambda$exportContourMap$57((Component)linkComponent), false);
             return 1;
         }
@@ -422,7 +459,7 @@ public class CommandManager {
             RegionController controller = new RegionController(seed, seaLevel);
             Path outputPath = DEBUG_OUTPUT_DIR.resolve("terrain_stats_" + centerX + "_" + centerZ + "_r" + radiusBlocks + ".png");
             TerrainDebugTools.exportTerrainStatsChart(controller, centerX, centerZ, radiusBlocks, pixelsPerBlock, outputPath);
-            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
+            MutableComponent linkComponent = Component.literal((String)"[Click to open]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb((int)49151)).withItalic(Boolean.valueOf(false)).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, outputPath.toAbsolutePath().toString())).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, (Object)Component.literal((String)("Open: " + String.valueOf(outputPath.toAbsolutePath()))))));
             source.sendSuccess(() -> CommandManager.lambda$exportTerrainStats$59((Component)linkComponent), false);
             return 1;
         }
@@ -665,27 +702,27 @@ public class CommandManager {
     public static void register(IEventBus modEventBus) {
     }
 
-    private static /* synthetic */ Component lambda$exportTerrainStats$59(Component linkComponent) {
+    private static Component lambda$exportTerrainStats$59(Component linkComponent) {
         return Component.literal((String)"Terrain stats chart exported to: ").append(linkComponent);
     }
 
-    private static /* synthetic */ Component lambda$exportContourMap$57(Component linkComponent) {
+    private static Component lambda$exportContourMap$57(Component linkComponent) {
         return Component.literal((String)"Contour map exported to: ").append(linkComponent);
     }
 
-    private static /* synthetic */ Component lambda$exportEnhancedTerrainMap$55(Component linkComponent) {
+    private static Component lambda$exportEnhancedTerrainMap$55(Component linkComponent) {
         return Component.literal((String)"Enhanced terrain map exported to: ").append(linkComponent);
     }
 
-    private static /* synthetic */ Component lambda$exportVoronoi$45(Component linkComponent) {
+    private static Component lambda$exportVoronoi$45(Component linkComponent) {
         return Component.literal((String)"Voronoi regions exported to: ").append(linkComponent);
     }
 
-    private static /* synthetic */ Component lambda$exportHeightmap$43(Component linkComponent) {
+    private static Component lambda$exportHeightmap$43(Component linkComponent) {
         return Component.literal((String)"Heightmap exported to: ").append(linkComponent);
     }
 
-    private static /* synthetic */ Component lambda$locateLandscape$39(Component message) {
+    private static Component lambda$locateLandscape$39(Component message) {
         return message;
     }
 }

@@ -1,3 +1,10 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.ControlPointRegion;
@@ -6,6 +13,8 @@ import com.worldscape.terrain.MacroVoronoiSystem;
 import com.worldscape.terrain.NoiseSet;
 import com.worldscape.terrain.TerrainControlPoint;
 import com.worldscape.terrain.TerrainType;
+import com.worldscape.util.ClimateUtils;
+import com.worldscape.util.WorldScapeUtils;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -121,24 +130,59 @@ public class RegionController {
         microHeight = Math.max(microHeight, tierMinHeight);
         double tierAdjustment = (double)(primaryTier - 4) * 8.0 * 0.15;
         if (blendWeight > 0.8) {
-            finalHeight = microHeight + tierAdjustment;
+            finalHeight = macroBaseHeight + microHeight + tierAdjustment;
         } else {
-            double boundaryProximity = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
-            boundaryProximity = Math.max(0.0, Math.min(1.0, boundaryProximity));
+            double boundaryProximityRaw = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
+            boundaryProximityRaw = Math.max(0.0, Math.min(1.0, boundaryProximityRaw));
+            double boundaryProximity = WorldScapeUtils.smoothstep(0.0, 1.0, boundaryProximityRaw);
             double macroInfluence = boundaryProximity * 0.15;
             if (primaryTier == 0) {
                 macroInfluence *= 0.33;
             } else if (primaryTier == 1) {
                 macroInfluence *= 0.5;
             }
-            finalHeight = this.lerp(microHeight + tierAdjustment, macroBaseHeight, macroInfluence);
+            finalHeight = this.lerp(macroBaseHeight + microHeight + tierAdjustment, macroBaseHeight, macroInfluence);
         }
         TerrainBlendResult typeResult = this.determineDominantTerrainType(weightedPoints, totalWeight);
-        return new TerrainBlendResult(finalHeight, macroInfo, weightedPoints, macroBaseHeight - microHeight, typeResult.dominantType, typeResult.dominantWeight);
+        ClimateUtils.ClimateProfile blendedClimate = this.calculateBlendedClimate(weightedPoints, totalWeight, macroInfo.getElevationTier());
+        return new TerrainBlendResult(finalHeight, macroInfo, weightedPoints, macroBaseHeight - microHeight, typeResult.dominantType, typeResult.dominantWeight, blendedClimate);
     }
 
     private double lerp(double a, double b, double t) {
         return a + (b - a) * Math.max(0.0, Math.min(1.0, t));
+    }
+
+    private ClimateUtils.ClimateProfile calculateBlendedClimate(List<PointWeight> weightedPoints, double totalWeight, int elevationTier) {
+        if (weightedPoints == null || weightedPoints.isEmpty() || totalWeight <= 0.0) {
+            return this.getDefaultClimateForTier(elevationTier);
+        }
+        ArrayList<PointWeight> sorted = new ArrayList<PointWeight>(weightedPoints);
+        sorted.sort((a, b) -> Double.compare(b.weight, a.weight));
+        TerrainType primaryType = ((PointWeight)sorted.get((int)0)).point.getTerrainType();
+        double primaryNormWeight = ((PointWeight)sorted.get((int)0)).weight / totalWeight;
+        ClimateUtils.ClimateProfile primaryClimate = ClimateUtils.getTerrainClimateProfile(primaryType.name());
+        if (sorted.size() < 2 || primaryNormWeight >= 0.9) {
+            return this.applyElevationCorrection(primaryClimate, elevationTier);
+        }
+        TerrainType secondaryType = ((PointWeight)sorted.get((int)1)).point.getTerrainType();
+        double secondaryNormWeight = ((PointWeight)sorted.get((int)1)).weight / totalWeight;
+        ClimateUtils.ClimateProfile secondaryClimate = ClimateUtils.getTerrainClimateProfile(secondaryType.name());
+        double blendT = secondaryNormWeight / (primaryNormWeight + secondaryNormWeight);
+        ClimateUtils.ClimateProfile blended = ClimateUtils.blendClimate(primaryClimate, secondaryClimate, blendT);
+        return this.applyElevationCorrection(blended, elevationTier);
+    }
+
+    private ClimateUtils.ClimateProfile applyElevationCorrection(ClimateUtils.ClimateProfile profile, int tier) {
+        double adjustedTemp = ClimateUtils.adjustTemperatureForElevation(profile.getTemperature(), tier, 0.0);
+        return new ClimateUtils.ClimateProfile(adjustedTemp, profile.getHumidity(), profile.getSeasonality(), profile.getContinentality());
+    }
+
+    private ClimateUtils.ClimateProfile getDefaultClimateForTier(int tier) {
+        return switch (tier) {
+            case 0, 1 -> new ClimateUtils.ClimateProfile(0.08, 0.95, 0.05, 0.05);
+            case 2 -> new ClimateUtils.ClimateProfile(0.55, 0.75, 0.35, 0.15);
+            default -> new ClimateUtils.ClimateProfile(0.5, 0.5, 0.6, 0.5);
+        };
     }
 
     private double getBaseHeightForTerrainType(TerrainType type) {
@@ -204,6 +248,7 @@ public class RegionController {
      * WARNING - Removed try catching itself - possible behaviour change.
      */
     private ControlPointRegion getOrCreateRegion(int regionX, int regionZ) {
+        ConcurrentHashMap<Long, ControlPointRegion> concurrentHashMap;
         long key = (long)regionX << 32 | (long)regionZ & 0xFFFFFFFFL;
         ControlPointRegion region = this.terrainRegionCache.get(key);
         if (region != null) {
@@ -223,8 +268,8 @@ public class RegionController {
             }
             return result;
         }
-        ConcurrentHashMap<Long, ControlPointRegion> concurrentHashMap = this.terrainRegionCache;
-        synchronized (concurrentHashMap) {
+        ConcurrentHashMap<Long, ControlPointRegion> concurrentHashMap2 = concurrentHashMap = this.terrainRegionCache;
+        synchronized (concurrentHashMap2) {
             region = this.terrainRegionCache.get(key);
             if (region != null) {
                 return region;
@@ -293,14 +338,28 @@ public class RegionController {
         public final double offsetBlend;
         public final TerrainType dominantType;
         public final double dominantWeight;
+        public final ClimateUtils.ClimateProfile blendedClimate;
 
         TerrainBlendResult(double blendedHeight, MacroRegionInfo macroInfo, List<PointWeight> contributingPoints, double offsetBlend, TerrainType dominantType, double dominantWeight) {
+            this(blendedHeight, macroInfo, contributingPoints, offsetBlend, dominantType, dominantWeight, null);
+        }
+
+        TerrainBlendResult(double blendedHeight, MacroRegionInfo macroInfo, List<PointWeight> contributingPoints, double offsetBlend, TerrainType dominantType, double dominantWeight, ClimateUtils.ClimateProfile blendedClimate) {
             this.blendedHeight = blendedHeight;
             this.macroInfo = macroInfo;
             this.contributingPoints = contributingPoints;
             this.offsetBlend = offsetBlend;
             this.dominantType = dominantType;
             this.dominantWeight = dominantWeight;
+            this.blendedClimate = blendedClimate != null ? blendedClimate : TerrainBlendResult.getDefaultClimateForTier(macroInfo != null ? macroInfo.getElevationTier() : 3);
+        }
+
+        private static ClimateUtils.ClimateProfile getDefaultClimateForTier(int tier) {
+            return switch (tier) {
+                case 0, 1 -> new ClimateUtils.ClimateProfile(0.08, 0.95, 0.05, 0.05);
+                case 2 -> new ClimateUtils.ClimateProfile(0.55, 0.75, 0.35, 0.15);
+                default -> new ClimateUtils.ClimateProfile(0.5, 0.5, 0.6, 0.5);
+            };
         }
     }
 

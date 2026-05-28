@@ -1,3 +1,11 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.client.Minecraft
+ *  net.minecraft.network.chat.Component
+ *  net.minecraft.resources.ResourceLocation
+ */
 package com.worldscape.config;
 
 import java.awt.BasicStroke;

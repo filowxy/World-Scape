@@ -1,3 +1,10 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.resources.ResourceKey
+ *  net.minecraft.world.level.Level
+ */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.ControlPointManager;

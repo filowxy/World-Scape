@@ -1,3 +1,14 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.core.Holder
+ *  net.minecraft.core.Registry
+ *  net.minecraft.resources.ResourceKey
+ *  net.minecraft.resources.ResourceLocation
+ *  net.minecraft.tags.BiomeTags
+ *  net.minecraft.world.level.biome.Biome
+ */
 package com.worldscape.biome;
 
 import com.worldscape.terrain.MacroRegionInfo;
@@ -149,7 +160,10 @@ public class BiomeMapper {
 
     private ResourceLocation selectRiverBiome(MacroRegionInfo.ClimateZone climate, int elevationTier, List<ResourceLocation> candidates, long hash) {
         for (ResourceLocation biome : candidates) {
-            if (!RIVER_BIOME_NAMES.contains(biome.getPath()) || !(climate == MacroRegionInfo.ClimateZone.GLACIAL || elevationTier <= 1 ? biome.getPath().contains("frozen") : !biome.getPath().contains("frozen"))) continue;
+            if (!RIVER_BIOME_NAMES.contains(biome.getPath())) continue;
+            if (climate == MacroRegionInfo.ClimateZone.GLACIAL || elevationTier <= 1) {
+                if (!biome.getPath().contains("frozen")) continue;
+            } else if (biome.getPath().contains("frozen")) continue;
             return biome;
         }
         if (climate == MacroRegionInfo.ClimateZone.GLACIAL) {
@@ -237,13 +251,13 @@ public class BiomeMapper {
                 writer.write("},");
                 writer.write("\"terrain_to_biomes\": {");
                 first = true;
-                for (Map.Entry<TerrainType, List<ResourceLocation>> entry : this.terrainToBiomes.entrySet()) {
+                for (Map.Entry<Object, Object> entry : this.terrainToBiomes.entrySet()) {
                     if (!first) {
                         writer.write(",");
                     }
-                    writer.write("\"" + entry.getKey().getId() + "\": [");
+                    writer.write("\"" + ((TerrainType)((Object)entry.getKey())).getId() + "\": [");
                     boolean firstBiome = true;
-                    for (ResourceLocation biomeId : entry.getValue()) {
+                    for (ResourceLocation biomeId : (List)entry.getValue()) {
                         if (!firstBiome) {
                             writer.write(",");
                         }

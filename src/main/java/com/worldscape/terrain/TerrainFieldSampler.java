@@ -1,3 +1,12 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.util.RandomSource
+ *  net.minecraft.world.level.levelgen.synth.NormalNoise
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.TerrainType;
@@ -52,12 +61,13 @@ public class TerrainFieldSampler {
      * WARNING - Removed try catching itself - possible behaviour change.
      */
     public static TerrainFieldSampler getOrCreate(long worldSeed) {
+        Object object;
         TerrainFieldSampler current = instance;
         if (current != null && cachedSeed == worldSeed) {
             return current;
         }
-        Object object = LOCK;
-        synchronized (object) {
+        Object object2 = object = LOCK;
+        synchronized (object2) {
             if (instance == null || cachedSeed != worldSeed) {
                 instance = new TerrainFieldSampler(worldSeed);
                 cachedSeed = worldSeed;

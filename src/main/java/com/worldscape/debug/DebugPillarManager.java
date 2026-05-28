@@ -1,3 +1,14 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.core.BlockPos
+ *  net.minecraft.world.level.Level
+ *  net.minecraft.world.level.block.Blocks
+ *  net.minecraft.world.level.block.state.BlockState
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.debug;
 
 import com.worldscape.debug.TerrainDebugSystem;

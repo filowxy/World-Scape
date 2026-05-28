@@ -1,3 +1,6 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.TerrainType;
@@ -18,8 +21,9 @@ public class TerrainControlPoint {
     }
 
     private double clampOffset(TerrainType type, double rawOffset) {
-        double minOffset = 0.0;
-        return Math.max(minOffset, Math.min(switch (type) {
+        double minOffset;
+        double d = minOffset = 0.0;
+        return Math.max(d, Math.min(switch (type) {
             case TerrainType.PLAINS -> {
                 minOffset = -5.0;
                 yield 5.0;

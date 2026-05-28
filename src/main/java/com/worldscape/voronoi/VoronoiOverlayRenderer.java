@@ -1,3 +1,20 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.worldscape.WorldScape
+ *  net.minecraft.client.DeltaTracker
+ *  net.minecraft.client.Minecraft
+ *  net.minecraft.client.gui.Font
+ *  net.minecraft.client.gui.GuiGraphics
+ *  net.minecraft.client.gui.LayeredDraw$Layer
+ *  net.minecraft.network.chat.Component
+ *  net.minecraft.resources.ResourceLocation
+ *  net.neoforged.api.distmarker.Dist
+ *  net.neoforged.bus.api.SubscribeEvent
+ *  net.neoforged.fml.common.EventBusSubscriber
+ *  net.neoforged.neoforge.client.event.RegisterGuiLayersEvent
+ */
 package com.worldscape.voronoi;
 
 import com.worldscape.WorldScape;
@@ -278,7 +295,7 @@ public class VoronoiOverlayRenderer {
         int panelX = 4;
         int panelY = 4;
         Objects.requireNonNull(font);
-        int lineHeight = 9 + 2;
+        int lineHeight = 11;
         ArrayList<String> lines = new ArrayList<String>();
         lines.add("\u00a7b\u00a7lWorld Scape - Voronoi Visualizer");
         lines.add("");
@@ -306,11 +323,11 @@ public class VoronoiOverlayRenderer {
         int hintWidth = 140;
         int n = hints.size();
         Objects.requireNonNull(font);
-        int hintHeight = n * (9 + 1) + 6;
+        int hintHeight = n * 10 + 6;
         guiGraphics.fill(panelX - 2, hintY - 2, panelX + hintWidth, hintY + hintHeight, -872415232);
         for (int i = 0; i < hints.size(); ++i) {
             Objects.requireNonNull(font);
-            guiGraphics.drawString(font, hints.get(i), panelX + 2, hintY + i * (9 + 1), -5592406, false);
+            guiGraphics.drawString(font, hints.get(i), panelX + 2, hintY + i * 10, -5592406, false);
         }
     }
 
@@ -344,7 +361,7 @@ public class VoronoiOverlayRenderer {
         }
         int n = lines.size();
         Objects.requireNonNull(font);
-        int tooltipHeight = n * (9 + 1) + 4;
+        int tooltipHeight = n * 10 + 4;
         if (tooltipX + (tooltipWidth += 6) > screenWidth) {
             tooltipX = (int)screenPos[0] - tooltipWidth - 15;
         }
@@ -359,7 +376,7 @@ public class VoronoiOverlayRenderer {
         for (int i = 0; i < lines.size(); ++i) {
             String string = (String)lines.get(i);
             Objects.requireNonNull(font);
-            guiGraphics.drawString(font, string, tooltipX + 3, tooltipY + 2 + i * (9 + 1), -1, false);
+            guiGraphics.drawString(font, string, tooltipX + 3, tooltipY + 2 + i * 10, -1, false);
         }
     }
 
@@ -373,8 +390,7 @@ public class VoronoiOverlayRenderer {
             int y = y1;
             for (int x = x1; x != x2; x += stepX) {
                 guiGraphics.hLine(x, x, y, color);
-                error += errorDelta;
-                if (!(error >= 0.5)) continue;
+                if (!((error += errorDelta) >= 0.5)) continue;
                 y += y2 > y1 ? 1 : -1;
                 error -= 1.0;
             }
@@ -385,8 +401,7 @@ public class VoronoiOverlayRenderer {
             int x = x1;
             for (int y = y1; y != y2; y += stepY) {
                 guiGraphics.vLine(x, y, y, color);
-                error += errorDelta;
-                if (!(error >= 0.5)) continue;
+                if (!((error += errorDelta) >= 0.5)) continue;
                 x += x2 > x1 ? 1 : -1;
                 error -= 1.0;
             }

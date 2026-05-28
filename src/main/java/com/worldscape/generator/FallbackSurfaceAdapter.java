@@ -1,3 +1,17 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.core.BlockPos
+ *  net.minecraft.server.level.WorldGenRegion
+ *  net.minecraft.world.level.biome.Biome
+ *  net.minecraft.world.level.block.Blocks
+ *  net.minecraft.world.level.block.state.BlockState
+ *  net.minecraft.world.level.chunk.ChunkAccess
+ *  net.minecraft.world.level.chunk.ChunkGenerator
+ *  org.slf4j.Logger
+ *  org.slf4j.LoggerFactory
+ */
 package com.worldscape.generator;
 
 import com.worldscape.generator.SurfaceAdapter;
@@ -76,18 +90,26 @@ implements SurfaceAdapter {
                 int terrainHeight = heightMap[x][z];
                 int worldX = minX + x;
                 int worldZ = minZ + z;
-                Biome biome = (Biome)region.getBiome(new BlockPos(worldX, terrainHeight, worldZ)).value();
-                String biomeId = "minecraft:plains";
+                Biome biome = null;
                 try {
-                    Method getKeyMethod = Biome.class.getMethod("getKey", new Class[0]);
-                    Object key = getKeyMethod.invoke((Object)biome, new Object[0]);
-                    if (key != null) {
-                        Method toStringMethod = key.getClass().getMethod("toString", new Class[0]);
-                        biomeId = toStringMethod.invoke(key, new Object[0]).toString();
-                    }
+                    biome = (Biome)region.getBiome(new BlockPos(worldX, terrainHeight, worldZ)).value();
                 }
-                catch (Exception getKeyMethod) {
-                    // empty catch block
+                catch (Exception e) {
+                    LOGGER.debug("{} Failed to get biome at ({}, {}, {}), using default", new Object[]{MOD_ID, worldX, terrainHeight, worldZ});
+                }
+                String biomeId = "minecraft:plains";
+                if (biome != null) {
+                    try {
+                        Method getKeyMethod = Biome.class.getMethod("getKey", new Class[0]);
+                        Object key = getKeyMethod.invoke((Object)biome, new Object[0]);
+                        if (key != null) {
+                            Method toStringMethod = key.getClass().getMethod("toString", new Class[0]);
+                            biomeId = toStringMethod.invoke(key, new Object[0]).toString();
+                        }
+                    }
+                    catch (Exception getKeyMethod) {
+                        // empty catch block
+                    }
                 }
                 boolean isHighAltitude = terrainHeight > surfaceLevel + 30;
                 boolean isMountain = biomeId.contains("mountain") || biomeId.contains("highland") || biomeId.contains("summit") || biomeId.contains("peak");
@@ -101,11 +123,11 @@ implements SurfaceAdapter {
                 for (int y = minY; y < maxY; ++y) {
                     BlockPos pos = new BlockPos(worldX, y, worldZ);
                     if (y > terrainHeight) {
-                        if (y <= surfaceLevel) {
-                            chunk.setBlockState(pos, water, false);
-                            continue;
-                        }
-                        chunk.setBlockState(pos, air, false);
+                        boolean isOceanBiome;
+                        if (y > surfaceLevel) continue;
+                        boolean bl = isOceanBiome = biomeId.contains("ocean") || biomeId.contains("deep_ocean") || biomeId.contains("sea") || biomeId.contains("cold_ocean") || biomeId.contains("frozen_ocean") || biomeId.contains("lukewarm_ocean") || biomeId.contains("warm_ocean");
+                        if (!isOceanBiome) continue;
+                        chunk.setBlockState(pos, water, false);
                         continue;
                     }
                     if (y == terrainHeight) {
