@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +30,19 @@ public class RegionController {
     private final MacroVoronoiSystem macroSystem;
     private final NoiseSet noiseSet;
     private final ConcurrentHashMap<Long, ControlPointRegion> terrainRegionCache;
-    private static final int CACHE_MAX_SIZE = 1024;
+    private static final int CACHE_MAX_SIZE_DEFAULT = 1024;
+    private static volatile int cacheMaxSize = CACHE_MAX_SIZE_DEFAULT;
+    private final AtomicBoolean evictionInProgress = new AtomicBoolean(false);
+
+    public static void setCacheMaxSize(int newSize) {
+        if (newSize >= CACHE_MAX_SIZE_DEFAULT) {
+            RegionController.cacheMaxSize = newSize;
+        }
+    }
+
+    public static int getCacheMaxSize() {
+        return RegionController.cacheMaxSize;
+    }
 
     public RegionController(long worldSeed, int seaLevel) {
         this.worldSeed = worldSeed;
@@ -128,18 +141,18 @@ public class RegionController {
         double secondMin = this.getTierMinimumHeight(secondTier);
         double tierMinHeight = this.lerp(secondMin, primaryMin, blendWeight);
         microHeight = Math.max(microHeight, tierMinHeight);
-        double tierAdjustment = (double)(primaryTier - 4) * 8.0 * 0.15;
-        if (blendWeight > 0.8) {
+        double tierAdjustment = (double)(primaryTier - 4) * WorldScapeConstants.TIER_BASE_HEIGHT * WorldScapeConstants.TIER_ADJUSTMENT_FACTOR;
+        if (blendWeight > WorldScapeConstants.BLEND_WEIGHT_THRESHOLD) {
             finalHeight = macroBaseHeight + microHeight + tierAdjustment;
         } else {
             double boundaryProximityRaw = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
             boundaryProximityRaw = Math.max(0.0, Math.min(1.0, boundaryProximityRaw));
             double boundaryProximity = WorldScapeUtils.smoothstep(0.0, 1.0, boundaryProximityRaw);
-            double macroInfluence = boundaryProximity * 0.15;
+            double macroInfluence = boundaryProximity * WorldScapeConstants.MAX_MACRO_INFLUENCE;
             if (primaryTier == 0) {
-                macroInfluence *= 0.33;
+                macroInfluence *= WorldScapeConstants.OCEAN_TIER0_MACRO_DAMPING;
             } else if (primaryTier == 1) {
-                macroInfluence *= 0.5;
+                macroInfluence *= WorldScapeConstants.OCEAN_TIER1_MACRO_DAMPING;
             }
             finalHeight = this.lerp(macroBaseHeight + microHeight + tierAdjustment, macroBaseHeight, macroInfluence);
         }
@@ -245,43 +258,48 @@ public class RegionController {
     }
 
     /*
-     * WARNING - Removed try catching itself - possible behaviour change.
+     * C2ME 环境下 fillFromNoise 被并行化，多个线程可能同时创建新区块。
+     * 使用 ConcurrentHashMap.computeIfAbsent（桶级锁，不同 key 不互斥）替代全局 synchronized。
+     * 淘汰由 AtomicBoolean 守护，确保同一时刻只有一个线程执行淘汰，其他线程直接跳过。
+     * evictCache 使用 ConcurrentHashMap.keySet() 的弱一致性迭代器，不阻塞读操作。
+     * 
+     * Under C2ME, fillFromNoise is parallelized — multiple threads may create new regions concurrently.
+     * Uses ConcurrentHashMap.computeIfAbsent (bin-level locking, different keys do NOT contend)
+     * instead of a global synchronized block.
+     * Eviction is guarded by an AtomicBoolean so only one thread runs it at a time;
+     * evictCache uses a weakly-consistent iterator over keySet() that does not block readers.
      */
     private ControlPointRegion getOrCreateRegion(int regionX, int regionZ) {
-        ConcurrentHashMap<Long, ControlPointRegion> concurrentHashMap;
         long key = (long)regionX << 32 | (long)regionZ & 0xFFFFFFFFL;
         ControlPointRegion region = this.terrainRegionCache.get(key);
         if (region != null) {
             return region;
         }
-        if (this.terrainRegionCache.size() < 1024) {
-            long regionGenStart = System.nanoTime();
-            ControlPointRegion result = this.terrainRegionCache.computeIfAbsent(key, k -> {
-                int centerBlockX = regionX * 512 + 256;
-                int centerBlockZ = regionZ * 512 + 256;
-                int macroTier = this.macroSystem.getRegionInfo(centerBlockX, centerBlockZ).getElevationTier();
-                return new ControlPointRegion(regionX, regionZ, this.worldSeed, macroTier);
-            });
-            long regionGenMs = (System.nanoTime() - regionGenStart) / 1000000L;
-            if (regionGenMs > 200L) {
-                LOGGER.warn("[World Scape] [BLOCK-CHK] SLOW region generation ({},{}): {}ms", new Object[]{regionX, regionZ, regionGenMs});
-            }
-            return result;
-        }
-        ConcurrentHashMap<Long, ControlPointRegion> concurrentHashMap2 = concurrentHashMap = this.terrainRegionCache;
-        synchronized (concurrentHashMap2) {
-            region = this.terrainRegionCache.get(key);
-            if (region != null) {
-                return region;
-            }
-            this.evictCache();
+        // computeIfAbsent uses per-bin locking — threads for different (<regionX>,<regionZ>)
+        // pairs do NOT contend on the same lock, eliminating the C2ME serial bottleneck.
+        long regionGenStart = System.nanoTime();
+        region = this.terrainRegionCache.computeIfAbsent(key, k -> {
             int centerBlockX = regionX * 512 + 256;
             int centerBlockZ = regionZ * 512 + 256;
             int macroTier = this.macroSystem.getRegionInfo(centerBlockX, centerBlockZ).getElevationTier();
-            region = new ControlPointRegion(regionX, regionZ, this.worldSeed, macroTier);
-            this.terrainRegionCache.put(key, region);
-            return region;
+            return new ControlPointRegion(regionX, regionZ, this.worldSeed, macroTier);
+        });
+        long regionGenMs = (System.nanoTime() - regionGenStart) / 1_000_000L;
+        if (regionGenMs > 200L) {
+            LOGGER.warn("[World Scape] [BLOCK-CHK] SLOW region generation ({},{}): {}ms", new Object[]{regionX, regionZ, regionGenMs});
         }
+        // Non-blocking eviction: only one thread runs it; others skip.
+        // evictCache() removes entries via ConcurrentHashMap.keySet().remove()
+        // which is lock-free for readers, preventing the old synchronized bottleneck.
+        if (this.terrainRegionCache.size() > cacheMaxSize
+            && evictionInProgress.compareAndSet(false, true)) {
+            try {
+                this.evictCache();
+            } finally {
+                evictionInProgress.set(false);
+            }
+        }
+        return region;
     }
 
     private void evictCache() {
@@ -320,14 +338,11 @@ public class RegionController {
         public final int regionX;
         public final int regionZ;
         public final List<TerrainControlPoint> allPoints;
-        @Deprecated
-        public final MacroRegionInfo macroInfo;
 
-        public BlendCache(int regionX, int regionZ, List<TerrainControlPoint> allPoints, MacroRegionInfo macroInfo) {
+        public BlendCache(int regionX, int regionZ, List<TerrainControlPoint> allPoints) {
             this.regionX = regionX;
             this.regionZ = regionZ;
             this.allPoints = allPoints;
-            this.macroInfo = macroInfo;
         }
     }
 

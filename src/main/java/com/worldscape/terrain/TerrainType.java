@@ -6,7 +6,9 @@ package com.worldscape.terrain;
 import com.worldscape.terrain.TerrainContext;
 import com.worldscape.util.NoiseUtils;
 import com.worldscape.util.WorldScapeUtils;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 public enum TerrainType {
@@ -51,6 +53,8 @@ public enum TerrainType {
     private static final List<TerrainType> TIER_4_WHITELIST;
     private static final List<TerrainType> TIER_5_WHITELIST;
 
+    private static final Map<String, TerrainType> ID_TO_TYPE = new HashMap<>();
+
     private TerrainType(String id, int minHeight, int maxHeight, Function<TerrainContext, Double> heightFunction) {
         this.id = id;
         this.minHeight = minHeight;
@@ -60,6 +64,16 @@ public enum TerrainType {
 
     public String getId() {
         return this.id;
+    }
+
+    public static TerrainType getById(String id) {
+        return ID_TO_TYPE.get(id);
+    }
+
+    static {
+        for (TerrainType type : values()) {
+            ID_TO_TYPE.put(type.id, type);
+        }
     }
 
     public int getMinHeight() {

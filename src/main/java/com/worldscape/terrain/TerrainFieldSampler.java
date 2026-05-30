@@ -12,6 +12,7 @@ package com.worldscape.terrain;
 import com.worldscape.terrain.TerrainType;
 import com.worldscape.util.SeedDeriver;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import org.slf4j.Logger;
@@ -33,9 +34,7 @@ public class TerrainFieldSampler {
     private static final List<Double> TIER_THRESHOLDS = List.of(Double.valueOf(-1.405), Double.valueOf(-0.674), Double.valueOf(0.0), Double.valueOf(0.842), Double.valueOf(1.645));
     public static final int NO_MACRO_TIER_CONSTRAINT = -1;
     private static final double ENERGY_TO_OFFSET_SCALE = 50.0;
-    private static volatile TerrainFieldSampler instance;
-    private static volatile long cachedSeed;
-    private static final Object LOCK;
+    private static final ConcurrentHashMap<Long, TerrainFieldSampler> instances = new ConcurrentHashMap<>();
 
     private TerrainFieldSampler(long worldSeed) {
         long energyMainSeed = SeedDeriver.deriveSeed(worldSeed, 832466842634L);
@@ -58,22 +57,12 @@ public class TerrainFieldSampler {
     }
 
     /*
-     * WARNING - Removed try catching itself - possible behaviour change.
+     * 按 worldSeed 分实例缓存，避免旧种子实例被覆盖导致跨世界线程安全问题。
+     * Cache instances by worldSeed to prevent cross-world thread safety issues
+     * caused by overwriting the previous instance.
      */
     public static TerrainFieldSampler getOrCreate(long worldSeed) {
-        Object object;
-        TerrainFieldSampler current = instance;
-        if (current != null && cachedSeed == worldSeed) {
-            return current;
-        }
-        Object object2 = object = LOCK;
-        synchronized (object2) {
-            if (instance == null || cachedSeed != worldSeed) {
-                instance = new TerrainFieldSampler(worldSeed);
-                cachedSeed = worldSeed;
-            }
-            return instance;
-        }
+        return instances.computeIfAbsent(worldSeed, TerrainFieldSampler::new);
     }
 
     public double sampleEnergy(int x, int z) {
@@ -387,11 +376,6 @@ public class TerrainFieldSampler {
         double gx = (hX1 - hX2) / (2.0 * step);
         double gz = (hZ1 - hZ2) / (2.0 * step);
         return Math.sqrt(gx * gx + gz * gz);
-    }
-
-    static {
-        cachedSeed = Long.MIN_VALUE;
-        LOCK = new Object();
     }
 }
 

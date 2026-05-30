@@ -81,7 +81,7 @@ public class TerrainFrameLogger {
         LOGGER.info("{} Chunk ({},{}) worldPos=({},{}): heightRange=[{}..{}] avg={} spread={}", new Object[]{LOG_PREFIX, chunkX, chunkZ, minX, minZ, heightMin, heightMax, String.format("%.1f", avgHeight), heightRange});
         if (!typeDistribution.isEmpty()) {
             StringBuilder typeStr = new StringBuilder("Types={");
-            typeDistribution.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).limit(5L).forEach(e -> typeStr.append(((TerrainType)((Object)((Object)e.getKey()))).getId()).append(":").append(e.getValue()).append(", "));
+            typeDistribution.entrySet().stream().sorted(Map.Entry.<TerrainType, Integer>comparingByValue().reversed()).limit(5L).forEach(e -> typeStr.append(((TerrainType)((Object)((Object)e.getKey()))).getId()).append(":").append(e.getValue()).append(", "));
             if (typeStr.length() > 7) {
                 typeStr.setLength(typeStr.length() - 2);
             }
@@ -170,7 +170,7 @@ public class TerrainFrameLogger {
         double avgOffset = points.isEmpty() ? 0.0 : sumOffset / (double)points.size();
         LOGGER.info("{} Region ({},{}): {} points, offsetRange=[{:.1f}..{:.1f}] avg={:.1f}", new Object[]{LOG_PREFIX, region.getRegionX(), region.getRegionZ(), points.size(), String.format("%.1f", minOffset), String.format("%.1f", maxOffset), avgOffset});
         StringBuilder summary = new StringBuilder("  TypeDist=");
-        typeCounts.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).forEach(e -> summary.append(((TerrainType)((Object)((Object)e.getKey()))).getId()).append(":").append(e.getValue()).append(" "));
+        typeCounts.entrySet().stream().sorted(Map.Entry.<TerrainType, Integer>comparingByValue().reversed()).forEach(e -> summary.append(((TerrainType)((Object)((Object)e.getKey()))).getId()).append(":").append(e.getValue()).append(" "));
         LOGGER.debug("{} {}", (Object)LOG_PREFIX, (Object)summary);
     }
 }

@@ -30,3 +30,14 @@ dependencies {
     compileOnly 'org.spongepowered:mixin:0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
+
+tasks.register('runSeedAnalyzer', JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.worldscape.analyzer.SeedAnalyzer'
+    def seedArgs = project.findProperty('seedArgs')
+    if (seedArgs != null) {
+        args seedArgs.split(' ')
+    } else {
+        args '--help'
+    }
+}

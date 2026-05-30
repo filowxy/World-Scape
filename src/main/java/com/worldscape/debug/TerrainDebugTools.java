@@ -166,7 +166,7 @@ public class TerrainDebugTools {
         sb.append(String.format("  \u9ad8\u5ea6\u8de8\u5ea6 / Range: %.1f\n", maxHeight - minHeight));
         sb.append("\n");
         sb.append("\u3010\u4e3b\u5bfc\u5730\u5f62\u7c7b\u578b\u5206\u5e03 / Dominant Terrain Type Distribution\u3011\n");
-        typeCount.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).limit(10L).forEach(e -> {
+        typeCount.entrySet().stream().sorted(Map.Entry.<TerrainType, Integer>comparingByValue().reversed()).limit(10L).forEach(e -> {
             double percent = 100.0 * (double)((Integer)e.getValue()).intValue() / (double)finalTotalSamples;
             sb.append(String.format("  %-20s: %5d (%5.1f%%)\n", ((TerrainType)((Object)((Object)e.getKey()))).getId(), e.getValue(), percent));
         });
@@ -179,19 +179,19 @@ public class TerrainDebugTools {
         }
         sb.append("\n");
         sb.append("\u3010\u6c14\u5019\u5e26\u5206\u5e03 / Climate Zone Distribution\u3011\n");
-        climateCount.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).forEach(e -> {
+        climateCount.entrySet().stream().sorted(Map.Entry.<MacroRegionInfo.ClimateZone, Integer>comparingByValue().reversed()).forEach(e -> {
             double percent = 100.0 * (double)((Integer)e.getValue()).intValue() / (double)finalTotalSamples;
             sb.append(String.format("  %-10s: %5d (%5.1f%%)\n", ((MacroRegionInfo.ClimateZone)((Object)((Object)e.getKey()))).name(), e.getValue(), percent));
         });
         sb.append("\n");
         sb.append("\u3010\u6784\u9020\u7c7b\u578b\u5206\u5e03 / Tectonic Type Distribution\u3011\n");
-        tectonicCount.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).forEach(e -> {
+        tectonicCount.entrySet().stream().sorted(Map.Entry.<MacroRegionInfo.TectonicType, Integer>comparingByValue().reversed()).forEach(e -> {
             double percent = 100.0 * (double)((Integer)e.getValue()).intValue() / (double)finalTotalSamples;
             sb.append(String.format("  %-15s: %5d (%5.1f%%)\n", ((MacroRegionInfo.TectonicType)((Object)((Object)e.getKey()))).name(), e.getValue(), percent));
         });
         sb.append("\n");
         sb.append("\u3010\u4e3b\u8981\u7ec4\u5408\u7c7b\u578b / Major Combinations\u3011\n");
-        combinedCount.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).limit(8L).forEach(e -> {
+        combinedCount.entrySet().stream().sorted(Map.Entry.<String, Integer>comparingByValue().reversed()).limit(8L).forEach(e -> {
             double percent = 100.0 * (double)((Integer)e.getValue()).intValue() / (double)finalTotalSamples;
             sb.append(String.format("  %-25s: %5d (%5.1f%%)\n", e.getKey(), e.getValue(), percent));
         });
@@ -482,8 +482,8 @@ public class TerrainDebugTools {
         int barY = 60;
         int barMaxWidth = chartWidth - 100;
         g.setFont(new Font("Monospaced", 0, 11));
-        LinkedHashMap sortedTypes = new LinkedHashMap();
-        typeCounts.entrySet().stream().sorted(Map.Entry.comparingByValue().reversed()).forEach(e -> sortedTypes.put((TerrainType)((Object)((Object)e.getKey())), (Integer)e.getValue()));
+        LinkedHashMap<TerrainType, Integer> sortedTypes = new LinkedHashMap<>();
+        typeCounts.entrySet().stream().sorted(Map.Entry.<TerrainType, Integer>comparingByValue().reversed()).forEach(e -> sortedTypes.put((TerrainType)((Object)((Object)e.getKey())), (Integer)e.getValue()));
         int barIndex = 0;
         for (Map.Entry entry : sortedTypes.entrySet()) {
             TerrainType type = (TerrainType)((Object)entry.getKey());

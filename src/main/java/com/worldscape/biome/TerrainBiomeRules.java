@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -230,7 +231,7 @@ public class TerrainBiomeRules {
                 ResourceLocation rl = ResourceLocation.parse((String)tagId);
                 TagKey tagKey = TagKey.create((ResourceKey)Registries.BIOME, (ResourceLocation)rl);
                 HashSet biomes = new HashSet();
-                this.biomeRegistry.getTag(tagKey).ifPresent(tag -> tag.stream().forEach(biomes::add));
+                this.biomeRegistry.getTag(tagKey).ifPresent(tag -> ((HolderSet.Named<Biome>)tag).stream().forEach(biomes::add));
                 this.tagCache.put(string, biomes);
                 LOGGER.debug("[World Scape] Expanded tag {} \u2192 {} biomes", (Object)string, (Object)biomes.size());
             }

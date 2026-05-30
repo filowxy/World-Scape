@@ -69,8 +69,8 @@ extends Screen {
             WelcomeScreenConfig.setDebugMode(this.isDebugMode);
             button.setMessage((Component)Component.literal((String)(this.isDebugMode ? "Debug: ON" : "Debug: OFF")));
         }).bounds(centerX - 300 + 15, buttonY, 100, 24).build();
-        this.addRenderableWidget((GuiEventListener)this.continueButton);
-        this.addRenderableWidget((GuiEventListener)this.debugModeButton);
+        this.addRenderableWidget(this.continueButton);
+        this.addRenderableWidget(this.debugModeButton);
     }
 
     private void saveSettings() {

@@ -9,12 +9,14 @@ package com.worldscape.compat.c2me;
 
 import com.worldscape.WorldScape;
 import com.worldscape.generator.LandscapeChunkGenerator;
+import com.worldscape.terrain.RegionController;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 
 public class C2MECompatibility {
     private static final boolean C2ME_PRESENT;
     private static boolean initialized;
     private static CompatibilityMode mode;
+    private static final int C2ME_CACHE_SIZE = 4096;
 
     public static void initialize(CompatibilityMode configMode) {
         if (initialized) {
@@ -48,7 +50,13 @@ public class C2MECompatibility {
     }
 
     private static void enableFullCompatibility() {
-        WorldScape.LOGGER.info("[C2ME Compat] Full compatibility enabled");
+        // 当 C2ME 并行化 fillFromNoise 时，terrainRegionCache 的 synchronized 溢出路径成为全局串行瓶颈。
+        // 增大缓存 → 无锁 computeIfAbsent 路径命中率更高 → 减少争用。
+        // When C2ME parallelizes fillFromNoise, the synchronized overflow path of terrainRegionCache
+        // becomes a global serial bottleneck.
+        // Larger cache → higher hit rate on lock-free computeIfAbsent path → reduced contention.
+        RegionController.setCacheMaxSize(C2ME_CACHE_SIZE);
+        WorldScape.LOGGER.info("[C2ME Compat] Full compatibility enabled — RegionController cache size set to {}", RegionController.getCacheMaxSize());
     }
 
     public static void validateChunkGenerator(ChunkGenerator generator, boolean isNewWorld) {

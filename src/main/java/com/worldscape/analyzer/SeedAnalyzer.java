@@ -92,6 +92,8 @@ public class SeedAnalyzer {
     private RegionController regionController;
     private NoiseSet noiseSet;
     private TerrainFieldSampler fieldSampler;
+    private boolean[] currentSubmergedMask;
+    private double[] currentContinuousHeights;
 
     /**
      * 构造种子分析器，指定种子值、半径和采样步长。
@@ -161,8 +163,9 @@ public class SeedAnalyzer {
 
         System.out.println("[SeedAnalyzer] " + "生成图片 / Generating images...");
         generateGrayscaleHeightmap(result.heightMap, result.gridSize, outputDir);
-        generateColoredHeightmap(result.heightMap, result.gridSize, outputDir);
-        generateCliffHeatmap(result.gradients, result.gridSize, outputDir);
+                generateColoredHeightmap(result.heightMap, result.gridSize, outputDir);
+                generateBareEarthMap(result.heightMap, result.submergedMask, result.gridSize, outputDir);
+                generateCliffHeatmap(result.gradients, result.gridSize, outputDir);
 
         System.out.println("[SeedAnalyzer] " + "生成报告 / Generating report...");
         generateMarkdownReport(result, outputDir);
@@ -196,17 +199,17 @@ public class SeedAnalyzer {
         CliffRiskAssessment cliffRisk = assessCliffRisk(gradients, gridSize);
 
         System.out.println("[SeedAnalyzer] " + "统计海拔分布 / Calculating altitude statistics...");
-        AltitudeStatistics altitudeStats = calculateAltitudeStats(heightMap, gridSize);
+        AltitudeStatistics altitudeStats = calculateAltitudeStats(heightMap, currentSubmergedMask, gridSize);
 
         System.out.println("[SeedAnalyzer] " + "评估海洋质量 / Assessing ocean quality...");
-        OceanQualityAssessment oceanQuality = assessOceanQuality(heightMap, gridSize);
+        OceanQualityAssessment oceanQuality = assessOceanQuality(heightMap, currentSubmergedMask, gridSize);
 
         System.out.println("[SeedAnalyzer] " + "收集地形类型 / Collecting terrain types...");
         Map<TerrainType, Integer> terrainTypes = collectTerrainTypes(gridSize);
 
         return new AnalysisResult(
                 seed, radius, step, gridSize,
-                heightMap, gradients,
+                heightMap, gradients, currentSubmergedMask,
                 altitudeStats, cliffRisk, oceanQuality, terrainTypes
         );
     }
@@ -217,17 +220,23 @@ public class SeedAnalyzer {
      */
     private double[] generateHeightData(int gridSize) {
         double[] heightMap = new double[gridSize * gridSize];
+        currentSubmergedMask = new boolean[gridSize * gridSize];
+        currentContinuousHeights = new double[gridSize * gridSize];
         int reported = -1;
         for (int gz = 0; gz < gridSize; gz++) {
             int progress = (int) ((gz + 1) * 100.0 / gridSize);
             if (progress > reported && progress % 10 == 0) {
                 reported = progress;
-                System.out.println("[SeedAnalyzer] " + "  高度计算进度 / Height calculation progress: " + progress + "%");
+                System.out.println("[SeedAnalyzer] 高度计算进度 / Height calculation progress: " + progress + "%");
             }
             for (int gx = 0; gx < gridSize; gx++) {
+                int idx = gz * gridSize + gx;
                 int worldX = -radius + gx * step;
                 int worldZ = -radius + gz * step;
-                heightMap[gz * gridSize + gx] = calculateTerrainHeight(worldX, worldZ);
+                TerrainHeightResult result = calculateFullTerrainHeight(worldX, worldZ);
+                heightMap[idx] = result.continuousHeight;
+                currentSubmergedMask[idx] = result.erodedHeight < SEA_LEVEL;
+                currentContinuousHeights[idx] = result.continuousHeight;
             }
         }
         return heightMap;
@@ -248,6 +257,39 @@ public class SeedAnalyzer {
         int erodedHeight = TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, SEA_LEVEL, erosionIntensity, alluvialFactor);
         int actualHeight = TerrainCalculator.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, WorldScapeConstants.OVERWORLD_MIN_Y);
         return actualHeight;
+    }
+
+    /**
+     * Container for all computed terrain heights at a single point.
+     * Container for all computed terrain heights at a single point.
+     */
+    private static class TerrainHeightResult {
+        final double continuousHeight;
+        final int erodedHeight;
+        final int actualSurfaceHeight;
+
+        TerrainHeightResult(double continuousHeight, int erodedHeight, int actualSurfaceHeight) {
+            this.continuousHeight = continuousHeight;
+            this.erodedHeight = erodedHeight;
+            this.actualSurfaceHeight = actualSurfaceHeight;
+        }
+    }
+
+    /**
+     * Compute full terrain height result - tracks continuous height for see-through-water view.
+     * Compute full terrain height result - tracks continuous height for see-through-water view.
+     */
+    private TerrainHeightResult calculateFullTerrainHeight(int worldX, int worldZ) {
+        RegionController.TerrainBlendResult blend = regionController.getTerrainBlend(worldX, worldZ);
+        TerrainType type = TerrainCalculator.determineTerrainType(blend);
+        double continuousHeight = TerrainCalculator.calculateFinalHeight(worldX, worldZ, blend, type, noiseSet, fieldSampler);
+        boolean isRiver = TerrainCalculator.isRiverAt(worldX, worldZ, noiseSet);
+        double riverDepth = TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, (int)continuousHeight, SEA_LEVEL);
+        double erosionIntensity = TerrainCalculator.getRiverErosionIntensity(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL, blend);
+        double alluvialFactor = TerrainCalculator.getAlluvialFactor(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL);
+        int erodedHeight = TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, SEA_LEVEL, erosionIntensity, alluvialFactor);
+        int actualSurfaceHeight = TerrainCalculator.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, WorldScapeConstants.OVERWORLD_MIN_Y);
+        return new TerrainHeightResult(continuousHeight, erodedHeight, actualSurfaceHeight);
     }
 
     // ===== 以下方法为SeedAnalyzer自有实现 =====
@@ -375,29 +417,48 @@ public class SeedAnalyzer {
         return maxArea;
     }
 
-    private AltitudeStatistics calculateAltitudeStats(double[] heightMap, int gridSize) {
+    private AltitudeStatistics calculateAltitudeStats(double[] heightMap, boolean[] submergedMask, int gridSize) {
         int total = gridSize * gridSize;
         double minHeight = Double.MAX_VALUE;
         double maxHeight = Double.MIN_VALUE;
         double sumHeight = 0;
+        int landCount = 0;
+        double dryLandMin = Double.MAX_VALUE;
+        double dryLandMax = Double.MIN_VALUE;
+        double dryLandSum = 0;
+        int dryLandCount = 0;
 
-        for (double h : heightMap) {
+        for (int i = 0; i < total; i++) {
+            double h = heightMap[i];
             if (h < minHeight) minHeight = h;
             if (h > maxHeight) maxHeight = h;
             sumHeight += h;
+            if (!submergedMask[i]) {
+                landCount++;
+                if (h < dryLandMin) dryLandMin = h;
+                if (h > dryLandMax) dryLandMax = h;
+                dryLandSum += h;
+                dryLandCount++;
+            }
         }
         double meanHeight = sumHeight / total;
 
         double sumSqDiff = 0;
-        int landCount = 0;
-        for (double h : heightMap) {
-            double diff = h - meanHeight;
+        for (int i = 0; i < total; i++) {
+            double diff = heightMap[i] - meanHeight;
             sumSqDiff += diff * diff;
-            if (h >= SEA_LEVEL) landCount++;
         }
         double stdDev = Math.sqrt(sumSqDiff / total);
         double landPercentage = 100.0 * landCount / total;
         double oceanPercentage = 100.0 - landPercentage;
+
+        double dryLandMean = dryLandCount > 0 ? dryLandSum / dryLandCount : Double.NaN;
+        double dryLandMinFinal = dryLandCount > 0 ? dryLandMin : Double.NaN;
+        double dryLandMaxFinal = dryLandCount > 0 ? dryLandMax : Double.NaN;
+
+        double seaLevelRelativeMin = minHeight - SEA_LEVEL;
+        double seaLevelRelativeMax = maxHeight - SEA_LEVEL;
+        double seaLevelRelativeMean = meanHeight - SEA_LEVEL;
 
         double[] sorted = heightMap.clone();
         Arrays.sort(sorted);
@@ -414,23 +475,24 @@ public class SeedAnalyzer {
 
         return new AltitudeStatistics(
                 minHeight, maxHeight, meanHeight, medianHeight, stdDev,
-                landPercentage, oceanPercentage, histogram, HISTOGRAM_BIN_SIZE, HISTOGRAM_MIN_BIN
+                landPercentage, oceanPercentage,
+                dryLandMinFinal, dryLandMaxFinal, dryLandMean,
+                seaLevelRelativeMin, seaLevelRelativeMax, seaLevelRelativeMean,
+                histogram, HISTOGRAM_BIN_SIZE, HISTOGRAM_MIN_BIN
         );
     }
 
-    private OceanQualityAssessment assessOceanQuality(double[] heightMap, int gridSize) {
+    private OceanQualityAssessment assessOceanQuality(double[] heightMap, boolean[] submergedMask, int gridSize) {
         int total = gridSize * gridSize;
-        boolean[] isOcean = new boolean[total];
+        boolean[] isOcean = submergedMask;
         int oceanCount = 0;
         double oceanDepthSum = 0;
         double maxOceanDepth = 0;
 
         for (int i = 0; i < total; i++) {
-            double h = heightMap[i];
-            if (h < SEA_LEVEL) {
-                isOcean[i] = true;
+            if (isOcean[i]) {
                 oceanCount++;
-                double depth = SEA_LEVEL - h;
+                double depth = SEA_LEVEL - heightMap[i];
                 oceanDepthSum += depth;
                 if (depth > maxOceanDepth) maxOceanDepth = depth;
             }
@@ -576,7 +638,7 @@ public class SeedAnalyzer {
                 int worldX = -radius + gx * step;
                 int worldZ = -radius + gz * step;
                 TerrainBlendResult blend = regionController.getTerrainBlend(worldX, worldZ);
-                TerrainType type = blend.dominantType;
+                TerrainType type = TerrainCalculator.determineTerrainType(blend);
                 typeCounts.merge(type, 1, Integer::sum);
             }
         }
@@ -616,6 +678,52 @@ public class SeedAnalyzer {
             }
         }
         writePng(image, outputDir.resolve("heightmap_colored.png"));
+    }
+
+    private void generateBareEarthMap(double[] heightMap, boolean[] submergedMask, int gridSize, Path outputDir) {
+        double minH = Double.MAX_VALUE;
+        double maxH = Double.MIN_VALUE;
+        for (double h : heightMap) {
+            if (h < minH) minH = h;
+            if (h > maxH) maxH = h;
+        }
+        double range = maxH - minH;
+        if (range < 1) range = 1;
+
+        BufferedImage image = new BufferedImage(gridSize, gridSize, BufferedImage.TYPE_INT_RGB);
+        for (int z = 0; z < gridSize; z++) {
+            for (int x = 0; x < gridSize; x++) {
+                double h = heightMap[z * gridSize + x];
+                double t = (h - minH) / range;
+                t = Math.max(0, Math.min(1, t));
+                boolean submerged = submergedMask != null && submergedMask[z * gridSize + x];
+
+                int baseRgb;
+                if (submerged) {
+                    double oceanT = t * 0.6;
+                    baseRgb = interpolateColor3f(
+                            0.0f, 0.05f, 0.15f,
+                            0.4f, 0.7f, 0.9f,
+                            (float)oceanT
+                    );
+                } else {
+                    baseRgb = interpolateColor3f(
+                            0.1f, 0.4f, 0.1f,
+                            0.9f, 0.85f, 0.7f,
+                            (float)t
+                    );
+                }
+                image.setRGB(x, z, baseRgb);
+            }
+        }
+        writePng(image, outputDir.resolve("terra_nuda.png"));
+    }
+
+    private static int interpolateColor3f(float r1, float g1, float b1, float r2, float g2, float b2, float t) {
+        int r = (int)((r1 + (r2 - r1) * t) * 255);
+        int g = (int)((g1 + (g2 - g1) * t) * 255);
+        int b = (int)((b1 + (b2 - b1) * t) * 255);
+        return (r << 16) | (g << 8) | b;
     }
 
     private void generateCliffHeatmap(double[] gradients, int gridSize, Path outputDir) {
@@ -741,6 +849,9 @@ public class SeedAnalyzer {
         writer.write("## Altitude Statistics / 海拔统计");
         writer.newLine();
         writer.newLine();
+        writer.write("### See-Through-Water Height / 透水海拔高度 (Raw Terrain)");
+        writer.newLine();
+        writer.newLine();
         writer.write("| Metric | Value |");
         writer.newLine();
         writer.write("|--------|-------|");
@@ -755,11 +866,31 @@ public class SeedAnalyzer {
         writer.newLine();
         writer.write(String.format("| Std Dev / 标准差 | %.1f |", stats.stdDev));
         writer.newLine();
+        writer.write(String.format("| Sea-Level Relative / 相对海平面 | %.1f ~ %.1f (mean: %.1f) |",
+                stats.seaLevelRelativeMin, stats.seaLevelRelativeMax, stats.seaLevelRelativeMean));
+        writer.newLine();
         writer.write(String.format("| Land Coverage / 陆地覆盖率 | %.1f%% |", stats.landPercentage));
         writer.newLine();
         writer.write(String.format("| Ocean Coverage / 海洋覆盖率 | %.1f%% |", stats.oceanPercentage));
         writer.newLine();
         writer.newLine();
+
+        if (!Double.isNaN(stats.dryLandMeanHeight)) {
+            writer.write("### Dry Land Only / 仅陆地海拔统计");
+            writer.newLine();
+            writer.newLine();
+            writer.write("| Metric | Value |");
+            writer.newLine();
+            writer.write("|--------|-------|");
+            writer.newLine();
+            writer.write(String.format("| Minimum / 最低 | %.1f |", stats.dryLandMinHeight));
+            writer.newLine();
+            writer.write(String.format("| Maximum / 最高 | %.1f |", stats.dryLandMaxHeight));
+            writer.newLine();
+            writer.write(String.format("| Mean / 平均 | %.1f |", stats.dryLandMeanHeight));
+            writer.newLine();
+            writer.newLine();
+        }
 
         writer.write("### Altitude Distribution / 海拔分布");
         writer.newLine();
@@ -885,6 +1016,8 @@ public class SeedAnalyzer {
         writer.newLine();
         writer.write("- `heightmap_colored.png` - Altitude colored map / 海拔着色图");
         writer.newLine();
+        writer.write("- `terra_nuda.png` - Bare earth map (see-through-water view) / 裸地地图（透水视角）");
+        writer.newLine();
         writer.write("- `cliff_heatmap.png` - Cliff risk heatmap / 悬崖热力图");
         writer.newLine();
         writer.newLine();
@@ -991,13 +1124,14 @@ public class SeedAnalyzer {
         public final int gridSize;
         public final double[] heightMap;
         public final double[] gradients;
+        public final boolean[] submergedMask;
         public final AltitudeStatistics altitudeStats;
         public final CliffRiskAssessment cliffRisk;
         public final OceanQualityAssessment oceanQuality;
         public final Map<TerrainType, Integer> terrainTypes;
 
         AnalysisResult(long seed, int radius, int step, int gridSize,
-                       double[] heightMap, double[] gradients,
+                       double[] heightMap, double[] gradients, boolean[] submergedMask,
                        AltitudeStatistics altitudeStats, CliffRiskAssessment cliffRisk,
                        OceanQualityAssessment oceanQuality, Map<TerrainType, Integer> terrainTypes) {
             this.seed = seed;
@@ -1006,6 +1140,7 @@ public class SeedAnalyzer {
             this.gridSize = gridSize;
             this.heightMap = heightMap;
             this.gradients = gradients;
+            this.submergedMask = submergedMask;
             this.altitudeStats = altitudeStats;
             this.cliffRisk = cliffRisk;
             this.oceanQuality = oceanQuality;
@@ -1024,12 +1159,20 @@ public class SeedAnalyzer {
         public final double stdDev;
         public final double landPercentage;
         public final double oceanPercentage;
+        public final double dryLandMinHeight;
+        public final double dryLandMaxHeight;
+        public final double dryLandMeanHeight;
+        public final double seaLevelRelativeMin;
+        public final double seaLevelRelativeMax;
+        public final double seaLevelRelativeMean;
         public final int[] histogram;
         public final int histogramBinSize;
         public final int histogramBinOrigin;
 
         AltitudeStatistics(double minHeight, double maxHeight, double meanHeight, double medianHeight,
                            double stdDev, double landPercentage, double oceanPercentage,
+                           double dryLandMinHeight, double dryLandMaxHeight, double dryLandMeanHeight,
+                           double seaLevelRelativeMin, double seaLevelRelativeMax, double seaLevelRelativeMean,
                            int[] histogram, int histogramBinSize, int histogramBinOrigin) {
             this.minHeight = minHeight;
             this.maxHeight = maxHeight;
@@ -1038,6 +1181,12 @@ public class SeedAnalyzer {
             this.stdDev = stdDev;
             this.landPercentage = landPercentage;
             this.oceanPercentage = oceanPercentage;
+            this.dryLandMinHeight = dryLandMinHeight;
+            this.dryLandMaxHeight = dryLandMaxHeight;
+            this.dryLandMeanHeight = dryLandMeanHeight;
+            this.seaLevelRelativeMin = seaLevelRelativeMin;
+            this.seaLevelRelativeMax = seaLevelRelativeMax;
+            this.seaLevelRelativeMean = seaLevelRelativeMean;
             this.histogram = histogram;
             this.histogramBinSize = histogramBinSize;
             this.histogramBinOrigin = histogramBinOrigin;

@@ -68,8 +68,8 @@ public class TerraBlenderCompat {
             LOGGER.debug("[TerraBlender Compat] Found {} TerraBlender regions", (Object)regions.size());
             HashSet<ResourceLocation> seenBiomes = new HashSet<ResourceLocation>();
             for (Object region : regions) {
-                List biomes = (List)getBiomesMethod.invoke(region, new Object[0]);
-                for (Holder biome : biomes) {
+                List<?> biomes = (List<?>)getBiomesMethod.invoke(region, new Object[0]);
+                for (Holder<Biome> biome : (List<Holder<Biome>>)biomes) {
                     ResourceLocation biomeId;
                     if (!this.isOverworldBiome((Holder<Biome>)biome) || seenBiomes.contains(biomeId = ((ResourceKey)biome.unwrapKey().orElseThrow()).location())) continue;
                     this.allOverworldBiomes.add(biomeId);

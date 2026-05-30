@@ -27,11 +27,11 @@ public class ClimateUtils {
             case "GLACIAL_VALLEY": 
             case "CIRQUE": 
             case "HORN": {
-                boolean bl = true;
+                isGlacialTerrain = true;
                 break;
             }
             default: {
-                boolean bl = isGlacialTerrain = false;
+                isGlacialTerrain = false;
             }
         }
         if (isGlacialTerrain) {

@@ -11,19 +11,22 @@
  */
 package com.worldscape.biome;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 import com.worldscape.terrain.MacroRegionInfo;
 import com.worldscape.terrain.TerrainType;
 import com.worldscape.util.ClimateUtils;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.attribute.FileAttribute;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -219,57 +222,75 @@ public class BiomeMapper {
 
     public void loadFromConfig() {
         Path configPath = Paths.get("config", "worldscape", "landscape.json");
-        if (Files.exists(configPath, new LinkOption[0])) {
-            try {
-                BufferedReader reader = Files.newBufferedReader(configPath);
-                if (reader != null) {
-                    ((Reader)reader).close();
+        if (!Files.exists(configPath, new LinkOption[0])) {
+            return;
+        }
+        try {
+            String json = Files.readString(configPath);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+
+            this.biomeToTerrain.clear();
+            this.terrainToBiomes.clear();
+            for (TerrainType type : TerrainType.values()) {
+                this.terrainToBiomes.put(type, new ArrayList());
+            }
+
+            if (root.has("biome_to_terrain")) {
+                JsonObject btt = root.getAsJsonObject("biome_to_terrain");
+                for (Map.Entry<String, JsonElement> entry : btt.entrySet()) {
+                    ResourceLocation biomeId = ResourceLocation.parse(entry.getKey());
+                    TerrainType terrain = TerrainType.getById(entry.getValue().getAsString());
+                    if (terrain != null) {
+                        this.biomeToTerrain.put(biomeId, terrain);
+                        this.terrainToBiomes.computeIfAbsent(terrain, k -> new ArrayList()).add(biomeId);
+                    }
                 }
             }
-            catch (IOException e) {
-                e.printStackTrace();
+
+            if (root.has("terrain_to_biomes")) {
+                JsonObject ttb = root.getAsJsonObject("terrain_to_biomes");
+                for (Map.Entry<String, JsonElement> entry : ttb.entrySet()) {
+                    TerrainType terrain = TerrainType.getById(entry.getKey());
+                    if (terrain == null) continue;
+                    JsonArray biomeArray = entry.getValue().getAsJsonArray();
+                    List<ResourceLocation> biomes = new ArrayList<>();
+                    for (JsonElement elem : biomeArray) {
+                        biomes.add(ResourceLocation.parse(elem.getAsString()));
+                    }
+                    this.terrainToBiomes.put(terrain, biomes);
+                }
             }
+        } catch (IOException | JsonSyntaxException | IllegalStateException e) {
+            e.printStackTrace();
         }
     }
 
     public void saveToConfig() {
         Path configDir = Paths.get("config", "worldscape");
         try {
-            Files.createDirectories(configDir, new FileAttribute[0]);
+            Files.createDirectories(configDir);
             Path configPath = configDir.resolve("landscape.json");
-            try (BufferedWriter writer = Files.newBufferedWriter(configPath, new OpenOption[0]);){
-                writer.write("{");
-                writer.write("\"biome_to_terrain\": {");
-                boolean first = true;
-                for (Map.Entry<ResourceLocation, TerrainType> entry : this.biomeToTerrain.entrySet()) {
-                    if (!first) {
-                        writer.write(",");
-                    }
-                    writer.write("\"" + String.valueOf(entry.getKey()) + "\": \"" + entry.getValue().getId() + "\"");
-                    first = false;
-                }
-                writer.write("},");
-                writer.write("\"terrain_to_biomes\": {");
-                first = true;
-                for (Map.Entry<Object, Object> entry : this.terrainToBiomes.entrySet()) {
-                    if (!first) {
-                        writer.write(",");
-                    }
-                    writer.write("\"" + ((TerrainType)((Object)entry.getKey())).getId() + "\": [");
-                    boolean firstBiome = true;
-                    for (ResourceLocation biomeId : (List)entry.getValue()) {
-                        if (!firstBiome) {
-                            writer.write(",");
-                        }
-                        writer.write("\"" + String.valueOf(biomeId) + "\"");
-                        firstBiome = false;
-                    }
-                    writer.write("]");
-                    first = false;
-                }
-                writer.write("}");
-                writer.write("}");
+
+            JsonObject root = new JsonObject();
+
+            JsonObject biomeToTerrainJson = new JsonObject();
+            for (Map.Entry<ResourceLocation, TerrainType> entry : this.biomeToTerrain.entrySet()) {
+                biomeToTerrainJson.addProperty(entry.getKey().toString(), entry.getValue().getId());
             }
+            root.add("biome_to_terrain", biomeToTerrainJson);
+
+            JsonObject terrainToBiomesJson = new JsonObject();
+            for (Map.Entry<TerrainType, List<ResourceLocation>> entry : this.terrainToBiomes.entrySet()) {
+                JsonArray biomeArray = new JsonArray();
+                for (ResourceLocation biomeId : entry.getValue()) {
+                    biomeArray.add(biomeId.toString());
+                }
+                terrainToBiomesJson.add(entry.getKey().getId(), biomeArray);
+            }
+            root.add("terrain_to_biomes", terrainToBiomesJson);
+
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            Files.writeString(configPath, gson.toJson(root), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         }
         catch (IOException e) {
             e.printStackTrace();

@@ -103,7 +103,7 @@ extends ChunkGenerator {
     private final int minY;
     private final int height;
     private final ThreadLocal<Map<Long, RiverCacheData>> riverCache = ThreadLocal.withInitial(() -> new HashMap(4));
-    public static final MapCodec<LandscapeChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group((App)BiomeSource.CODEC.fieldOf("biome_source").forGetter(LandscapeChunkGenerator::getBiomeSource), (App)NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(LandscapeChunkGenerator::getSettings), (App)Codec.LONG.fieldOf("seed").orElse((Object)0L).forGetter(LandscapeChunkGenerator::getWorldSeed)).apply((Applicative)instance, LandscapeChunkGenerator::new));
+    public static final MapCodec<LandscapeChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(BiomeSource.CODEC.fieldOf("biome_source").forGetter(LandscapeChunkGenerator::getBiomeSource), NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(LandscapeChunkGenerator::getSettings), Codec.LONG.fieldOf("seed").orElse(0L).forGetter(LandscapeChunkGenerator::getWorldSeed)).apply(instance, LandscapeChunkGenerator::new));
     private final AtomicReference<Method> forChunkMethodRef = new AtomicReference();
     private final AtomicReference<Method> fluidPickerMethodRef = new AtomicReference();
     private final AtomicReference<Method> beardifierMethodRef = new AtomicReference();
@@ -122,6 +122,7 @@ extends ChunkGenerator {
     private static final boolean DIAGNOSE_OCEAN = true;
     private static final int DIAGNOSE_MAX_CHUNKS = 10;
     private static final AtomicInteger diagChunkCount = new AtomicInteger(0);
+    private volatile boolean biomeReflectionAvailable = true;
 
     public LandscapeChunkGenerator(BiomeSource biomeSource, long worldSeed) {
         super(biomeSource);
@@ -255,6 +256,10 @@ extends ChunkGenerator {
         return TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel);
     }
 
+    private double getRiverDepthAt(int worldX, int worldZ, NoiseSet noiseSet, int surfaceHeight, int seaLevel, boolean isRiver) {
+        return TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel, isRiver);
+    }
+
     private int calculateRiverWaterLevel(int surfaceHeight, boolean isRiver, double riverDepth, int seaLevel, int minY) {
         if (!isRiver || riverDepth <= 0.5) {
             return -1;
@@ -281,7 +286,7 @@ extends ChunkGenerator {
             erodedHeight = continuousHeight - erosionCut;
         }
         double alluvialFactor = cachedAlluvialFactor;
-        if (d > 0.1) {
+        if (alluvialFactor > 0.1) {
             double alluvialRaise = alluvialFactor * 5.0;
             erodedHeight += alluvialRaise;
         }
@@ -396,8 +401,9 @@ extends ChunkGenerator {
                         riverDepthMap[x][z] = cachedRiver.riverDepthMap[x][z];
                         continue;
                     }
-                    riverMap[x][z] = this.isRiverAt(worldX, worldZ, noiseSet);
-                    riverDepthMap[x][z] = this.getRiverDepthAt(worldX, worldZ, noiseSet, surfaceY, this.seaLevel);
+                    boolean isRiverAtResult = this.isRiverAt(worldX, worldZ, noiseSet);
+                    riverMap[x][z] = isRiverAtResult;
+                    riverDepthMap[x][z] = this.getRiverDepthAt(worldX, worldZ, noiseSet, surfaceY, this.seaLevel, isRiverAtResult);
                 }
             }
             SurfaceAdapter.SurfaceBuildContext context = SurfaceAdapter.SurfaceBuildContext.builder().randomState(randomState).chunk(chunk).region(region).settings(this.settings.value()).seaLevel(this.seaLevel).heightMap(heightMap).riverMap(riverMap).riverDepthMap(riverDepthMap).minY(this.minY).maxY(this.minY + this.height).minBlockX(minX).minBlockZ(minZ).build();
@@ -492,7 +498,7 @@ extends ChunkGenerator {
                 cachedErosionIntensities[x][z] = erosionIntensity = this.getRiverErosionIntensity(worldX, worldZ, noiseSet, finalHeight, this.seaLevel, blend);
                 cachedAlluvialFactors[x][z] = alluvialFactor = this.getAlluvialFactor(worldX, worldZ, noiseSet, finalHeight, this.seaLevel);
                 riverMap[x][z] = isRiver = this.isRiverAt(worldX, worldZ, noiseSet);
-                riverDepthMap[x][z] = riverDepth = this.getRiverDepthAt(worldX, worldZ, noiseSet, (int)finalHeight, this.seaLevel);
+                riverDepthMap[x][z] = riverDepth = this.getRiverDepthAt(worldX, worldZ, noiseSet, (int)finalHeight, this.seaLevel, isRiver);
                 int erodedHeight = this.calculateErodedHeight(finalHeight, isRiver, riverDepth, this.seaLevel, erosionIntensity, alluvialFactor);
                 heightMap[x][z] = this.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, this.minY);
             }
@@ -567,8 +573,7 @@ extends ChunkGenerator {
                 allPoints.addAll(region.getControlPoints());
             }
         }
-        MacroRegionInfo macroInfo = controller.getMacroSystem().getRegionInfo(minX + 8, minZ + 8);
-        return new RegionController.BlendCache(regionX, regionZ, allPoints, macroInfo);
+        return new RegionController.BlendCache(regionX, regionZ, allPoints);
     }
 
     /*
@@ -636,7 +641,6 @@ extends ChunkGenerator {
         int cellsPerSectionY = 4;
         EnumMap<TerrainType, Integer> overrideCounts = new EnumMap<TerrainType, Integer>(TerrainType.class);
         int totalOverridden = 0;
-        boolean reflectionAvailable = true;
         Field biomesField = null;
         Method setMethod = null;
         int minSectionY = protoChunk.getMinSection();
@@ -649,7 +653,7 @@ extends ChunkGenerator {
                 int centerX = minX + cellX * 4 + 2;
                 int centerZ = minZ + cellZ * 4 + 2;
                 Holder currentBiome = protoChunk.getNoiseBiome(cellX, 0, cellZ);
-                if (currentBiome == null || (allowedBiomes = biomeRules.getAllowedBiomes(terrainType = this.determineTerrainType(calc, centerX, centerZ, blendCache))).isEmpty() || allowedBiomes.contains(currentBiome) || (selectedBiome = biomeRules.selectBiomeBySeed(allowedBiomes, this.worldSeed, cellX, cellZ)) == null || !reflectionAvailable) continue;
+                if (currentBiome == null || (allowedBiomes = biomeRules.getAllowedBiomes(terrainType = this.determineTerrainType(calc, centerX, centerZ, blendCache))).isEmpty() || allowedBiomes.contains(currentBiome) || (selectedBiome = biomeRules.selectBiomeBySeed(allowedBiomes, this.worldSeed, cellX, cellZ)) == null || !this.biomeReflectionAvailable) continue;
                 boolean overrideSucceeded = false;
                 try {
                     if (biomesField == null) {
@@ -672,26 +676,26 @@ extends ChunkGenerator {
                 }
                 catch (NoSuchFieldException e) {
                     LOGGER.error("[World Scape] Biome field not found in LevelChunkSection, API may have changed in this Minecraft version. Falling back to vanilla biome assignment.", (Throwable)e);
-                    reflectionAvailable = false;
+                    this.biomeReflectionAvailable = false;
                 }
                 catch (IllegalAccessException e) {
                     LOGGER.error("[World Scape] Cannot access biome field, module access restrictions may apply. Consider adding --add-opens java.base/java.lang=ALL-UNNAMED to JVM args.", (Throwable)e);
-                    reflectionAvailable = false;
+                    this.biomeReflectionAvailable = false;
                 }
                 catch (InvocationTargetException e) {
                     LOGGER.error("[World Scape] Biome set method threw exception: {}", (Object)(e.getCause() != null ? e.getCause().getMessage() : "null"), (Object)e);
                 }
                 catch (NoSuchMethodException e) {
                     LOGGER.error("[World Scape] Biome set method not found in PalettedContainer, API may have changed in this Minecraft version.", (Throwable)e);
-                    reflectionAvailable = false;
+                    this.biomeReflectionAvailable = false;
                 }
                 catch (SecurityException e) {
                     LOGGER.error("[World Scape] Security manager blocked reflection access to biome field", (Throwable)e);
-                    reflectionAvailable = false;
+                    this.biomeReflectionAvailable = false;
                 }
                 catch (Exception e) {
                     LOGGER.error("[World Scape] Unexpected error setting biome via reflection: {}", (Object)e.getMessage(), (Object)e);
-                    reflectionAvailable = false;
+                    this.biomeReflectionAvailable = false;
                 }
                 if (!overrideSucceeded) continue;
                 overrideCounts.merge(terrainType, 1, Integer::sum);
@@ -701,7 +705,7 @@ extends ChunkGenerator {
         if (totalOverridden > 0 && LOGGER.isDebugEnabled()) {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("[World Scape] Terrain biome override: %d cells overridden in chunk (%d, %d)", totalOverridden, minX >> 4, minZ >> 4));
-            for (Map.Entry entry : overrideCounts.entrySet()) {
+            for (Map.Entry<TerrainType, Integer> entry : overrideCounts.entrySet()) {
                 sb.append(String.format(", %s=%d", entry.getKey().getId(), entry.getValue()));
             }
             LOGGER.debug(sb.toString());

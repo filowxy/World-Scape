@@ -234,7 +234,12 @@ public final class WorldScapeConstants {
     public static final double ELEVATION_COOLING_PER_TIER = 0.05;
     public static final double LATITUDE_COOLING_FACTOR = 0.3;
     public static final double GLACIAL_LATITUDE_THRESHOLD = 0.44;
-    public static final int PLAINS_LONGWAVE_OCTAVES = 2;
+    public static final int PLAINS_FBM_OCTAVES = 4;
+    public static final double PLAINS_FBM_GAIN = 0.2;
+    public static final int HILLS_FBM_OCTAVES = 6;
+    public static final int GLACIAL_VALLEY_FBM_OCTAVES = 4;
+    public static final double GLACIAL_VALLEY_FBM_GAIN = 0.5;
+    public static final double PLAINS_LONGWAVE_OCTAVES = 2;
     public static final double PLAINS_LONGWAVE_GAIN = 0.05;
     public static final double PLAINS_LONGWAVE_AMP = 3.0;
     public static final double FLOODPLAINS_RIVER_FREQ_X = 0.01;

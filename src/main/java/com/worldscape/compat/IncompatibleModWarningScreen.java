@@ -43,8 +43,8 @@ extends Screen {
         int centerY = this.height / 2;
         Button continueButton = Button.builder((Component)Component.literal((String)"Continue Anyway / \u7ee7\u7eed\u4f7f\u7528"), button -> this.onClose()).bounds(centerX - 150, centerY + 190 - 30, 140, 24).build();
         Button backButton = Button.builder((Component)Component.literal((String)"Back / \u8fd4\u56de"), button -> this.minecraft.setScreen(this.parentScreen)).bounds(centerX + 10, centerY + 190 - 30, 140, 24).build();
-        this.addRenderableWidget((GuiEventListener)continueButton);
-        this.addRenderableWidget((GuiEventListener)backButton);
+        this.addRenderableWidget(continueButton);
+        this.addRenderableWidget(backButton);
     }
 
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
