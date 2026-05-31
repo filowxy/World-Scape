@@ -200,7 +200,12 @@ public class RegionController {
 
     private double getBaseHeightForTerrainType(TerrainType type) {
         return switch (type) {
-            default -> throw new MatchException(null, null);
+            default -> {
+                // 未知地形类型使用安全默认值，避免运行时崩溃
+                // Unknown terrain type falls back to safe default to prevent runtime crashes
+                LOGGER.warn("[World Scape] Unknown terrain type {} in getBaseHeightForTerrainType, using default=0.0", type);
+                yield 0.0;
+            }
             case TerrainType.HIGH_MOUNTAINS -> 110.0;
             case TerrainType.HILLS -> 28.0;
             case TerrainType.CLIFF -> 44.0;

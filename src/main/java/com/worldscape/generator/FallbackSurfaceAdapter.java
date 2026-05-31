@@ -75,11 +75,11 @@ implements SurfaceAdapter {
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockState stone = Blocks.STONE.defaultBlockState();
         BlockState grass = Blocks.GRASS_BLOCK.defaultBlockState();
+        BlockState dirt = Blocks.DIRT.defaultBlockState();
         BlockState sand = Blocks.SAND.defaultBlockState();
         BlockState gravel = Blocks.GRAVEL.defaultBlockState();
         BlockState water = Blocks.WATER.defaultBlockState();
         BlockState snowBlock = Blocks.SNOW_BLOCK.defaultBlockState();
-        BlockState stone2 = Blocks.STONE.defaultBlockState();
         BlockState andesite = Blocks.ANDESITE.defaultBlockState();
         BlockState granite = Blocks.GRANITE.defaultBlockState();
         BlockState diorite = Blocks.DIORITE.defaultBlockState();
@@ -114,7 +114,7 @@ implements SurfaceAdapter {
                 boolean isHighAltitude = terrainHeight > surfaceLevel + 30;
                 boolean isMountain = biomeId.contains("mountain") || biomeId.contains("highland") || biomeId.contains("summit") || biomeId.contains("peak");
                 boolean isSnowy = biomeId.contains("snowy") || biomeId.contains("ice") || biomeId.contains("frozen");
-                boolean isDesert = biomeId.contains("desert") || biomeId.contains("savanna") || biomeId.contains("badlands");
+                boolean isDesert = biomeId.contains("desert") || biomeId.contains("badlands");
                 boolean isBeach = biomeId.contains("beach") || biomeId.contains("shore");
                 boolean isStony = biomeId.contains("stone") || biomeId.contains("rocky") || biomeId.contains("gravel") || biomeId.contains("mountains");
                 long stoneVariantSeed = (long)worldX * 31341L + (long)worldZ * 45231L + this.worldSeed;
@@ -135,6 +135,8 @@ implements SurfaceAdapter {
                         chunk.setBlockState(pos, surfaceBlock, false);
                         continue;
                     }
+                    // @AESTHETIC: Sub-surface layering — dirt on dry land, sand near sea level/desert, gravel on mountain
+                    // 次表层分层：干燥陆地用泥土，近海/沙漠用沙子，山地用砂砾
                     if (y > terrainHeight - 4) {
                         if (terrainHeight <= surfaceLevel) {
                             if (isStony || terrainHeight < surfaceLevel - 5) {
@@ -148,18 +150,32 @@ implements SurfaceAdapter {
                             chunk.setBlockState(pos, gravel, false);
                             continue;
                         }
-                        chunk.setBlockState(pos, stone, false);
+                        if (isDesert || isBeach) {
+                            chunk.setBlockState(pos, sand, false);
+                            continue;
+                        }
+                        chunk.setBlockState(pos, dirt, false);
                         continue;
                     }
-                    if (y > terrainHeight - 16) {
-                        if (stoneRand.nextInt(8) == 0) {
-                            chunk.setBlockState(pos, deepStone, false);
+                    // @AESTHETIC: Extended stone variant mixing — deeper range with higher variant probability
+                    // 扩展石头变体混合 —— 更深范围，更高变体概率，深层使用深板岩
+                    if (y > terrainHeight - 32) {
+                        if (stoneRand.nextInt(4) == 0) {
+                            chunk.setBlockState(pos, this.getRandomStoneVariant(stoneRand), false);
                             continue;
                         }
                         chunk.setBlockState(pos, stone, false);
                         continue;
                     }
-                    chunk.setBlockState(pos, deepStone, false);
+                    if (y > 0) {
+                        if (stoneRand.nextInt(3) == 0) {
+                            chunk.setBlockState(pos, this.getRandomStoneVariant(stoneRand), false);
+                            continue;
+                        }
+                        chunk.setBlockState(pos, stone, false);
+                        continue;
+                    }
+                    chunk.setBlockState(pos, Blocks.DEEPSLATE.defaultBlockState(), false);
                 }
             }
         }
@@ -167,14 +183,17 @@ implements SurfaceAdapter {
 
     private BlockState getRandomStoneVariant(Random rand) {
         int roll = rand.nextInt(100);
-        if (roll < 8) {
+        if (roll < 10) {
             return Blocks.GRANITE.defaultBlockState();
         }
-        if (roll < 16) {
+        if (roll < 20) {
             return Blocks.DIORITE.defaultBlockState();
         }
-        if (roll < 24) {
+        if (roll < 30) {
             return Blocks.ANDESITE.defaultBlockState();
+        }
+        if (roll < 33) {
+            return Blocks.COBBLESTONE.defaultBlockState();
         }
         return Blocks.STONE.defaultBlockState();
     }
@@ -183,8 +202,11 @@ implements SurfaceAdapter {
         if (isSnowy || isHighAltitude && terrainHeight > seaLevel + 50) {
             return Blocks.SNOW_BLOCK.defaultBlockState();
         }
-        if (isDesert || biomeId.contains("mesa") || biomeId.contains("savanna")) {
+        if (isDesert || biomeId.contains("mesa")) {
             return Blocks.SAND.defaultBlockState();
+        }
+        if (biomeId.contains("savanna")) {
+            return Blocks.GRASS_BLOCK.defaultBlockState();
         }
         if (biomeId.contains("forest") || biomeId.contains("plains") || biomeId.contains("sunflower") || biomeId.contains("birch") || biomeId.contains("dark_oak") || biomeId.contains("flower") || biomeId.contains("meadow") || biomeId.contains("grove") || biomeId.contains("taiga")) {
             return Blocks.GRASS_BLOCK.defaultBlockState();
@@ -198,7 +220,10 @@ implements SurfaceAdapter {
         if (biomeId.contains("swamp") || biomeId.contains("mangrove") || biomeId.contains("jungle") || biomeId.contains("bayou")) {
             return Blocks.GRASS_BLOCK.defaultBlockState();
         }
-        if (biomeId.contains("ocean") || biomeId.contains("deep") || biomeId.contains("warm_ocean") || biomeId.contains("cold_ocean") || biomeId.contains("lukewarm")) {
+        if (biomeId.contains("deep_ocean") || biomeId.contains("deep_cold") || biomeId.contains("deep_frozen") || biomeId.contains("deep_lukewarm") || biomeId.contains("deep_warm")) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+        if (biomeId.contains("ocean") || biomeId.contains("warm_ocean") || biomeId.contains("cold_ocean") || biomeId.contains("lukewarm") || biomeId.contains("frozen_ocean")) {
             return Blocks.SAND.defaultBlockState();
         }
         return Blocks.GRASS_BLOCK.defaultBlockState();

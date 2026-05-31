@@ -119,6 +119,19 @@ extends ChunkGenerator {
     private static final AtomicInteger warningCount = new AtomicInteger(0);
     private static final AtomicInteger voidWarningCount = new AtomicInteger(0);
     private static final AtomicInteger extremeSlopeCount = new AtomicInteger(0);
+    private static volatile boolean diagnosticEnabled = false;
+
+    // @DIAGNOSTIC: Expose counters for debug commands / 暴露计数器供调试命令使用
+    public static int getWarningCount() { return warningCount.get(); }
+    public static int getVoidWarningCount() { return voidWarningCount.get(); }
+    public static int getExtremeSlopeCount() { return extremeSlopeCount.get(); }
+    public static void resetDiagnosticCounters() {
+        warningCount.set(0);
+        voidWarningCount.set(0);
+        extremeSlopeCount.set(0);
+    }
+    public static void setDiagnosticEnabled(boolean enabled) { diagnosticEnabled = enabled; }
+    public static boolean isDiagnosticEnabled() { return diagnosticEnabled; }
     private static final boolean DIAGNOSE_OCEAN = true;
     private static final int DIAGNOSE_MAX_CHUNKS = 10;
     private static final AtomicInteger diagChunkCount = new AtomicInteger(0);
@@ -204,7 +217,7 @@ extends ChunkGenerator {
                         continue;
                     }
                     if (!(slopeDiff > 30.0)) continue;
-                    LOGGER.error("[World Scape] Chunk slope anomaly at world({}, {}) [chunk({}, {})]: height={}, dominantType={}, fallbackType={}, dominantWeight={}, baseHeight={}, dominantHeight={}, fallbackHeight={}, direction={}, neighborHeight={}, slopeDiff={}", new Object[]{worldX, worldZ, x, z, currentHeight, dominantType, currentType, dominantWeight, baseHeight, dominantHeight, fallbackHeight, dirNames[i], neighborHeight, slopeDiff});
+                    LOGGER.warn("[World Scape] Chunk slope anomaly at world({}, {}) [chunk({}, {})]: height={}, dominantType={}, fallbackType={}, dominantWeight={}, baseHeight={}, dominantHeight={}, fallbackHeight={}, direction={}, neighborHeight={}, slopeDiff={}", new Object[]{worldX, worldZ, x, z, currentHeight, dominantType, currentType, dominantWeight, baseHeight, dominantHeight, fallbackHeight, dirNames[i], neighborHeight, slopeDiff});
                 }
             }
         }
@@ -512,16 +525,8 @@ extends ChunkGenerator {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[World Scape] [PERF]   Phase4 terrain blend query (256 cells): {}ms", (Object)((t4 - t3) / 1000000L));
         }
-        try {
-            Class<?> debugSystemClass = Class.forName("com.worldscape.debug.TerrainDebugSystem");
-            Object instance = debugSystemClass.getField("INSTANCE").get(null);
-            Method isDebugMethod = debugSystemClass.getMethod("isDebugModeEnabled", new Class[0]);
-            if (((Boolean)isDebugMethod.invoke(instance, new Object[0])).booleanValue()) {
-                this.detectChunkSlopeAnomalies(heightMap, typeMap, riverMap, riverDepthMap, minX, minZ, controller, noiseSet, this.minY, this.minY + this.height);
-            }
-        }
-        catch (Exception debugSystemClass) {
-            // empty catch block
+        if (com.worldscape.debug.TerrainDebugSystem.isDetailedIssueDetectionEnabled()) {
+            this.detectChunkSlopeAnomalies(heightMap, typeMap, riverMap, riverDepthMap, minX, minZ, controller, noiseSet, this.minY, this.minY + this.height);
         }
         if (chunk instanceof ProtoChunk) {
             ProtoChunk protoChunk = (ProtoChunk)chunk;

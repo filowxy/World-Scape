@@ -107,7 +107,7 @@ extends Screen {
     private void drawHeader(GuiGraphics graphics, int x, int y) {
         graphics.drawString(this.font, (Component)Component.literal((String)"World Scape").withStyle(s -> s.withBold(Boolean.valueOf(true)).withColor(0xFFFFFF)), x, y, 0xFFFFFF);
         graphics.drawString(this.font, (Component)Component.literal((String)"Advanced Terrain Generation / \u9ad8\u7ea7\u5730\u5f62\u751f\u6210").withStyle(ChatFormatting.GRAY), x, y + 18, 0x888888);
-        graphics.drawString(this.font, (Component)Component.literal((String)"v1.2.0").withStyle(ChatFormatting.ITALIC).withStyle(ChatFormatting.DARK_GRAY), x + 600 - 15 - 50, y + 8, 0x888888);
+        graphics.drawString(this.font, (Component)Component.literal((String)("v" + WelcomeScreenConfig.MOD_VERSION)).withStyle(ChatFormatting.ITALIC).withStyle(ChatFormatting.DARK_GRAY), x + 600 - 15 - 50, y + 8, 0x888888);
         graphics.fill(x, y + 35, x + 600 - 30, y + 36, 0x2A2A2A);
     }
 

@@ -67,6 +67,10 @@ public class TerrainBiomeRules {
         return INSTANCE;
     }
 
+    public boolean isInitialized() {
+        return this.biomeRegistry != null && !this.rules.isEmpty();
+    }
+
     private TerrainBiomeRules() {
     }
 

@@ -28,8 +28,16 @@ public final class TerrainCalculator {
             // Two different types: dominantType controls blend shape, type is the current cell's assigned type
             double dominantTypeHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, dominantType, fs, blend);
             double currentTypeHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, type, fs, blend);
+            // @AESTHETIC: Smoothstep blendFactor replaces linear interpolation to eliminate
+        // vertical cliff faces at Voronoi cell boundaries. smoothstep (Hermite: t²(3-2t))
+        // produces C¹-continuous transitions with zero derivative at endpoints.
+        // 用 smoothstep 替代线性插值消除 Voronoi 单元边界的垂直悬崖。
             double blendFactor = dominantWeight / WorldScapeConstants.DOMINANT_WEIGHT_THRESHOLD;
-            finalHeight = dominantTypeHeight * blendFactor + currentTypeHeight * (1.0 - blendFactor);
+            // smoothstep: t²(3 - 2t), clamps 0..1, C¹-continuous at boundaries
+            // Hermite 平滑：t²(3-2t)，在边界处导数为零，过渡自然
+            double t = Math.max(0.0, Math.min(1.0, blendFactor));
+            double smoothFactor = t * t * (3.0 - 2.0 * t);
+            finalHeight = dominantTypeHeight * smoothFactor + currentTypeHeight * (1.0 - smoothFactor);
         }
         return finalHeight;
     }

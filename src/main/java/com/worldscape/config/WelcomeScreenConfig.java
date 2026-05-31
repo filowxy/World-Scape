@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 public class WelcomeScreenConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger(WelcomeScreenConfig.class);
-    private static final String MOD_VERSION = "1.3.1-beta";
+    static final String MOD_VERSION = "1.3.1-beta";
     private static final Path CONFIG_DIR = Paths.get("config", "worldscape");
     private static final Path CONFIG_FILE = CONFIG_DIR.resolve("settings.txt");
     private static boolean showWelcomeScreen = true;

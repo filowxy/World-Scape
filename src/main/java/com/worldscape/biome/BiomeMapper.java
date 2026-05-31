@@ -39,14 +39,18 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BiomeMapper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BiomeMapper.class);
     private final Map<ResourceLocation, TerrainType> biomeToTerrain = new HashMap<ResourceLocation, TerrainType>();
     private final Map<TerrainType, List<ResourceLocation>> terrainToBiomes = new HashMap<TerrainType, List<ResourceLocation>>();
     private final double autoMatchThreshold;
     private static final Map<String, TerrainType> BIOME_NAME_OVERRIDES = new HashMap<String, TerrainType>();
     private static final Set<String> RIVER_BIOME_NAMES;
     private static final Set<String> OCEAN_BIOME_NAMES;
+    private boolean crossValidationDone = false;
 
     public BiomeMapper(double autoMatchThreshold) {
         this.autoMatchThreshold = autoMatchThreshold;
@@ -68,7 +72,54 @@ public class BiomeMapper {
                 this.terrainToBiomes.computeIfAbsent(terrainType, k -> new ArrayList()).add(biomeId);
             }
         });
+        this.runCrossValidation(biomeRegistry);
         this.saveToConfig();
+    }
+
+    // @VALIDATION: Cross-validate BiomeMapper mappings against TerrainBiomeRules
+    // Logs warnings for any biome→terrain mapping that conflicts with TerrainBiomeRules
+    // 交叉验证BiomeMapper映射与TerrainBiomeRules规则，记录冲突警告
+    private void runCrossValidation(Registry<Biome> biomeRegistry) {
+        boolean rulesInit = TerrainBiomeRules.getInstance().isInitialized();
+        if (!rulesInit) {
+            try {
+                TerrainBiomeRules.getInstance().initialize(biomeRegistry);
+            } catch (Exception e) {
+                LOGGER.warn("[World Scape] Cannot initialize TerrainBiomeRules for cross-validation");
+                return;
+            }
+        }
+        int conflictCount = 0;
+        for (Map.Entry<ResourceLocation, TerrainType> entry : this.biomeToTerrain.entrySet()) {
+            ResourceLocation biomeId = entry.getKey();
+            TerrainType terrainType = entry.getValue();
+            if (terrainType == TerrainType.SEA_PLATEAU || terrainType == TerrainType.TRENCH) {
+                continue;
+            }
+            // biomeRegistry.getHolder returns Optional, check via holders() filtering
+            boolean biomeAllowed = false;
+            try {
+                for (var holder : TerrainBiomeRules.getInstance().getAllowedBiomes(terrainType)) {
+                    if (holder.unwrapKey().isPresent() && holder.unwrapKey().get().location().equals(biomeId)) {
+                        biomeAllowed = true;
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                continue;
+            }
+            if (!biomeAllowed) {
+                LOGGER.warn("[World Scape] [VALIDATION] Biome {} mapped to {} but not in TerrainBiomeRules allowed list",
+                    biomeId, terrainType.getId());
+                conflictCount++;
+            }
+        }
+        if (conflictCount > 0) {
+            LOGGER.warn("[World Scape] [VALIDATION] Found {} biome-terrain mapping conflicts. Check terrain_biome_rules.json", conflictCount);
+        } else {
+            LOGGER.info("[World Scape] [VALIDATION] All biome-terrain mappings pass cross-validation");
+        }
+        crossValidationDone = true;
     }
 
     private boolean isOverworldBiome(Holder<Biome> holder) {
@@ -331,7 +382,6 @@ public class BiomeMapper {
         BIOME_NAME_OVERRIDES.put("savanna_plateau", TerrainType.PLATEAU);
         BIOME_NAME_OVERRIDES.put("ice_spikes", TerrainType.GLACIAL_VALLEY);
         BIOME_NAME_OVERRIDES.put("snowy_tundra", TerrainType.ICE_SHEET);
-        BIOME_NAME_OVERRIDES.put("snowy_mountains", TerrainType.RIDGE);
         BIOME_NAME_OVERRIDES.put("ocean", TerrainType.SEA_PLATEAU);
         BIOME_NAME_OVERRIDES.put("deep_ocean", TerrainType.TRENCH);
         BIOME_NAME_OVERRIDES.put("frozen_ocean", TerrainType.TRENCH);
