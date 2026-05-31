@@ -2,7 +2,7 @@
 
 > **版本**: Beta 1.3.1  
 > **作者**: Filowxy  
-> **协议**: MIT  
+> **协议**: Apache License 2.0  
 > **类型**: Minecraft NeoForge 1.21.1 地形生成模组  
 > **核心定位**: 完全替换原版地形生成，基于 Voronoi 控制点 + 连续噪声场的"地形即函数"框架  
 > **报告生成日期**: 2026-05-30
@@ -27,9 +27,8 @@
 14. [种子分析器 / Seed Analyzer](#14-种子分析器--seed-analyzer)
 15. [MCP 服务器集成 / MCP Server Integration](#15-mcp-服务器集成--mcp-server-integration)
 16. [资源与数据文件 / Resources & Data Files](#16-资源与数据文件--resources--data-files)
-17. [版本历史 / Version History](#17-版本历史--version-history)
-18. [已知问题 / Known Issues](#18-已知问题--known-issues)
-19. [开发环境 / Development Environment](#19-开发环境--development-environment)
+17. [已知问题 / Known Issues](#17-已知问题--known-issues)
+18. [开发环境 / Development Environment](#18-开发环境--development-environment)
 
 ---
 
@@ -424,9 +423,9 @@ public class WorldScape {
 | 类型 | 高度范围 | 数学签名 |
 |------|----------|----------|
 | DUNE | 28-55 | |sin(windDir)|×25 + sin(perpDir)×8 + fBm×5 |
-| YARDANG | 44-99 | sin(方向性)×30 + 域旋转×15 |
-| GOBI | 33-66 | fBm(4,0.7)×15 |
-| SALT_FLAT | 22-33 | fBm(2,0.1)×3 |
+| YARDANG | 44-99 | `sin(freqMod×方向性)×30 + 湍流锐化×10 + 域旋转×15` |
+| GOBI | 33-66 | `fBm(4,0.7)×15 + 湍流碎石×3` |
+| SALT_FLAT | 22-33 | `fBm(2,0.1)×3 + 湍流裂纹×1.5` |
 
 #### 水力地形 (6 种)
 | 类型 | 高度范围 | 数学签名 |
@@ -435,7 +434,7 @@ public class WorldScape {
 | VALLEY | 28-83 | sigmoid(gradient)×40 + fBm×10 |
 | FLOODPLAIN | 28-44 | fBm(3,0.15)×5 + riverStripe×2 |
 | DELTA | 22-39 | gradient×10 + 域旋转×8 |
-| ALLUVIAL_FAN | 44-110 | erf(dist)×25 + fBm×5 |
+| ALLUVIAL_FAN | 44-110 | erf(控制点中心dist%200)×25 + fBm×5 |
 | BASIN | 22-66 | gaussian(σ=300)×30 |
 
 #### 冰力地形 (6 种)
@@ -444,7 +443,7 @@ public class WorldScape {
 | FJORD | 17-110 | 湍流(0.7)×55 + tanh(cliff)×80 |
 | GLACIAL_VALLEY | 28-110 | sigmoid(gradient)×60 + fBm×8 |
 | CIRQUE | 83-193 | gaussian(σ=150)×70 + 湍流×40 |
-| ICE_SHEET | 55-165 | fBm(3,0.2)×8 |
+| ICE_SHEET | 55-165 | `fBm(3,0.2)×8 + 方向性脊线×3 + 湍流裂隙×5` |
 | SEA_CLIFF | 44-110 | fBm(4,0.4)×tanh(3)×100 |
 | BEACH | 28-39 | fBm(2,0.2)×sigmoid×5 |
 
@@ -455,21 +454,23 @@ public class WorldScape {
 | PEAK_FOREST | 83-193 | 湍流(0.7)×80 + fBm×40 |
 | TRENCH | -55-0 | sigmoid×30 + 基础偏移-20 |
 | SEA_PLATEAU | -28-17 | fBm(3,0.15)×15 + 纹理×2 |
-| HILLS | 55-110 | fBm(6,0.65)×40 |
-| PLAINS | 33-55 | fBm(4,0.2)×15 + 长波×3 |
+| HILLS | 55-110 | fBm(6,0.65)×40 + 湍流起伏×30 |
+| PLAINS | 33-55 | fBm(4,0.2)×15 + 长波×3 + 湍流沟纹×1.5 |
 
 ### 6.2 6 级海拔体系
 
 | 等级 | 基准高度 | 包含地形类型 | 分布 |
 |------|----------|-------------|------|
-| 0: 深海 | -80 | TRENCH, SEA_PLATEAU | ~8% |
-| 1: 浅海 | -20 | SEA_PLATEAU, DELTA | ~17% |
-| 2: 沿海 | 10 | BEACH, DELTA, FLOODPLAIN, DUNE, SALT_FLAT | ~25% |
-| 3: 低地 | 60 | PLAINS, HILLS, FLOODPLAIN, DUNE, GOBI, YARDANG, BASIN, SINKHOLE, PEAK_FOREST | ~30% |
-| 4: 高地 | 160 | HILLS, CLIFF, PLATEAU, VALLEY, CANYON, ALLUVIAL_FAN, GOBI, CIRQUE, GLACIAL_VALLEY | ~15% |
+| 0: 深海 | -80 | TRENCH, SEA_PLATEAU | ~9% |
+| 1: 浅海 | -20 | SEA_PLATEAU, DELTA | ~15% |
+| 2: 沿海 | 10 | BEACH, DELTA, FLOODPLAIN, DUNE, SALT_FLAT | ~27% |
+| 3: 低地 | 60 | PLAINS, HILLS, FLOODPLAIN, DUNE, GOBI, YARDANG, BASIN, SINKHOLE, PEAK_FOREST | ~32% |
+| 4: 高地 | 160 | HILLS, CLIFF, PLATEAU, VALLEY, CANYON, ALLUVIAL_FAN, GOBI, CIRQUE, GLACIAL_VALLEY | ~12% |
 | 5: 山脉 | 300 | HIGH_MOUNTAINS, CLIFF, PLATEAU, RIDGE, PEAK, CIRQUE, HORN, ICE_SHEET, GLACIAL_VALLEY | ~5% |
 
-**宏微观整合**：宏观系统提供海拔等级（使用噪声分位数阈值映射），微观系统在等级白名单中选择具体地形类型。
+**Tier 上限概率**：6 级初始均匀分布后施加 cap，分布为 10%/25%/35%/30%（分别 cap 到 T2/T3/T4/T5），非 spawn 区域 T4+T5≈17%。Spawn 中心单元（2048×2048）受海洋约束降级，T4+T5≈10%。
+
+**宏微观整合**：宏观系统提供海拔等级和基准高度，微观系统在等级白名单中选择具体地形类型。`ELEVATION_BASE_HEIGHTS = [-80, -20, 10, 60, 160, 300]`。
 
 ### 6.3 全局常量 — [WorldScapeConstants.java](file:///c:/Users/ASUS/Documents/trae_projects/Worl%20Scape/src/main/java/com/worldscape/terrain/WorldScapeConstants.java)
 
@@ -488,13 +489,15 @@ public class WorldScape {
 
 ```java
 calculateFinalHeight(x, z, blend, type, noiseSet, fs) → double
-calcHeightForType(worldX, worldZ, baseHeight, type, fs) → double
+calcHeightForType(worldX, worldZ, baseHeight, type, fs, blend) → double
 determineTerrainType(blend) → TerrainType
 getRiverErosionIntensity(worldX, worldZ, noiseSet, baseHeight, seaLevel, blend) → double
 getAlluvialFactor(worldX, worldZ, noiseSet, baseHeight, seaLevel) → double
-calculateErodedHeight(continuousHeight, isRiver, riverDepth, seaLevel, erosion, alluvial) → int
+calculateErodedHeight(continuousHeight, isRiver, riverDepth, seaLevel, erosion, alluvial, erosionMultiplier) → int
 isRiverAt(worldX, worldZ, noiseSet) → boolean
-getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel) → double
+getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel, isRiver, depthMultiplier) → double
+getErosionMultiplierForTier(elevationTier) → double  // Tier≥5: 1.5, Tier≤2: 0.5
+getRiverDepthMultiplierForTier(elevationTier) → double  // Tier≥4: 1.5, Tier≤2: 0.8
 ```
 
 **地形混合算法**：
@@ -526,7 +529,8 @@ getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel) → double
 **关键特性**：
 - 17×17 控制点网格（跨越 ~34000 格范围）
 - 单元间过渡带宽 400-1000 格
-- 使用分位数阈值将噪声值映射到 6 个海拔等级
+- 6 级海拔体系（Tier 0-5），`getRawElevationTier()` 使用 10%/25%/35%/30% cap 概率
+- Spawn 中心单元（`SPAWN_OCEAN_RADIUS_CELLS=1`）受海洋约束：`random.nextInt(2)` 强制 T0/T1
 - LRU 缓存区域信息（最多 10000 条）
 
 ### 6.7 区域控制器 — [RegionController.java](file:///c:/Users/ASUS/Documents/trae_projects/Worl%20Scape/src/main/java/com/worldscape/terrain/RegionController.java)
@@ -908,21 +912,9 @@ description="Completely overhauls Minecraft's terrain generation with realistic 
 
 ---
 
-## 17. 版本历史 / Version History
+## 17. 已知问题 / Known Issues
 
-| 版本 | 日期 | 主要变更 |
-|------|------|---------|
-| v1.3.1-beta | 2026-05-15 | Beta 1.3.1：修复早期启动崩溃、延迟初始化、全面代码质量修复 |
-| v1.2.0 | 2026-05-12 | 地形感知自适应平滑、各向异性模糊、兼容性检测、欢迎界面 |
-| v4.0 重构 | 2026-05-23 | "地形即函数"全面重构：29 种地形类型专属数学函数 |
-| v3.0 重构 | 2026-05-22 | 连续噪声场重构、ControlPointRegion 从独立随机改为噪声驱动 |
-| v2.0 | 2026-05-20 | 全面悬崖修复、9 项核心修复、MacroInfluence 钟形曲线 |
-
----
-
-## 18. 已知问题 / Known Issues
-
-### 18.1 待排查问题
+### 17.1 待排查问题
 
 | 问题 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
@@ -936,15 +928,14 @@ description="Completely overhauls Minecraft's terrain generation with realistic 
 | 岛屿模式生成质量 | P2 | ⚠️ 待验证 | 需测试岛屿边缘过渡 |
 | 河流侵蚀效果 | P3 | ⚠️ 待验证 | 河流深度与周围地形协调性 |
 
-### 18.2 已知 Bug
+### 17.2 已知 Bug
 
 | Bug | 严重度 | 状态 |
 |-----|--------|------|
-| ALLUVIAL_FAN 距离使用世界原点而非控制点中心 | P2 | 📝 已知（有 FIXME 注释） |
 | `collectTerrainTypes()` 类型统计偏差（~5-10%） | P2 | 📝 已知 |
 | Codec settings=null 降级保护不足 | P2 | 📝 已知 |
 
-### 18.3 兼容性风险
+### 17.3 兼容性风险
 
 | 模组 | 风险等级 | 说明 |
 |------|---------|------|
@@ -956,9 +947,9 @@ description="Completely overhauls Minecraft's terrain generation with realistic 
 
 ---
 
-## 19. 开发环境 / Development Environment
+## 18. 开发环境 / Development Environment
 
-### 19.1 环境配置
+### 18.1 环境配置
 
 | 项目 | 值 |
 |------|-----|
@@ -969,7 +960,7 @@ description="Completely overhauls Minecraft's terrain generation with realistic 
 | Minecraft 版本 | 1.21.1 |
 | 开发 IDE | Trae (AI-powered IDE) |
 
-### 19.2 常用命令
+### 18.2 常用命令
 
 | 命令 | 说明 |
 |------|------|
@@ -978,7 +969,7 @@ description="Completely overhauls Minecraft's terrain generation with realistic 
 | `gradlew runSeedAnalyzer` | 运行种子分析器 |
 | `gradlew build` | 构建模组 JAR |
 
-### 19.3 项目规则文件
+### 18.3 项目规则文件
 
 | 文件 | 说明 |
 |------|------|

@@ -21,7 +21,11 @@ public class MacroVoronoiSystem {
     private static final int MAX_TRANSITION_WIDTH = 2400;
     private static final double WATER_TRANSITION_MULTIPLIER = 6.0;
     private static final int OCEAN_TIER_THRESHOLD = 2;
-    private static final int SPAWN_OCEAN_RADIUS_CELLS = 2;
+    // @AESTHETIC: Spawn ocean constraint radius (in Voronoi cells, ~2048 blocks each).
+    // RADIUS=1 limits ocean enforcement to immediate spawn cell, letting dist≥1 cells
+    // develop natural tier distribution including mountains.
+    // RADIUS=1 将海洋约束限制在出生点所在单元，距离≥1的单元可获得自然 Tier 分布（含山地）。
+    private static final int SPAWN_OCEAN_RADIUS_CELLS = 1;
     private static final double SPAWN_MAX_OCEAN_WEIGHT = 0.4;
     private final long worldSeed;
     private final int seaLevel;
@@ -181,7 +185,10 @@ public class MacroVoronoiSystem {
                 tier = random.nextInt(2);
             }
         }
-        tier = (r = random.nextDouble()) < 0.25 ? Math.min(tier, 2) : (r < 0.55 ? Math.min(tier, 3) : (r < 0.8 ? Math.min(tier, 4) : Math.min(tier, 5)));
+        // @AESTHETIC: Tier cap distribution adjusted from 25/30/25/20 to 10/25/35/30.
+        // Old: T4+T5=11.7%, New: T4+T5=17.0% (46% more mountain cells).
+        // 将 Tier 上限概率从 25/30/25/20 调整为 10/25/35/30，T4+T5 从 11.7% 提升至 17.0%。
+        tier = (r = random.nextDouble()) < 0.10 ? Math.min(tier, 2) : (r < 0.35 ? Math.min(tier, 3) : (r < 0.70 ? Math.min(tier, 4) : Math.min(tier, 5)));
         return tier;
     }
 

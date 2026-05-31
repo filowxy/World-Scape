@@ -251,10 +251,12 @@ public class SeedAnalyzer {
         TerrainType type = TerrainCalculator.determineTerrainType(blend);
         double continuousHeight = TerrainCalculator.calculateFinalHeight(worldX, worldZ, blend, type, noiseSet, fieldSampler);
         boolean isRiver = TerrainCalculator.isRiverAt(worldX, worldZ, noiseSet);
-        double riverDepth = TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, (int)continuousHeight, SEA_LEVEL);
+        double riverDepthMultiplier = TerrainCalculator.getRiverDepthMultiplierForTier(blend.macroInfo.elevationTier);
+        double riverDepth = TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, (int)continuousHeight, SEA_LEVEL, isRiver, riverDepthMultiplier);
         double erosionIntensity = TerrainCalculator.getRiverErosionIntensity(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL, blend);
         double alluvialFactor = TerrainCalculator.getAlluvialFactor(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL);
-        int erodedHeight = TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, SEA_LEVEL, erosionIntensity, alluvialFactor);
+        double erosionMultiplier = TerrainCalculator.getErosionMultiplierForTier(blend.macroInfo.elevationTier);
+        int erodedHeight = TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, SEA_LEVEL, erosionIntensity, alluvialFactor, erosionMultiplier);
         int actualHeight = TerrainCalculator.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, WorldScapeConstants.OVERWORLD_MIN_Y);
         return actualHeight;
     }
@@ -284,10 +286,12 @@ public class SeedAnalyzer {
         TerrainType type = TerrainCalculator.determineTerrainType(blend);
         double continuousHeight = TerrainCalculator.calculateFinalHeight(worldX, worldZ, blend, type, noiseSet, fieldSampler);
         boolean isRiver = TerrainCalculator.isRiverAt(worldX, worldZ, noiseSet);
-        double riverDepth = TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, (int)continuousHeight, SEA_LEVEL);
+        double riverDepthMultiplier = TerrainCalculator.getRiverDepthMultiplierForTier(blend.macroInfo.elevationTier);
+        double riverDepth = TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, (int)continuousHeight, SEA_LEVEL, isRiver, riverDepthMultiplier);
         double erosionIntensity = TerrainCalculator.getRiverErosionIntensity(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL, blend);
         double alluvialFactor = TerrainCalculator.getAlluvialFactor(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL);
-        int erodedHeight = TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, SEA_LEVEL, erosionIntensity, alluvialFactor);
+        double erosionMultiplier = TerrainCalculator.getErosionMultiplierForTier(blend.macroInfo.elevationTier);
+        int erodedHeight = TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, SEA_LEVEL, erosionIntensity, alluvialFactor, erosionMultiplier);
         int actualSurfaceHeight = TerrainCalculator.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, WorldScapeConstants.OVERWORLD_MIN_Y);
         return new TerrainHeightResult(continuousHeight, erodedHeight, actualSurfaceHeight);
     }

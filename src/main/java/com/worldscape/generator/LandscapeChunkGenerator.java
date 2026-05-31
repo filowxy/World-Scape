@@ -179,10 +179,10 @@ extends ChunkGenerator {
                 double fallbackHeight = baseHeight;
                 TerrainType dominantType = currentBlend.dominantType;
                 if (dominantType != currentType) {
-                    dominantHeight = this.calcHeightForType(worldX, worldZ, baseHeight, dominantType);
-                    fallbackHeight = this.calcHeightForType(worldX, worldZ, baseHeight, currentType);
+                    dominantHeight = this.calcHeightForType(worldX, worldZ, baseHeight, dominantType, currentBlend);
+                    fallbackHeight = this.calcHeightForType(worldX, worldZ, baseHeight, currentType, currentBlend);
                 } else {
-                    fallbackHeight = dominantHeight = this.calcHeightForType(worldX, worldZ, baseHeight, currentType);
+                    fallbackHeight = dominantHeight = this.calcHeightForType(worldX, worldZ, baseHeight, currentType, currentBlend);
                 }
                 int[][] directions = new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
                 String[] dirNames = new String[]{"+X", "-X", "+Z", "-Z"};
@@ -245,7 +245,7 @@ extends ChunkGenerator {
     }
 
     private int calculateErodedHeight(double continuousHeight, boolean isRiver, double riverDepth, int seaLevel, double erosionIntensity, double alluvialFactor) {
-        return TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, seaLevel, erosionIntensity, alluvialFactor);
+        return TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, seaLevel, erosionIntensity, alluvialFactor, 1.0);
     }
 
     private boolean isRiverAt(int worldX, int worldZ, NoiseSet noiseSet) {
@@ -258,6 +258,10 @@ extends ChunkGenerator {
 
     private double getRiverDepthAt(int worldX, int worldZ, NoiseSet noiseSet, int surfaceHeight, int seaLevel, boolean isRiver) {
         return TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel, isRiver);
+    }
+
+    private double getRiverDepthAt(int worldX, int worldZ, NoiseSet noiseSet, int surfaceHeight, int seaLevel, boolean isRiver, double depthMultiplier) {
+        return TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel, isRiver, depthMultiplier);
     }
 
     private int calculateRiverWaterLevel(int surfaceHeight, boolean isRiver, double riverDepth, int seaLevel, int minY) {
@@ -498,8 +502,9 @@ extends ChunkGenerator {
                 cachedErosionIntensities[x][z] = erosionIntensity = this.getRiverErosionIntensity(worldX, worldZ, noiseSet, finalHeight, this.seaLevel, blend);
                 cachedAlluvialFactors[x][z] = alluvialFactor = this.getAlluvialFactor(worldX, worldZ, noiseSet, finalHeight, this.seaLevel);
                 riverMap[x][z] = isRiver = this.isRiverAt(worldX, worldZ, noiseSet);
-                riverDepthMap[x][z] = riverDepth = this.getRiverDepthAt(worldX, worldZ, noiseSet, (int)finalHeight, this.seaLevel, isRiver);
-                int erodedHeight = this.calculateErodedHeight(finalHeight, isRiver, riverDepth, this.seaLevel, erosionIntensity, alluvialFactor);
+                double riverDepthMultiplier = TerrainCalculator.getRiverDepthMultiplierForTier(blend.macroInfo.elevationTier);
+                riverDepthMap[x][z] = riverDepth = this.getRiverDepthAt(worldX, worldZ, noiseSet, (int)finalHeight, this.seaLevel, isRiver, riverDepthMultiplier);
+                int erodedHeight = this.calculateErodedHeight(worldX, worldZ, finalHeight, isRiver, riverDepth, this.seaLevel, noiseSet, blend, erosionIntensity);
                 heightMap[x][z] = this.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, this.minY);
             }
         }
@@ -780,6 +785,10 @@ extends ChunkGenerator {
 
     private double calcHeightForType(int worldX, int worldZ, double baseHeight, TerrainType type) {
         return TerrainCalculator.calcHeightForType(worldX, worldZ, baseHeight, type, this.getFieldSampler());
+    }
+
+    private double calcHeightForType(int worldX, int worldZ, double baseHeight, TerrainType type, RegionController.TerrainBlendResult blend) {
+        return TerrainCalculator.calcHeightForType(worldX, worldZ, baseHeight, type, this.getFieldSampler(), blend);
     }
 
     public BiomeSource getBiomeSource() {

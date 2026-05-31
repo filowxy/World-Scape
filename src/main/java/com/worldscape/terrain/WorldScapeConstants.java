@@ -95,6 +95,16 @@ public final class WorldScapeConstants {
     public static final double EROSION_NOISE_THRESHOLD = 0.45;
     public static final double EROSION_INTENSITY_FACTOR = 0.8;
     public static final double EROSION_CUT_MULTIPLIER = 30.0;
+    // @AESTHETIC: Terrain-type-dependent erosion intensity multipliers
+    // High mountains/ridges get deeper gully erosion; plains/ice get gentler erosion
+    // 山地类型侵蚀更强（更深的沟壑），平原/冰盖类型侵蚀更弱
+    public static final double EROSION_MULTIPLIER_MOUNTAIN = 1.5;
+    public static final double EROSION_MULTIPLIER_PLAIN = 0.5;
+    // @AESTHETIC: Terrain-type-dependent river depth multipliers
+    // Mountain rivers are deeper/narrower; plain rivers are shallower/wider
+    // 山区河流更深（×1.5），平原河流更浅（×0.8）
+    public static final double RIVER_DEPTH_MULTIPLIER_MOUNTAIN = 1.5;
+    public static final double RIVER_DEPTH_MULTIPLIER_PLAIN = 0.8;
     public static final double ELEVATION_NORMALIZATION_FACTOR = 100.0;
     public static final double ALLUVIAL_FAN_AMPLITUDE = 25.0;
     public static final double ALLUVIAL_FAN_FBM_AMP = 5.0;
@@ -145,10 +155,27 @@ public final class WorldScapeConstants {
     public static final double YARDANG_SINE_FREQ_Z = 0.003;
     public static final double YARDANG_DOMAIN_STRENGTH = 0.2;
     public static final double YARDANG_DOMAIN_AMP = 15.0;
+    // @AESTHETIC: Frequency modulation strength to break uniform yardang ridge spacing
+    // 频率调制强度 —— 打破雅丹脊线均匀间距，增加不规则性
+    public static final int YARDANG_FREQ_MOD_OCTAVES = 2;
+    public static final double YARDANG_FREQ_MOD_GAIN = 0.3;
+    public static final double YARDANG_FREQ_MOD_AMP = 0.4;
+    // @AESTHETIC: Sharpening turbulence for steep wind-eroded rock ridge edges
+    // 锐化湍流 —— 模拟风蚀残丘的陡峭岩石边缘
+    public static final double YARDANG_SHARP_STRENGTH = 0.7;
+    public static final double YARDANG_SHARP_AMP = 10.0;
     public static final int GOBI_FBM_OCTAVES = 4;
     public static final double GOBI_FBM_GAIN = 0.7;
     public static final double GOBI_HEIGHT_AMP = 15.0;
+    // @AESTHETIC: High-frequency gravel texture for GOBI - creates rough stony surface feel
+    // 高频碎石纹理 —— 模拟戈壁粗糙的石质表面
+    public static final double GOBI_GRAVEL_STRENGTH = 0.8;
+    public static final double GOBI_GRAVEL_AMP = 3.0;
     public static final double SALT_FLAT_HEIGHT_AMP = 3.0;
+    // @AESTHETIC: Crack-like texture for SALT_FLAT - turbulence with abs() creates polygonal crack patterns
+    // 裂纹纹理 —— turbulence + abs() 模拟盐滩多边形干裂图案
+    public static final double SALT_FLAT_CRACK_STRENGTH = 0.6;
+    public static final double SALT_FLAT_CRACK_AMP = 1.5;
     public static final double CANYON_DEPTH_AMP = 60.0;
     public static final double CANYON_FBM_AMP = 10.0;
     public static final double VALLEY_SIGMOID_INPUT_SCALE = 5.0;
@@ -171,6 +198,13 @@ public final class WorldScapeConstants {
     public static final double CIRQUE_OFFSET_AMP = 40.0;
     public static final int CIRQUE_OFFSET_SEED_DISTANCE = 30000;
     public static final double ICE_SHEET_HEIGHT_AMP = 8.0;
+    // @AESTHETIC: Directional ridge noise for ice crevasses - simulates glacial flow ridges and fissures
+    // 冰裂隙方向性脊线 —— 模拟冰川流动脊线和裂缝
+    public static final double ICE_SHEET_CREVASSE_TURB_STRENGTH = 0.5;
+    public static final double ICE_SHEET_CREVASSE_TURB_AMP = 5.0;
+    public static final double ICE_SHEET_RIDGE_FREQ_X = 0.004;
+    public static final double ICE_SHEET_RIDGE_FREQ_Z = 0.012;
+    public static final double ICE_SHEET_RIDGE_AMP = 3.0;
     public static final double SEA_CLIFF_AMP = 100.0;
     public static final double BEACH_SIGMOID_INPUT_SCALE = 3.0;
     public static final double BEACH_HEIGHT_AMP = 5.0;
@@ -185,7 +219,15 @@ public final class WorldScapeConstants {
     public static final double SEA_PLATEAU_HEIGHT_AMP = 15.0;
     public static final double HILLS_FBM_GAIN = 0.65;
     public static final double HILLS_HEIGHT_AMP = 40.0;
+    // @AESTHETIC: Turbulence adds rolling hill character distinct from flat fBm terrain
+    // 湍流增加丘陵起伏特征，区别于平坦的 fBm 地形
+    public static final double HILLS_TURB_STRENGTH = 0.3;
+    public static final double HILLS_TURB_AMP = 30.0;
     public static final double PLAINS_HEIGHT_AMP = 15.0;
+    // @AESTHETIC: Subtle erosion gully texture for PLAINS - very low amplitude to avoid breaking flatness
+    // 微弱侵蚀沟纹 —— 极低振幅，保持平原平坦但非绝对平面
+    public static final double PLAINS_GULLY_STRENGTH = 0.2;
+    public static final double PLAINS_GULLY_AMP = 1.5;
     public static final double DEFAULT_HEIGHT_AMP = 20.0;
     public static final double SLOPE_ANOMALY_THRESHOLD = 30.0;
     public static final int HEIGHT_CHANGE_WARNING_THRESHOLD = 100;
@@ -242,6 +284,10 @@ public final class WorldScapeConstants {
     public static final double PLAINS_LONGWAVE_OCTAVES = 2;
     public static final double PLAINS_LONGWAVE_GAIN = 0.05;
     public static final double PLAINS_LONGWAVE_AMP = 3.0;
+    // @AESTHETIC: River stripe frequency for floodplain channel texture
+    // ~100-block period simulates multiple braided channel ridges on alluvial plains.
+    // May appear too dense; adjustable after visual testing.
+    // 冲积平原河道纹理频率 —— 约100格周期模拟辫状河道脊线。视觉测试后可能需要调整。
     public static final double FLOODPLAINS_RIVER_FREQ_X = 0.01;
     public static final double FLOODPLAINS_RIVER_FREQ_Z = 0.003;
     public static final double FLOODPLAINS_RIVER_AMP = 2.0;

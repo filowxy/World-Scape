@@ -19,15 +19,15 @@ public final class TerrainCalculator {
         double dominantWeight = blend.dominantWeight;
         TerrainType dominantType = blend.dominantType;
         if (dominantWeight >= WorldScapeConstants.DOMINANT_WEIGHT_THRESHOLD) {
-            finalHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, dominantType, fs);
+            finalHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, dominantType, fs, blend);
         } else if (dominantType == type) {
             // dominantType and type are the same — only one calcHeightForType call needed
-            double singleHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, type, fs);
+            double singleHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, type, fs, blend);
             finalHeight = singleHeight;
         } else {
             // Two different types: dominantType controls blend shape, type is the current cell's assigned type
-            double dominantTypeHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, dominantType, fs);
-            double currentTypeHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, type, fs);
+            double dominantTypeHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, dominantType, fs, blend);
+            double currentTypeHeight = TerrainCalculator.calcHeightForType(x, z, baseHeight, type, fs, blend);
             double blendFactor = dominantWeight / WorldScapeConstants.DOMINANT_WEIGHT_THRESHOLD;
             finalHeight = dominantTypeHeight * blendFactor + currentTypeHeight * (1.0 - blendFactor);
         }
@@ -59,7 +59,16 @@ public final class TerrainCalculator {
         return TerrainType.HIGH_MOUNTAINS;
     }
 
+    // @AESTHETIC: Original method kept for backward compatibility.
+    // Calls blend-aware variant with null blend (control point info not available).
     public static double calcHeightForType(int worldX, int worldZ, double baseHeight, TerrainType type, TerrainFieldSampler fs) {
+        return calcHeightForType(worldX, worldZ, baseHeight, type, fs, null);
+    }
+
+    // @AESTHETIC: Blend-aware variant — enables terrain features to use control point
+    // locations for spatially-dependent calculations (e.g., alluvial fan radial patterns).
+    // 使地形函数能够利用控制点位置进行空间相关的计算（如冲积扇放射状图案）。
+    public static double calcHeightForType(int worldX, int worldZ, double baseHeight, TerrainType type, TerrainFieldSampler fs, RegionController.TerrainBlendResult blend) {
         double height = baseHeight;
         switch (type) {
             case HIGH_MOUNTAINS: {
@@ -134,19 +143,35 @@ public final class TerrainCalculator {
                 break;
             }
             case YARDANG: {
-                double yaPrimary = Math.sin((double)worldX * WorldScapeConstants.YARDANG_SINE_FREQ_X + (double)worldZ * WorldScapeConstants.YARDANG_SINE_FREQ_Z) * WorldScapeConstants.YARDANG_AMP;
+                // @AESTHETIC: Frequency-modulated sine with domain rotation + sharpening turbulence
+                // Frequency modulation breaks uniform ridge spacing for irregular yardang patterns.
+                // Turbulence sharpens ridge edges to simulate steep wind-eroded rock scarps.
+                // NOT using DUNE's sqrt trick — yardangs are rock ridges, not sand dunes.
+                // 频率调制正弦波 + 域旋转 + 锐化湍流
+                // 频率调制打破均匀间距，湍流锐化脊线边缘模拟风蚀岩壁，不使用沙丘的 sqrt 技巧。
+                double yaFreqMod = fs.sampleFbm(worldX, worldZ, WorldScapeConstants.YARDANG_FREQ_MOD_OCTAVES, WorldScapeConstants.YARDANG_FREQ_MOD_GAIN);
+                double yaModFactor = 1.0 + yaFreqMod * WorldScapeConstants.YARDANG_FREQ_MOD_AMP;
+                double yaPhase = (double)worldX * WorldScapeConstants.YARDANG_SINE_FREQ_X * yaModFactor + (double)worldZ * WorldScapeConstants.YARDANG_SINE_FREQ_Z * yaModFactor;
+                double yaPrimary = Math.sin(yaPhase) * WorldScapeConstants.YARDANG_AMP;
+                double yaSharp = fs.sampleTurbulence(worldX, worldZ, WorldScapeConstants.YARDANG_SHARP_STRENGTH) * WorldScapeConstants.YARDANG_SHARP_AMP;
                 double yaDomain = fs.sampleDomainRotated(worldX, worldZ, WorldScapeConstants.YARDANG_DOMAIN_STRENGTH) * WorldScapeConstants.YARDANG_DOMAIN_AMP;
-                height = baseHeight + yaPrimary + yaDomain;
+                height = baseHeight + yaPrimary + yaSharp + yaDomain;
                 break;
             }
             case GOBI: {
+                // @AESTHETIC: fBm base + high-frequency turbulence for gravel/rock fragment texture
+                // 碎石纹理：fBm 基底 + 高频湍流模拟碎石表面的粗糙感
                 double goFbm = fs.sampleFbm(worldX, worldZ, WorldScapeConstants.GOBI_FBM_OCTAVES, WorldScapeConstants.GOBI_FBM_GAIN);
-                height = baseHeight + goFbm * WorldScapeConstants.GOBI_HEIGHT_AMP;
+                double goGravel = fs.sampleTurbulence(worldX, worldZ, WorldScapeConstants.GOBI_GRAVEL_STRENGTH) * WorldScapeConstants.GOBI_GRAVEL_AMP;
+                height = baseHeight + goFbm * WorldScapeConstants.GOBI_HEIGHT_AMP + goGravel;
                 break;
             }
             case SALT_FLAT: {
+                // @AESTHETIC: fBm base + turbulence-crack texture for polygonal salt crust fissures
+                // 盐壳裂纹：fBm 基底 + 湍流 abs() 产生的多边形裂纹纹理
                 double sfFbm = fs.sampleFbm(worldX, worldZ, WorldScapeConstants.SALT_FLAT_FBM_OCTAVES, WorldScapeConstants.SALT_FLAT_FBM_GAIN);
-                height = baseHeight + sfFbm * WorldScapeConstants.SALT_FLAT_HEIGHT_AMP;
+                double sfCrack = fs.sampleTurbulence(worldX, worldZ, WorldScapeConstants.SALT_FLAT_CRACK_STRENGTH) * WorldScapeConstants.SALT_FLAT_CRACK_AMP;
+                height = baseHeight + sfFbm * WorldScapeConstants.SALT_FLAT_HEIGHT_AMP + sfCrack;
                 break;
             }
             case CANYON: {
@@ -178,8 +203,29 @@ public final class TerrainCalculator {
                 break;
             }
             case ALLUVIAL_FAN: {
-                // @FIXME: Distance calculated from world origin (0,0), should use nearest control point center
-                double afDist = Math.sqrt((double)worldX * (double)worldX + (double)worldZ * (double)worldZ) % WorldScapeConstants.ALLUVIAL_FAN_DISTANCE_PERIOD;
+                // @AESTHETIC: Distance now calculated relative to nearest contributing control point,
+                // not world origin (0,0). This produces radial fan patterns around each control point
+                // instead of concentric rings centered at origin.
+                // 距离现在相对于最近贡献控制点计算，而非世界原点。
+                // 每个冲积扇围绕各自控制点呈放射状，消除同心圆分布。
+                double afCenterX = 0.0;
+                double afCenterZ = 0.0;
+                if (blend != null && blend.contributingPoints != null) {
+                    double bestDistSq = Double.MAX_VALUE;
+                    for (RegionController.PointWeight pw : blend.contributingPoints) {
+                        double dx = (double)worldX - (double)pw.point.getX();
+                        double dz = (double)worldZ - (double)pw.point.getZ();
+                        double distSq = dx * dx + dz * dz;
+                        if (distSq < bestDistSq) {
+                            bestDistSq = distSq;
+                            afCenterX = (double)pw.point.getX();
+                            afCenterZ = (double)pw.point.getZ();
+                        }
+                    }
+                }
+                double afDx = (double)worldX - afCenterX;
+                double afDz = (double)worldZ - afCenterZ;
+                double afDist = Math.sqrt(afDx * afDx + afDz * afDz) % WorldScapeConstants.ALLUVIAL_FAN_DISTANCE_PERIOD;
                 double afErf = Math.tanh(afDist / WorldScapeConstants.ALLUVIAL_FAN_DISTANCE_NORM * WorldScapeConstants.ERF_APPROX_FACTOR);
                 double afSlope = afErf * WorldScapeConstants.ALLUVIAL_FAN_AMPLITUDE;
                 double afFbm = fs.sampleFbm(worldX, worldZ, WorldScapeConstants.ALLUVIAL_FAN_FBM_OCTAVES, WorldScapeConstants.ALLUVIAL_FAN_FBM_GAIN) * WorldScapeConstants.ALLUVIAL_FAN_FBM_AMP;
@@ -218,8 +264,12 @@ public final class TerrainCalculator {
                 break;
             }
             case ICE_SHEET: {
+                // @AESTHETIC: fBm base + directional ridge noise + turbulence for glacial crevasse patterns
+                // 冰盖纹理：fBm 基底 + 方向性脊线 + 湍流模拟冰川裂隙
                 double isFbm = fs.sampleFbm(worldX, worldZ, WorldScapeConstants.ICE_SHEET_FBM_OCTAVES, WorldScapeConstants.ICE_SHEET_FBM_GAIN);
-                height = baseHeight + isFbm * WorldScapeConstants.ICE_SHEET_HEIGHT_AMP;
+                double isRidge = Math.sin((double)worldX * WorldScapeConstants.ICE_SHEET_RIDGE_FREQ_X + (double)worldZ * WorldScapeConstants.ICE_SHEET_RIDGE_FREQ_Z) * WorldScapeConstants.ICE_SHEET_RIDGE_AMP;
+                double isCrevasse = fs.sampleTurbulence(worldX, worldZ, WorldScapeConstants.ICE_SHEET_CREVASSE_TURB_STRENGTH) * WorldScapeConstants.ICE_SHEET_CREVASSE_TURB_AMP;
+                height = baseHeight + isFbm * WorldScapeConstants.ICE_SHEET_HEIGHT_AMP + isRidge + isCrevasse;
                 break;
             }
             case SEA_CLIFF: {
@@ -262,15 +312,24 @@ public final class TerrainCalculator {
                 break;
             }
             case HILLS: {
+                // @AESTHETIC: fBm base + turbulence for rolling hill character
+                // 丘陵纹理：fBm 基底 + 湍流增强起伏感
                 double hiFbm = fs.sampleFbm(worldX, worldZ, WorldScapeConstants.HILLS_FBM_OCTAVES, WorldScapeConstants.HILLS_FBM_GAIN);
-                height = baseHeight + hiFbm * WorldScapeConstants.HILLS_HEIGHT_AMP;
+                double hiTurb = fs.sampleTurbulence(worldX, worldZ, WorldScapeConstants.HILLS_TURB_STRENGTH) * WorldScapeConstants.HILLS_TURB_AMP;
+                height = baseHeight + hiFbm * WorldScapeConstants.HILLS_HEIGHT_AMP + hiTurb;
                 break;
             }
             case PLAINS: {
+                // @AESTHETIC: fBm base + longwave undulation + subtle gully texture
+                // The longwave provides nearly invisible macro-undulation (±0.15 blocks),
+                // while gully texture adds micro-scale erosion character without breaking flatness.
+                // 平原纹理：fBm + 长波起伏 + 微弱侵蚀沟纹
+                // 长波提供肉眼几乎不可见的微起伏（±0.15格），沟纹增加微观侵蚀特征，保持平原平坦但非绝对平面。
                 double plFbm2 = fs.sampleFbm(worldX, worldZ, WorldScapeConstants.PLAINS_FBM_OCTAVES, WorldScapeConstants.PLAINS_FBM_GAIN);
                 double plHeight = plFbm2 * WorldScapeConstants.PLAINS_HEIGHT_AMP;
                 double plLongWave = fs.sampleFbm(worldX, worldZ, (int)WorldScapeConstants.PLAINS_LONGWAVE_OCTAVES, WorldScapeConstants.PLAINS_LONGWAVE_GAIN) * WorldScapeConstants.PLAINS_LONGWAVE_AMP;
-                height = baseHeight + plHeight + plLongWave;
+                double plGully = fs.sampleTurbulence(worldX, worldZ, WorldScapeConstants.PLAINS_GULLY_STRENGTH) * WorldScapeConstants.PLAINS_GULLY_AMP;
+                height = baseHeight + plHeight + plLongWave + plGully;
                 break;
             }
             default: {
@@ -308,6 +367,24 @@ public final class TerrainCalculator {
         return factor * distanceFactor * WorldScapeConstants.ALLUVIAL_FACTOR;
     }
 
+    // @AESTHETIC: Compute erosion multiplier based on elevation tier.
+    // Higher tier = more dramatic terrain = deeper erosion gullies.
+    // 基于海拔等级的侵蚀乘数：高等级→更深的侵蚀沟壑。
+    public static double getErosionMultiplierForTier(int elevationTier) {
+        if (elevationTier >= 5) return WorldScapeConstants.EROSION_MULTIPLIER_MOUNTAIN;
+        if (elevationTier <= 2) return WorldScapeConstants.EROSION_MULTIPLIER_PLAIN;
+        return 1.0;
+    }
+
+    // @AESTHETIC: Compute river depth multiplier based on elevation tier.
+    // Mountain rivers cut deeper; plain rivers spread wider and shallower.
+    // 基于海拔等级的河流深度乘数：山区河流切割更深，平原河流更浅更宽。
+    public static double getRiverDepthMultiplierForTier(int elevationTier) {
+        if (elevationTier >= 4) return WorldScapeConstants.RIVER_DEPTH_MULTIPLIER_MOUNTAIN;
+        if (elevationTier <= 2) return WorldScapeConstants.RIVER_DEPTH_MULTIPLIER_PLAIN;
+        return 1.0;
+    }
+
     public static int calculateErodedHeight(int worldX, int worldZ, double continuousHeight, boolean isRiver, double riverDepth, int seaLevel, NoiseSet noiseSet, RegionController.TerrainBlendResult blend) {
         double erosionIntensity = TerrainCalculator.getRiverErosionIntensity(worldX, worldZ, noiseSet, continuousHeight, seaLevel, blend);
         return TerrainCalculator.calculateErodedHeight(worldX, worldZ, continuousHeight, isRiver, riverDepth, seaLevel, noiseSet, blend, erosionIntensity);
@@ -315,13 +392,15 @@ public final class TerrainCalculator {
 
     public static int calculateErodedHeight(int worldX, int worldZ, double continuousHeight, boolean isRiver, double riverDepth, int seaLevel, NoiseSet noiseSet, RegionController.TerrainBlendResult blend, double erosionIntensity) {
         double alluvialFactor = TerrainCalculator.getAlluvialFactor(worldX, worldZ, noiseSet, continuousHeight, seaLevel);
-        return TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, seaLevel, erosionIntensity, alluvialFactor);
+        double erosionMultiplier = blend != null && blend.macroInfo != null
+            ? getErosionMultiplierForTier(blend.macroInfo.elevationTier) : 1.0;
+        return TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, seaLevel, erosionIntensity, alluvialFactor, erosionMultiplier);
     }
 
-    public static int calculateErodedHeight(double continuousHeight, boolean isRiver, double riverDepth, int seaLevel, double erosionIntensity, double alluvialFactor) {
+    public static int calculateErodedHeight(double continuousHeight, boolean isRiver, double riverDepth, int seaLevel, double erosionIntensity, double alluvialFactor, double erosionMultiplier) {
         double erodedHeight = continuousHeight;
         if (isRiver && erosionIntensity > WorldScapeConstants.RIVER_DIFF_THRESHOLD) {
-            double erosionCut = erosionIntensity * WorldScapeConstants.EROSION_CUT_MULTIPLIER;
+            double erosionCut = erosionIntensity * WorldScapeConstants.EROSION_CUT_MULTIPLIER * erosionMultiplier;
             erodedHeight = continuousHeight - erosionCut;
         }
         if (alluvialFactor > WorldScapeConstants.RIVER_DIFF_THRESHOLD) {
@@ -345,15 +424,21 @@ public final class TerrainCalculator {
     }
 
     public static double getRiverDepthAt(int worldX, int worldZ, NoiseSet noiseSet, int surfaceHeight, int seaLevel) {
-        return TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel, TerrainCalculator.isRiverAt(worldX, worldZ, noiseSet));
+        return TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel, TerrainCalculator.isRiverAt(worldX, worldZ, noiseSet), 1.0);
     }
 
     public static double getRiverDepthAt(int worldX, int worldZ, NoiseSet noiseSet, int surfaceHeight, int seaLevel, boolean isRiver) {
+        return getRiverDepthAt(worldX, worldZ, noiseSet, surfaceHeight, seaLevel, isRiver, 1.0);
+    }
+
+    // @AESTHETIC: River depth with terrain-type-dependent multiplier.
+    // 带地形乘数的河流深度计算。
+    public static double getRiverDepthAt(int worldX, int worldZ, NoiseSet noiseSet, int surfaceHeight, int seaLevel, boolean isRiver, double depthMultiplier) {
         if (!isRiver) {
             return 0.0;
         }
         double riverNoise = noiseSet.sample(NoiseSet.NoiseProfile.RIVER_PATH, worldX, worldZ);
-        double depth = (riverNoise - WorldScapeConstants.RIVER_DIFF_THRESHOLD) * WorldScapeConstants.RIVER_DEPTH_SCALE * WorldScapeConstants.RIVER_DEPTH_AMPLIFIER;
+        double depth = (riverNoise - WorldScapeConstants.RIVER_DIFF_THRESHOLD) * WorldScapeConstants.RIVER_DEPTH_SCALE * WorldScapeConstants.RIVER_DEPTH_AMPLIFIER * depthMultiplier;
         return Math.max(WorldScapeConstants.RIVER_MIN_DEPTH, Math.min(depth, WorldScapeConstants.RIVER_MAX_DEPTH));
     }
 }
