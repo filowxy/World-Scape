@@ -39,6 +39,9 @@ seed_analysis/
 # Trae IDE (entire .trae directory - IDE config, memory, rules)
 .trae/
 
+# Project documentation (not for public repository)
+PROJECT_REPORT.md
+
 # External jars (not source code)
 *.jar
 
