@@ -285,7 +285,14 @@ public class SeedAnalyzer {
 
     /**
      * Compute full terrain height result - tracks continuous height for see-through-water view.
+     * Uses the same terrain calculation chain as LandscapeChunkGenerator.fillFromNoise().
+     * getTerrainBlend(worldX, worldZ) delegates to getTerrainBlend(worldX, worldZ, null),
+     * producing identical results — the BlendCache in fillFromNoise is only a performance optimization.
+     * 
      * Compute full terrain height result - tracks continuous height for see-through-water view.
+     * 使用与 LandscapeChunkGenerator.fillFromNoise() 相同的地形计算链。
+     * getTerrainBlend(worldX, worldZ) 委托给 getTerrainBlend(worldX, worldZ, null)，
+     * 产生相同结果 —— fillFromNoise 中的 BlendCache 仅用于性能优化。
      */
     private TerrainHeightResult calculateFullTerrainHeight(int worldX, int worldZ) {
         RegionController.TerrainBlendResult blend = regionController.getTerrainBlend(worldX, worldZ);

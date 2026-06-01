@@ -122,6 +122,11 @@ implements SurfaceAdapter {
         Method buildSurfaceMethod = cache.buildSurfaceMethod;
         buildSurfaceMethod.setAccessible(true);
         buildSurfaceMethod.invoke((Object)surfaceSystem, randomState, biomeManager, biomeRegistry, false, worldGenContext, chunk, noiseChunk, ruleSource);
+        // @AESTHETIC: Overlay WS-specific surface corrections on top of vanilla SurfaceRules.
+        // Vanilla rules don't know about WS terrain types (glaciers, ice sheets, etc.), so we
+        // apply a corrective pass to ensure WS-specific surface blocks are correct.
+        // 在原版 SurfaceRules 之上叠加 WS 专属地表修正，确保冰川、冰原等 WS 地形类型的地表方块正确。
+        this.applyWorldScapeSurfaceOverlay(chunk, context);
         LOGGER.debug("{} Surface built successfully", (Object)MOD_ID);
         return true;
     }
@@ -197,6 +202,50 @@ implements SurfaceAdapter {
             return (int)Math.max((double)minY, (double)terrainHeight - riverDepth);
         }
         return terrainHeight;
+    }
+
+    // @AESTHETIC: Apply WS-specific surface block corrections as an overlay on vanilla SurfaceRules.
+    // Corrects high-altitude snow and glacier ice that vanilla rules may not handle correctly.
+    // 在原版 SurfaceRules 之上叠加 WS 专属地表方块修正，修正高海拔雪块和冰川冰块。
+    private void applyWorldScapeSurfaceOverlay(ChunkAccess chunk, SurfaceAdapter.SurfaceBuildContext context) {
+        int[][] heightMap = context.getHeightMap();
+        int minX = context.getMinBlockX();
+        int minZ = context.getMinBlockZ();
+        int seaLevel = this.settings.seaLevel();
+        net.minecraft.world.level.block.state.BlockState snowBlock = Blocks.SNOW_BLOCK.defaultBlockState();
+        net.minecraft.world.level.block.state.BlockState packedIce = Blocks.PACKED_ICE.defaultBlockState();
+        net.minecraft.world.level.block.state.BlockState air = Blocks.AIR.defaultBlockState();
+        net.minecraft.core.BlockPos.MutableBlockPos pos = new net.minecraft.core.BlockPos.MutableBlockPos();
+
+        for (int x = 0; x < 16; ++x) {
+            for (int z = 0; z < 16; ++z) {
+                int terrainHeight = heightMap[x][z];
+                if (terrainHeight <= seaLevel) continue;
+                int worldX = minX + x;
+                int worldZ = minZ + z;
+
+                // High altitude snow overlay (> 90 blocks above sea level)
+                // 高海拔雪块叠加（海平面以上 > 90 格）
+                if (terrainHeight > seaLevel + 90) {
+                    pos.set(worldX, terrainHeight, worldZ);
+                    if (!chunk.getBlockState(pos).isAir()) {
+                        chunk.setBlockState(pos, snowBlock, false);
+                    }
+                }
+
+                // Glacier/ice sheet subsurface overlay (> 120 blocks above sea level)
+                // 冰川/冰原次表层冰块叠加（海平面以上 > 120 格）
+                if (terrainHeight > seaLevel + 120) {
+                    for (int dy = 1; dy <= 3; ++dy) {
+                        pos.set(worldX, terrainHeight - dy, worldZ);
+                        net.minecraft.world.level.block.state.BlockState current = chunk.getBlockState(pos);
+                        if (!current.isAir() && current.getBlock() != Blocks.WATER) {
+                            chunk.setBlockState(pos, packedIce, false);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private void injectNoiseChunk(ChunkAccess chunk, Object noiseChunk, ReflectionCache cache) {

@@ -297,17 +297,9 @@ extends ChunkGenerator {
             voidWarningCount.incrementAndGet();
         }
         double erosionIntensity = cachedErosionIntensity;
-        double erodedHeight = continuousHeight;
-        if (isRiver && erosionIntensity > 0.1) {
-            double erosionCut = erosionIntensity * 30.0;
-            erodedHeight = continuousHeight - erosionCut;
-        }
         double alluvialFactor = cachedAlluvialFactor;
-        if (alluvialFactor > 0.1) {
-            double alluvialRaise = alluvialFactor * 5.0;
-            erodedHeight += alluvialRaise;
-        }
-        int actualSurfaceHeight = this.calculateActualSurfaceHeight((int)Math.floor(erodedHeight), isRiver, riverDepth, minY);
+        int erodedHeight = this.calculateErodedHeight(continuousHeight, isRiver, riverDepth, seaLevel, erosionIntensity, alluvialFactor);
+        int actualSurfaceHeight = this.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, minY);
         int waterLevel = this.calculateRiverWaterLevel(actualSurfaceHeight, isRiver, riverDepth, seaLevel, minY);
         int fillToHeight = actualSurfaceHeight - 1;
         long bedrockSeed = SeedDeriver.deriveSeed(this.worldSeed, (long)worldX * 31L + (long)worldZ * 17L + 388350381470L);

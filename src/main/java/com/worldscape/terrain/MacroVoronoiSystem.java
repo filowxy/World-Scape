@@ -196,14 +196,21 @@ public class MacroVoronoiSystem {
         long key = (long)cellX << 32 | (long)cellZ & 0xFFFFFFFFL;
         return this.adjustedTierCache.computeIfAbsent(key, k -> {
             int tier = this.getRawElevationTier(cellX, cellZ);
+            int minNeighborTier = tier;
+            int maxNeighborTier = tier;
             for (int dx = -1; dx <= 1; ++dx) {
                 for (int dz = -1; dz <= 1; ++dz) {
-                    int neighborTier;
-                    int diff;
-                    if (dx == 0 && dz == 0 || (diff = tier - (neighborTier = this.getRawElevationTier(cellX + dx, cellZ + dz))) <= 2) continue;
-                    tier = neighborTier + 2;
+                    if (dx == 0 && dz == 0) continue;
+                    int neighborTier = this.getRawElevationTier(cellX + dx, cellZ + dz);
+                    minNeighborTier = Math.min(minNeighborTier, neighborTier);
+                    maxNeighborTier = Math.max(maxNeighborTier, neighborTier);
                 }
             }
+            // @AESTHETIC: Symmetric neighbor correction — pull down isolated peaks AND pull up isolated valleys.
+            // Eliminates iteration-order dependency by collecting min/max first, then correcting once.
+            // 对称邻居修正：同时拉低孤立高峰和拉高孤立低谷，先收集 min/max 再统一修正，消除迭代顺序依赖。
+            if (tier - minNeighborTier > 2) tier = minNeighborTier + 2;
+            if (maxNeighborTier - tier > 2) tier = Math.max(tier, maxNeighborTier - 2);
             return tier;
         });
     }

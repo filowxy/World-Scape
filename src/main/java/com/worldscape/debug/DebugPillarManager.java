@@ -16,8 +16,10 @@ import com.worldscape.terrain.MacroRegionInfo;
 import com.worldscape.terrain.TerrainControlPoint;
 import com.worldscape.terrain.TerrainType;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
@@ -26,6 +28,18 @@ import org.slf4j.LoggerFactory;
 public class DebugPillarManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(DebugPillarManager.class);
     private static final ConcurrentHashMap<Long, BlockPos> PLACED_BLOCKS = new ConcurrentHashMap();
+    private static final Set<Block> PILLAR_BLOCKS = Set.of(
+        Blocks.GLOWSTONE,
+        Blocks.RED_STAINED_GLASS, Blocks.ORANGE_STAINED_GLASS, Blocks.YELLOW_STAINED_GLASS,
+        Blocks.LIME_STAINED_GLASS, Blocks.GREEN_STAINED_GLASS, Blocks.BLUE_STAINED_GLASS,
+        Blocks.CYAN_STAINED_GLASS, Blocks.PURPLE_STAINED_GLASS, Blocks.WHITE_STAINED_GLASS,
+        Blocks.LIGHT_BLUE_STAINED_GLASS, Blocks.GRAY_STAINED_GLASS, Blocks.GLASS,
+        Blocks.RED_CONCRETE, Blocks.ORANGE_CONCRETE, Blocks.YELLOW_CONCRETE,
+        Blocks.LIME_CONCRETE, Blocks.GREEN_CONCRETE, Blocks.CYAN_CONCRETE,
+        Blocks.PURPLE_CONCRETE, Blocks.LIGHT_BLUE_CONCRETE, Blocks.WHITE_CONCRETE,
+        Blocks.RED_CONCRETE_POWDER, Blocks.CYAN_CONCRETE_POWDER, Blocks.YELLOW_CONCRETE_POWDER,
+        Blocks.GREEN_CONCRETE_POWDER, Blocks.MAGMA_BLOCK
+    );
 
     private static BlockState getBlockForTerrainType(TerrainType type) {
         return switch (type) {
@@ -127,7 +141,7 @@ public class DebugPillarManager {
         }
         int cleared = 0;
         for (BlockPos pos : PLACED_BLOCKS.values()) {
-            if (!level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.GLOWSTONE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.RED_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.ORANGE_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.YELLOW_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.LIME_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.GREEN_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.BLUE_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.CYAN_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.PURPLE_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.WHITE_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.LIGHT_BLUE_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.GRAY_STAINED_GLASS) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.RED_CONCRETE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.ORANGE_CONCRETE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.YELLOW_CONCRETE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.LIME_CONCRETE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.GREEN_CONCRETE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.CYAN_CONCRETE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.PURPLE_CONCRETE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.LIGHT_BLUE_CONCRETE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.WHITE_CONCRETE) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.RED_CONCRETE_POWDER) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.CYAN_CONCRETE_POWDER) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.YELLOW_CONCRETE_POWDER) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.GREEN_CONCRETE_POWDER) && !level.getBlockState(pos).getBlock().defaultBlockState().is(Blocks.MAGMA_BLOCK)) continue;
+            if (!PILLAR_BLOCKS.contains(level.getBlockState(pos).getBlock())) continue;
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
             ++cleared;
         }

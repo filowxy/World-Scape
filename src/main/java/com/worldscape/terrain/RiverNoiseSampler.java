@@ -23,6 +23,8 @@ public class RiverNoiseSampler {
     private static final double MAX_DEPTH = 12.0;
     private static final double GRADIENT_STEEP_THRESHOLD = 0.5;
     private static final double GRADIENT_FLAT_THRESHOLD = 0.2;
+    private static final double GRADIENT_WIDTH_BASE_WEIGHT = 0.2;
+    private static final double GRADIENT_WIDTH_TARGET_WEIGHT = 0.8;
 
     public RiverNoiseSampler(long seed) {
         this.pathNoise = NormalNoise.create((RandomSource)RandomSource.create((long)(seed + 1000L)), (int)-4, (double[])new double[]{1.0});
@@ -70,7 +72,7 @@ public class RiverNoiseSampler {
         double baseWidth = 10.0 + (widthValue + 1.0) * 0.5 * 10.0;
         double gradientWeight = gradient > 0.5 ? 0.0 : (gradient < 0.2 ? 1.0 : (0.5 - gradient) / 0.3);
         double targetWidth = 10.0 + gradientWeight * 10.0;
-        return baseWidth * 0.19999999999999996 + targetWidth * 0.8;
+        return baseWidth * GRADIENT_WIDTH_BASE_WEIGHT + targetWidth * GRADIENT_WIDTH_TARGET_WEIGHT;
     }
 
     public double getDepth(int worldX, int worldZ) {

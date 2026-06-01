@@ -16,6 +16,8 @@ package com.worldscape.generator;
 
 import com.worldscape.generator.SurfaceAdapter;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.WorldGenRegion;
@@ -31,9 +33,11 @@ public class FallbackSurfaceAdapter
 implements SurfaceAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(FallbackSurfaceAdapter.class);
     private static final String MOD_ID = "[World Scape] [FallbackSurfaceAdapter]";
+    private static final ThreadLocal<Random> THREAD_LOCAL_RANDOM = ThreadLocal.withInitial(Random::new);
     private final ChunkGenerator generator;
     private final long worldSeed;
     private final int seaLevel;
+    private final Map<Biome, String> biomeIdCache = new HashMap<>();
 
     public FallbackSurfaceAdapter(ChunkGenerator generator, long worldSeed, int seaLevel) {
         this.generator = generator;
@@ -84,6 +88,7 @@ implements SurfaceAdapter {
         BlockState granite = Blocks.GRANITE.defaultBlockState();
         BlockState diorite = Blocks.DIORITE.defaultBlockState();
         BlockState cobblestone = Blocks.COBBLESTONE.defaultBlockState();
+        BlockState packedIce = Blocks.PACKED_ICE.defaultBlockState();
         int surfaceLevel = context.getSeaLevel();
         for (int x = 0; x < 16; ++x) {
             for (int z = 0; z < 16; ++z) {
@@ -99,17 +104,21 @@ implements SurfaceAdapter {
                 }
                 String biomeId = "minecraft:plains";
                 if (biome != null) {
-                    try {
-                        Method getKeyMethod = Biome.class.getMethod("getKey", new Class[0]);
-                        Object key = getKeyMethod.invoke((Object)biome, new Object[0]);
-                        if (key != null) {
-                            Method toStringMethod = key.getClass().getMethod("toString", new Class[0]);
-                            biomeId = toStringMethod.invoke(key, new Object[0]).toString();
+                    // @PERF: Cache biomeId to avoid repeated reflection per column
+                    // 缓存 biomeId 避免每列重复反射
+                    biomeId = this.biomeIdCache.computeIfAbsent(biome, b -> {
+                        try {
+                            Method getKeyMethod = Biome.class.getMethod("getKey", new Class[0]);
+                            Object key = getKeyMethod.invoke(b, new Object[0]);
+                            if (key != null) {
+                                Method toStringMethod = key.getClass().getMethod("toString", new Class[0]);
+                                return toStringMethod.invoke(key, new Object[0]).toString();
+                            }
                         }
-                    }
-                    catch (Exception getKeyMethod) {
-                        // empty catch block
-                    }
+                        catch (Exception ignored) {
+                        }
+                        return "minecraft:plains";
+                    });
                 }
                 boolean isHighAltitude = terrainHeight > surfaceLevel + 30;
                 boolean isMountain = biomeId.contains("mountain") || biomeId.contains("highland") || biomeId.contains("summit") || biomeId.contains("peak");
@@ -118,7 +127,8 @@ implements SurfaceAdapter {
                 boolean isBeach = biomeId.contains("beach") || biomeId.contains("shore");
                 boolean isStony = biomeId.contains("stone") || biomeId.contains("rocky") || biomeId.contains("gravel") || biomeId.contains("mountains");
                 long stoneVariantSeed = (long)worldX * 31341L + (long)worldZ * 45231L + this.worldSeed;
-                Random stoneRand = new Random(stoneVariantSeed);
+                Random stoneRand = THREAD_LOCAL_RANDOM.get();
+                stoneRand.setSeed(stoneVariantSeed);
                 BlockState deepStone = this.getRandomStoneVariant(stoneRand);
                 for (int y = minY; y < maxY; ++y) {
                     BlockPos pos = new BlockPos(worldX, y, worldZ);
@@ -144,6 +154,12 @@ implements SurfaceAdapter {
                                 continue;
                             }
                             chunk.setBlockState(pos, sand, false);
+                            continue;
+                        }
+                        // @AESTHETIC: Glacier and ice terrain — use packed ice sub-surface for snowy high-altitude areas
+                        // 冰川和冰原地形 — 高海拔雪地次表层使用浮冰
+                        if (isSnowy && terrainHeight > surfaceLevel + 30) {
+                            chunk.setBlockState(pos, packedIce, false);
                             continue;
                         }
                         if (isStony || isMountain) {

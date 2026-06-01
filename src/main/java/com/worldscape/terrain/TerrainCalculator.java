@@ -233,7 +233,14 @@ public final class TerrainCalculator {
                 }
                 double afDx = (double)worldX - afCenterX;
                 double afDz = (double)worldZ - afCenterZ;
-                double afDist = Math.sqrt(afDx * afDx + afDz * afDz) % WorldScapeConstants.ALLUVIAL_FAN_DISTANCE_PERIOD;
+                // @AESTHETIC: Replace modulo with sin-based continuous periodic function
+                // to eliminate hard edges at period boundaries. Converts sawtooth to smooth sine wave,
+                // preserving the cone shape while ensuring C¹ continuity.
+                // 使用 sin 连续周期函数替代取模运算，消除周期边界处的硬边。
+                // 将锯齿波转换为平滑正弦波，保留锥形同时确保 C¹ 连续。
+                double afRawDist = Math.sqrt(afDx * afDx + afDz * afDz);
+                double afPhase = afRawDist / WorldScapeConstants.ALLUVIAL_FAN_DISTANCE_PERIOD * Math.PI * 2.0;
+                double afDist = (Math.sin(afPhase) * 0.5 + 0.5) * WorldScapeConstants.ALLUVIAL_FAN_DISTANCE_PERIOD;
                 double afErf = Math.tanh(afDist / WorldScapeConstants.ALLUVIAL_FAN_DISTANCE_NORM * WorldScapeConstants.ERF_APPROX_FACTOR);
                 double afSlope = afErf * WorldScapeConstants.ALLUVIAL_FAN_AMPLITUDE;
                 double afFbm = fs.sampleFbm(worldX, worldZ, WorldScapeConstants.ALLUVIAL_FAN_FBM_OCTAVES, WorldScapeConstants.ALLUVIAL_FAN_FBM_GAIN) * WorldScapeConstants.ALLUVIAL_FAN_FBM_AMP;
@@ -411,7 +418,11 @@ public final class TerrainCalculator {
             double erosionCut = erosionIntensity * WorldScapeConstants.EROSION_CUT_MULTIPLIER * erosionMultiplier;
             erodedHeight = continuousHeight - erosionCut;
         }
-        if (alluvialFactor > WorldScapeConstants.RIVER_DIFF_THRESHOLD) {
+        // @CONSISTENCY: Use ALLUVIAL_THRESHOLD (0.45) to match getAlluvialFactor()'s internal threshold.
+        // RIVER_DIFF_THRESHOLD (0.1) is for river noise detection; ALLUVIAL_THRESHOLD is for alluvial deposition.
+        // 使用 ALLUVIAL_THRESHOLD (0.45) 与 getAlluvialFactor() 内部阈值保持一致。
+        // RIVER_DIFF_THRESHOLD (0.1) 用于河流噪声检测；ALLUVIAL_THRESHOLD 用于冲积沉积判断。
+        if (alluvialFactor > WorldScapeConstants.ALLUVIAL_THRESHOLD) {
             double alluvialRaise = alluvialFactor * WorldScapeConstants.ALLUVIAL_RAISE_MULTIPLIER;
             erodedHeight += alluvialRaise;
         }
