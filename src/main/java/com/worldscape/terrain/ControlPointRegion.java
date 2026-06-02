@@ -150,13 +150,10 @@ public class ControlPointRegion {
             if (other == TerrainType.CLIFF) {
                 return true;
             }
-            return switch (other) {
-                case TerrainType.HIGH_MOUNTAINS, TerrainType.RIDGE, TerrainType.PEAK, TerrainType.HORN, TerrainType.CIRQUE, TerrainType.PLATEAU -> true;
-                case TerrainType.HILLS -> true;
-                case TerrainType.CANYON, TerrainType.VALLEY, TerrainType.GLACIAL_VALLEY, TerrainType.FJORD -> true;
-                case TerrainType.SEA_CLIFF -> true;
-                default -> false;
-            };
+            return other == TerrainType.HIGH_MOUNTAINS || other == TerrainType.RIDGE || other == TerrainType.PEAK
+                    || other == TerrainType.HORN || other == TerrainType.CIRQUE || other == TerrainType.PLATEAU
+                    || other == TerrainType.HILLS || other == TerrainType.CANYON || other == TerrainType.VALLEY
+                    || other == TerrainType.GLACIAL_VALLEY || other == TerrainType.FJORD || other == TerrainType.SEA_CLIFF;
         }
         boolean isHighMountain = t1 == TerrainType.HIGH_MOUNTAINS || t2 == TerrainType.HIGH_MOUNTAINS;
         boolean isHorn = t1 == TerrainType.HORN || t2 == TerrainType.HORN;
@@ -171,10 +168,10 @@ public class ControlPointRegion {
     }
 
     private boolean isExtremeTerrain(TerrainType type) {
-        return switch (type) {
-            case TerrainType.HIGH_MOUNTAINS, TerrainType.HORN, TerrainType.CANYON, TerrainType.CLIFF, TerrainType.TRENCH -> true;
-            default -> false;
-        };
+        if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.HORN || type == TerrainType.CANYON || type == TerrainType.CLIFF || type == TerrainType.TRENCH) {
+            return true;
+        }
+        return false;
     }
 
     private void applyTerrainTypeConstraints(List<PointData> allPoints) {
@@ -210,16 +207,22 @@ public class ControlPointRegion {
     }
 
     private int getTerrainLevel(TerrainType type) {
-        return switch (type) {
-            case TerrainType.TRENCH -> 0;
-            case TerrainType.CANYON, TerrainType.BASIN, TerrainType.SINKHOLE -> 1;
-            case TerrainType.BEACH, TerrainType.DELTA, TerrainType.SEA_PLATEAU, TerrainType.FLOODPLAIN, TerrainType.SALT_FLAT -> 2;
-            case TerrainType.GLACIAL_VALLEY, TerrainType.FJORD, TerrainType.PLAINS, TerrainType.DUNE, TerrainType.GOBI, TerrainType.YARDANG -> 3;
-            case TerrainType.CIRQUE, TerrainType.HILLS, TerrainType.VALLEY, TerrainType.ALLUVIAL_FAN, TerrainType.ICE_SHEET, TerrainType.PEAK_FOREST -> 4;
-            case TerrainType.RIDGE, TerrainType.PLATEAU, TerrainType.SEA_CLIFF, TerrainType.DOME -> 5;
-            case TerrainType.HIGH_MOUNTAINS, TerrainType.PEAK, TerrainType.HORN, TerrainType.CLIFF -> 6;
-            default -> 3;
-        };
+        if (type == TerrainType.TRENCH) {
+            return 0;
+        } else if (type == TerrainType.CANYON || type == TerrainType.BASIN || type == TerrainType.SINKHOLE) {
+            return 1;
+        } else if (type == TerrainType.BEACH || type == TerrainType.DELTA || type == TerrainType.SEA_PLATEAU || type == TerrainType.FLOODPLAIN || type == TerrainType.SALT_FLAT) {
+            return 2;
+        } else if (type == TerrainType.GLACIAL_VALLEY || type == TerrainType.FJORD || type == TerrainType.PLAINS || type == TerrainType.DUNE || type == TerrainType.GOBI || type == TerrainType.YARDANG) {
+            return 3;
+        } else if (type == TerrainType.CIRQUE || type == TerrainType.HILLS || type == TerrainType.VALLEY || type == TerrainType.ALLUVIAL_FAN || type == TerrainType.ICE_SHEET || type == TerrainType.PEAK_FOREST) {
+            return 4;
+        } else if (type == TerrainType.RIDGE || type == TerrainType.PLATEAU || type == TerrainType.SEA_CLIFF || type == TerrainType.DOME) {
+            return 5;
+        } else if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.PEAK || type == TerrainType.HORN || type == TerrainType.CLIFF) {
+            return 6;
+        }
+        return 3;
     }
 
     private boolean isHigherElevation(TerrainType t1, TerrainType t2) {
@@ -265,26 +268,42 @@ public class ControlPointRegion {
 
     private double calculateInfluenceRadius(int x, int z, TerrainType type, RandomSource random) {
         double baseRadius = 600.0;
-        return switch (type) {
-            case TerrainType.PLAINS -> baseRadius + random.nextDouble() * 200.0;
-            case TerrainType.BEACH, TerrainType.DELTA -> baseRadius + random.nextDouble() * 150.0;
-            case TerrainType.FLOODPLAIN, TerrainType.SALT_FLAT -> baseRadius + 50.0 + random.nextDouble() * 150.0;
-            case TerrainType.HILLS -> baseRadius + 100.0 + random.nextDouble() * 200.0;
-            case TerrainType.VALLEY, TerrainType.ALLUVIAL_FAN -> baseRadius + 50.0 + random.nextDouble() * 150.0;
-            case TerrainType.PLATEAU -> baseRadius + 150.0 + random.nextDouble() * 200.0;
-            case TerrainType.RIDGE, TerrainType.DOME -> baseRadius + 100.0 + random.nextDouble() * 200.0;
-            case TerrainType.HIGH_MOUNTAINS -> baseRadius + 200.0 + random.nextDouble() * 200.0;
-            case TerrainType.PEAK, TerrainType.HORN, TerrainType.CLIFF -> baseRadius + 150.0 + random.nextDouble() * 200.0;
-            case TerrainType.DUNE -> baseRadius + 50.0 + random.nextDouble() * 150.0;
-            case TerrainType.GOBI, TerrainType.YARDANG -> baseRadius + random.nextDouble() * 150.0;
-            case TerrainType.ICE_SHEET -> baseRadius + 100.0 + random.nextDouble() * 200.0;
-            case TerrainType.CIRQUE, TerrainType.GLACIAL_VALLEY -> baseRadius + 50.0 + random.nextDouble() * 150.0;
-            case TerrainType.CANYON -> baseRadius - 100.0 + random.nextDouble() * 100.0;
-            case TerrainType.BASIN, TerrainType.SINKHOLE -> baseRadius - 50.0 + random.nextDouble() * 100.0;
-            case TerrainType.TRENCH -> baseRadius - 50.0 + random.nextDouble() * 100.0;
-            case TerrainType.SEA_CLIFF -> baseRadius + 50.0 + random.nextDouble() * 100.0;
-            default -> baseRadius + random.nextDouble() * 150.0;
-        };
+        if (type == TerrainType.PLAINS) {
+            return baseRadius + random.nextDouble() * 200.0;
+        } else if (type == TerrainType.BEACH || type == TerrainType.DELTA) {
+            return baseRadius + random.nextDouble() * 150.0;
+        } else if (type == TerrainType.FLOODPLAIN || type == TerrainType.SALT_FLAT) {
+            return baseRadius + 50.0 + random.nextDouble() * 150.0;
+        } else if (type == TerrainType.HILLS) {
+            return baseRadius + 100.0 + random.nextDouble() * 200.0;
+        } else if (type == TerrainType.VALLEY || type == TerrainType.ALLUVIAL_FAN) {
+            return baseRadius + 50.0 + random.nextDouble() * 150.0;
+        } else if (type == TerrainType.PLATEAU) {
+            return baseRadius + 150.0 + random.nextDouble() * 200.0;
+        } else if (type == TerrainType.RIDGE || type == TerrainType.DOME) {
+            return baseRadius + 100.0 + random.nextDouble() * 200.0;
+        } else if (type == TerrainType.HIGH_MOUNTAINS) {
+            return baseRadius + 200.0 + random.nextDouble() * 200.0;
+        } else if (type == TerrainType.PEAK || type == TerrainType.HORN || type == TerrainType.CLIFF) {
+            return baseRadius + 150.0 + random.nextDouble() * 200.0;
+        } else if (type == TerrainType.DUNE) {
+            return baseRadius + 50.0 + random.nextDouble() * 150.0;
+        } else if (type == TerrainType.GOBI || type == TerrainType.YARDANG) {
+            return baseRadius + random.nextDouble() * 150.0;
+        } else if (type == TerrainType.ICE_SHEET) {
+            return baseRadius + 100.0 + random.nextDouble() * 200.0;
+        } else if (type == TerrainType.CIRQUE || type == TerrainType.GLACIAL_VALLEY) {
+            return baseRadius + 50.0 + random.nextDouble() * 150.0;
+        } else if (type == TerrainType.CANYON) {
+            return baseRadius - 100.0 + random.nextDouble() * 100.0;
+        } else if (type == TerrainType.BASIN || type == TerrainType.SINKHOLE) {
+            return baseRadius - 50.0 + random.nextDouble() * 100.0;
+        } else if (type == TerrainType.TRENCH) {
+            return baseRadius - 50.0 + random.nextDouble() * 100.0;
+        } else if (type == TerrainType.SEA_CLIFF) {
+            return baseRadius + 50.0 + random.nextDouble() * 100.0;
+        }
+        return baseRadius + random.nextDouble() * 150.0;
     }
 
     public List<TerrainControlPoint> getPointsInRange(int targetX, int targetZ, double radius) {

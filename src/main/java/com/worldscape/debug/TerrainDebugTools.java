@@ -84,28 +84,48 @@ public class TerrainDebugTools {
     }
 
     private static String getTerrainDescription(TerrainType type, MacroRegionInfo macroInfo) {
-        String baseDesc = switch (type) {
-            case TerrainType.HIGH_MOUNTAINS, TerrainType.PEAK, TerrainType.HORN -> "\u9ad8\u8038\u7684\u5c71\u5cf0\u5730\u5f62\uff0c\u5e38\u5e74\u79ef\u96ea";
-            case TerrainType.RIDGE, TerrainType.CLIFF -> "\u9661\u5ced\u7684\u5c71\u810a\u6216\u60ac\u5d16";
-            case TerrainType.HILLS, TerrainType.ALLUVIAL_FAN, TerrainType.VALLEY -> "\u5e73\u7f13\u7684\u4e18\u9675\u8d77\u4f0f";
-            case TerrainType.PLATEAU, TerrainType.DOME -> "\u5e73\u5766\u5f00\u9614\u7684\u9ad8\u539f\u5730\u5f62";
-            case TerrainType.PLAINS -> "\u5e73\u5766\u5f00\u9614\u7684\u5e73\u539f";
-            case TerrainType.CANYON, TerrainType.BASIN -> "\u6df1\u9083\u7684\u5ce1\u8c37\u6216\u76c6\u5730";
-            case TerrainType.GLACIAL_VALLEY -> "\u51b0\u5ddd\u4fb5\u8680\u5f62\u6210\u7684U\u5f62\u8c37";
-            case TerrainType.FLOODPLAIN -> "\u6cb3\u6d41\u51b2\u79ef\u5f62\u6210\u7684\u5e73\u539f";
-            case TerrainType.DELTA -> "\u6cb3\u6d41\u5165\u6d77\u53e3\u5f62\u6210\u7684\u4e09\u89d2\u6d32";
-            case TerrainType.DUNE, TerrainType.GOBI, TerrainType.YARDANG -> "\u98ce\u529b\u4f5c\u7528\u5f62\u6210\u7684\u6c99\u4e18\u6216\u6208\u58c1";
-            case TerrainType.SALT_FLAT -> "\u76d0\u6cbc\u5730\u8c8c";
-            case TerrainType.ICE_SHEET, TerrainType.CIRQUE -> "\u51b0\u5ddd\u6216\u51bb\u571f\u5f62\u6210\u7684\u5730\u8c8c";
-            case TerrainType.PEAK_FOREST -> "\u5580\u65af\u7279\u77f3\u6797\u5730\u8c8c";
-            case TerrainType.SINKHOLE -> "\u6eb6\u8680\u584c\u9677\u5f62\u6210\u7684\u5580\u65af\u7279\u5730\u8c8c";
-            case TerrainType.BEACH -> "\u6d77\u5cb8\u5806\u79ef\u5f62\u6210\u7684\u6c99\u6ee9";
-            case TerrainType.FJORD -> "\u51b0\u5ddd\u4fb5\u8680\u5f62\u6210\u7684\u5ce1\u6e7e";
-            case TerrainType.SEA_PLATEAU -> "\u6d45\u6d77\u6d77\u5e95\u5e73\u53f0";
-            case TerrainType.TRENCH -> "\u6df1\u6d77\u6d77\u6c9f";
-            case TerrainType.SEA_CLIFF -> "\u6d77\u5cb8\u60ac\u5d16";
-            default -> "\u4e00\u822c\u5730\u5f62";
-        };
+        String baseDesc;
+        if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.PEAK || type == TerrainType.HORN) {
+            baseDesc = "\u9ad8\u8038\u7684\u5c71\u5cf0\u5730\u5f62\uff0c\u5e38\u5e74\u79ef\u96ea";
+        } else if (type == TerrainType.RIDGE || type == TerrainType.CLIFF) {
+            baseDesc = "\u9661\u5ced\u7684\u5c71\u810a\u6216\u60ac\u5d16";
+        } else if (type == TerrainType.HILLS || type == TerrainType.ALLUVIAL_FAN || type == TerrainType.VALLEY) {
+            baseDesc = "\u5e73\u7f13\u7684\u4e18\u9675\u8d77\u4f0f";
+        } else if (type == TerrainType.PLATEAU || type == TerrainType.DOME) {
+            baseDesc = "\u5e73\u5766\u5f00\u9614\u7684\u9ad8\u539f\u5730\u5f62";
+        } else if (type == TerrainType.PLAINS) {
+            baseDesc = "\u5e73\u5766\u5f00\u9614\u7684\u5e73\u539f";
+        } else if (type == TerrainType.CANYON || type == TerrainType.BASIN) {
+            baseDesc = "\u6df1\u9083\u7684\u5ce1\u8c37\u6216\u76c6\u5730";
+        } else if (type == TerrainType.GLACIAL_VALLEY) {
+            baseDesc = "\u51b0\u5ddd\u4fb5\u8680\u5f62\u6210\u7684U\u5f62\u8c37";
+        } else if (type == TerrainType.FLOODPLAIN) {
+            baseDesc = "\u6cb3\u6d41\u51b2\u79ef\u5f62\u6210\u7684\u5e73\u539f";
+        } else if (type == TerrainType.DELTA) {
+            baseDesc = "\u6cb3\u6d41\u5165\u6d77\u53e3\u5f62\u6210\u7684\u4e09\u89d2\u6d32";
+        } else if (type == TerrainType.DUNE || type == TerrainType.GOBI || type == TerrainType.YARDANG) {
+            baseDesc = "\u98ce\u529b\u4f5c\u7528\u5f62\u6210\u7684\u6c99\u4e18\u6216\u6208\u58c1";
+        } else if (type == TerrainType.SALT_FLAT) {
+            baseDesc = "\u76d0\u6cbc\u5730\u8c8c";
+        } else if (type == TerrainType.ICE_SHEET || type == TerrainType.CIRQUE) {
+            baseDesc = "\u51b0\u5ddd\u6216\u51bb\u571f\u5f62\u6210\u7684\u5730\u8c8c";
+        } else if (type == TerrainType.PEAK_FOREST) {
+            baseDesc = "\u5580\u65af\u7279\u77f3\u6797\u5730\u8c8c";
+        } else if (type == TerrainType.SINKHOLE) {
+            baseDesc = "\u6eb6\u8680\u584c\u9677\u5f62\u6210\u7684\u5580\u65af\u7279\u5730\u8c8c";
+        } else if (type == TerrainType.BEACH) {
+            baseDesc = "\u6d77\u5cb8\u5806\u79ef\u5f62\u6210\u7684\u6c99\u6ee9";
+        } else if (type == TerrainType.FJORD) {
+            baseDesc = "\u51b0\u5ddd\u4fb5\u8680\u5f62\u6210\u7684\u5ce1\u6e7e";
+        } else if (type == TerrainType.SEA_PLATEAU) {
+            baseDesc = "\u6d45\u6d77\u6d77\u5e95\u5e73\u53f0";
+        } else if (type == TerrainType.TRENCH) {
+            baseDesc = "\u6df1\u6d77\u6d77\u6c9f";
+        } else if (type == TerrainType.SEA_CLIFF) {
+            baseDesc = "\u6d77\u5cb8\u60ac\u5d16";
+        } else {
+            baseDesc = "\u4e00\u822c\u5730\u5f62";
+        }
         String climateDesc = switch (macroInfo.climate) {
             default -> throw new MatchException(null, null);
             case MacroRegionInfo.ClimateZone.GLACIAL -> "\uff08\u5bd2\u5e26\u6c14\u5019\uff0c\u51ac\u5b63\u6f2b\u957f\uff09";
@@ -273,7 +293,7 @@ public class TerrainDebugTools {
         BufferedImage image = new BufferedImage(imageSize, imageSize, 1);
         int totalPixels = imageSize * imageSize;
         float[] heights = new float[totalPixels];
-        byte[] terrainTypeIds = new byte[totalPixels];
+        TerrainType[] terrainTypes = new TerrainType[totalPixels];
         byte[] elevationTierIds = new byte[totalPixels];
         float[] dominantWeights = new float[totalPixels];
         float minHeight = Float.MAX_VALUE;
@@ -288,7 +308,7 @@ public class TerrainDebugTools {
                 int idx = px * imageSize + pz;
                 RegionController.TerrainBlendResult blend = controller.getTerrainBlend(worldX, worldZ);
                 heights[idx] = h = (float)blend.blendedHeight;
-                terrainTypeIds[idx] = (byte)blend.dominantType.ordinal();
+                terrainTypes[idx] = blend.dominantType;
                 elevationTierIds[idx] = (byte)blend.macroInfo.elevationTier;
                 dominantWeights[idx] = (float)blend.dominantWeight;
                 if (h < minHeight) {
@@ -305,13 +325,16 @@ public class TerrainDebugTools {
             heightRange = 1.0f;
         }
         TerrainType[] typeValues = TerrainType.values();
+        Map<TerrainType, Integer> typeIndexMap = new HashMap<>();
         int[] typeColors = new int[typeValues.length];
         for (int i = 0; i < typeValues.length; ++i) {
             typeColors[i] = TerrainDebugTools.getTerrainTypeColor(typeValues[i]);
+            typeIndexMap.put(typeValues[i], i);
         }
         for (int idx = 0; idx < totalPixels; ++idx) {
             float height = heights[idx];
-            int baseColor = typeColors[terrainTypeIds[idx] & 0xFF];
+            int typeIdx = typeIndexMap.getOrDefault(terrainTypes[idx], 0);
+            int baseColor = typeColors[typeIdx];
             float normalizedHeight = (height - minHeight) / heightRange;
             int brightness = (int)(Math.max(0.1f, Math.min(1.0f, normalizedHeight * 1.2f)) * 255.0f);
             brightness = Math.max(0, Math.min(255, brightness));
@@ -422,19 +445,28 @@ public class TerrainDebugTools {
     }
 
     private static int getTerrainTypeColor(TerrainType type) {
-        return switch (type) {
-            case TerrainType.HIGH_MOUNTAINS, TerrainType.PEAK, TerrainType.HORN -> 0xCC3333;
-            case TerrainType.RIDGE, TerrainType.CLIFF, TerrainType.SEA_CLIFF -> 0xFF8833;
-            case TerrainType.HILLS, TerrainType.ALLUVIAL_FAN, TerrainType.VALLEY -> 0xFFCC33;
-            case TerrainType.PLATEAU, TerrainType.DOME -> 0x9933CC;
-            case TerrainType.PLAINS, TerrainType.FLOODPLAIN -> 0x33CC33;
-            case TerrainType.CANYON, TerrainType.BASIN, TerrainType.GLACIAL_VALLEY, TerrainType.SINKHOLE -> 0x2244AA;
-            case TerrainType.DELTA, TerrainType.BEACH, TerrainType.FJORD, TerrainType.SEA_PLATEAU, TerrainType.TRENCH -> 0x3366CC;
-            case TerrainType.DUNE, TerrainType.GOBI, TerrainType.YARDANG, TerrainType.SALT_FLAT -> 0xCCAA66;
-            case TerrainType.ICE_SHEET, TerrainType.CIRQUE -> 0x99CCFF;
-            case TerrainType.PEAK_FOREST -> 0x888888;
-            default -> 0xAAAAAA;
-        };
+        if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.PEAK || type == TerrainType.HORN) {
+            return 0xCC3333;
+        } else if (type == TerrainType.RIDGE || type == TerrainType.CLIFF || type == TerrainType.SEA_CLIFF) {
+            return 0xFF8833;
+        } else if (type == TerrainType.HILLS || type == TerrainType.ALLUVIAL_FAN || type == TerrainType.VALLEY) {
+            return 0xFFCC33;
+        } else if (type == TerrainType.PLATEAU || type == TerrainType.DOME) {
+            return 0x9933CC;
+        } else if (type == TerrainType.PLAINS || type == TerrainType.FLOODPLAIN) {
+            return 0x33CC33;
+        } else if (type == TerrainType.CANYON || type == TerrainType.BASIN || type == TerrainType.GLACIAL_VALLEY || type == TerrainType.SINKHOLE) {
+            return 0x2244AA;
+        } else if (type == TerrainType.DELTA || type == TerrainType.BEACH || type == TerrainType.FJORD || type == TerrainType.SEA_PLATEAU || type == TerrainType.TRENCH) {
+            return 0x3366CC;
+        } else if (type == TerrainType.DUNE || type == TerrainType.GOBI || type == TerrainType.YARDANG || type == TerrainType.SALT_FLAT) {
+            return 0xCCAA66;
+        } else if (type == TerrainType.ICE_SHEET || type == TerrainType.CIRQUE) {
+            return 0x99CCFF;
+        } else if (type == TerrainType.PEAK_FOREST) {
+            return 0x888888;
+        }
+        return 0xAAAAAA;
     }
 
     private static int applyBrightnessToChannel(int channelValue, int brightness) {

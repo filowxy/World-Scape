@@ -249,19 +249,15 @@ public class ClimateInterpolatorTest {
                 try {
                     TerrainBlendResult result = rc.getTerrainBlend(worldX, worldZ);
 
-                    switch (result.dominantType) {
-                        case PLAINS -> {
-                            plainsCount++;
-                            plainsHeightSum += result.blendedHeight;
-                        }
-                        case FLOODPLAIN -> {
-                            floodplainCount++;
-                            floodplainHeightSum += result.blendedHeight;
-                        }
-                        case SEA_PLATEAU -> {
-                            seaPlateauCount++;
-                            seaPlateauHeightSum += result.blendedHeight;
-                        }
+                    if (result.dominantType == TerrainType.PLAINS) {
+                        plainsCount++;
+                        plainsHeightSum += result.blendedHeight;
+                    } else if (result.dominantType == TerrainType.FLOODPLAIN) {
+                        floodplainCount++;
+                        floodplainHeightSum += result.blendedHeight;
+                    } else if (result.dominantType == TerrainType.SEA_PLATEAU) {
+                        seaPlateauCount++;
+                        seaPlateauHeightSum += result.blendedHeight;
                     }
                 } catch (Exception e) {
                     // 忽略

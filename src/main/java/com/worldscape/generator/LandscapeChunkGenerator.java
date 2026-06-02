@@ -59,7 +59,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -641,7 +640,7 @@ extends ChunkGenerator {
         TerrainBiomeRules biomeRules = TerrainBiomeRules.getInstance();
         int cellsPerXZ = 4;
         int cellsPerSectionY = 4;
-        EnumMap<TerrainType, Integer> overrideCounts = new EnumMap<TerrainType, Integer>(TerrainType.class);
+        HashMap<TerrainType, Integer> overrideCounts = new HashMap<TerrainType, Integer>();
         int totalOverridden = 0;
         Field biomesField = null;
         Method setMethod = null;

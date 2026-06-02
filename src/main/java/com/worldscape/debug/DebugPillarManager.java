@@ -42,19 +42,28 @@ public class DebugPillarManager {
     );
 
     private static BlockState getBlockForTerrainType(TerrainType type) {
-        return switch (type) {
-            case TerrainType.HIGH_MOUNTAINS, TerrainType.PEAK, TerrainType.HORN -> Blocks.RED_STAINED_GLASS.defaultBlockState();
-            case TerrainType.RIDGE, TerrainType.CLIFF, TerrainType.SEA_CLIFF -> Blocks.ORANGE_STAINED_GLASS.defaultBlockState();
-            case TerrainType.HILLS, TerrainType.ALLUVIAL_FAN, TerrainType.VALLEY -> Blocks.YELLOW_STAINED_GLASS.defaultBlockState();
-            case TerrainType.PLATEAU, TerrainType.DOME -> Blocks.PURPLE_STAINED_GLASS.defaultBlockState();
-            case TerrainType.PLAINS, TerrainType.FLOODPLAIN -> Blocks.LIME_STAINED_GLASS.defaultBlockState();
-            case TerrainType.CANYON, TerrainType.GLACIAL_VALLEY, TerrainType.BASIN -> Blocks.BLUE_STAINED_GLASS.defaultBlockState();
-            case TerrainType.BEACH, TerrainType.DELTA, TerrainType.FJORD, TerrainType.SEA_PLATEAU, TerrainType.TRENCH -> Blocks.CYAN_STAINED_GLASS.defaultBlockState();
-            case TerrainType.DUNE, TerrainType.GOBI, TerrainType.YARDANG, TerrainType.SALT_FLAT -> Blocks.WHITE_STAINED_GLASS.defaultBlockState();
-            case TerrainType.ICE_SHEET, TerrainType.CIRQUE -> Blocks.LIGHT_BLUE_STAINED_GLASS.defaultBlockState();
-            case TerrainType.PEAK_FOREST, TerrainType.SINKHOLE -> Blocks.GRAY_STAINED_GLASS.defaultBlockState();
-            default -> Blocks.GLASS.defaultBlockState();
-        };
+        if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.PEAK || type == TerrainType.HORN) {
+            return Blocks.RED_STAINED_GLASS.defaultBlockState();
+        } else if (type == TerrainType.RIDGE || type == TerrainType.CLIFF || type == TerrainType.SEA_CLIFF) {
+            return Blocks.ORANGE_STAINED_GLASS.defaultBlockState();
+        } else if (type == TerrainType.HILLS || type == TerrainType.ALLUVIAL_FAN || type == TerrainType.VALLEY) {
+            return Blocks.YELLOW_STAINED_GLASS.defaultBlockState();
+        } else if (type == TerrainType.PLATEAU || type == TerrainType.DOME) {
+            return Blocks.PURPLE_STAINED_GLASS.defaultBlockState();
+        } else if (type == TerrainType.PLAINS || type == TerrainType.FLOODPLAIN) {
+            return Blocks.LIME_STAINED_GLASS.defaultBlockState();
+        } else if (type == TerrainType.CANYON || type == TerrainType.GLACIAL_VALLEY || type == TerrainType.BASIN) {
+            return Blocks.BLUE_STAINED_GLASS.defaultBlockState();
+        } else if (type == TerrainType.BEACH || type == TerrainType.DELTA || type == TerrainType.FJORD || type == TerrainType.SEA_PLATEAU || type == TerrainType.TRENCH) {
+            return Blocks.CYAN_STAINED_GLASS.defaultBlockState();
+        } else if (type == TerrainType.DUNE || type == TerrainType.GOBI || type == TerrainType.YARDANG || type == TerrainType.SALT_FLAT) {
+            return Blocks.WHITE_STAINED_GLASS.defaultBlockState();
+        } else if (type == TerrainType.ICE_SHEET || type == TerrainType.CIRQUE) {
+            return Blocks.LIGHT_BLUE_STAINED_GLASS.defaultBlockState();
+        } else if (type == TerrainType.PEAK_FOREST || type == TerrainType.SINKHOLE) {
+            return Blocks.GRAY_STAINED_GLASS.defaultBlockState();
+        }
+        return Blocks.GLASS.defaultBlockState();
     }
 
     private static BlockState getBlockForElevationTier(int tier) {
@@ -122,16 +131,22 @@ public class DebugPillarManager {
     }
 
     private static int getTierForTerrainType(TerrainType type) {
-        return switch (type) {
-            case TerrainType.TRENCH -> 0;
-            case TerrainType.SEA_PLATEAU -> 1;
-            case TerrainType.BEACH, TerrainType.DELTA, TerrainType.FJORD -> 2;
-            case TerrainType.PLAINS, TerrainType.FLOODPLAIN, TerrainType.YARDANG, TerrainType.SALT_FLAT -> 3;
-            case TerrainType.HILLS, TerrainType.ALLUVIAL_FAN, TerrainType.VALLEY, TerrainType.GLACIAL_VALLEY, TerrainType.DUNE, TerrainType.GOBI -> 4;
-            case TerrainType.RIDGE, TerrainType.SEA_CLIFF, TerrainType.PLATEAU, TerrainType.DOME -> 5;
-            case TerrainType.HIGH_MOUNTAINS, TerrainType.PEAK, TerrainType.HORN, TerrainType.CLIFF, TerrainType.PEAK_FOREST -> 6;
-            default -> 3;
-        };
+        if (type == TerrainType.TRENCH) {
+            return 0;
+        } else if (type == TerrainType.SEA_PLATEAU) {
+            return 1;
+        } else if (type == TerrainType.BEACH || type == TerrainType.DELTA || type == TerrainType.FJORD) {
+            return 2;
+        } else if (type == TerrainType.PLAINS || type == TerrainType.FLOODPLAIN || type == TerrainType.YARDANG || type == TerrainType.SALT_FLAT) {
+            return 3;
+        } else if (type == TerrainType.HILLS || type == TerrainType.ALLUVIAL_FAN || type == TerrainType.VALLEY || type == TerrainType.GLACIAL_VALLEY || type == TerrainType.DUNE || type == TerrainType.GOBI) {
+            return 4;
+        } else if (type == TerrainType.RIDGE || type == TerrainType.SEA_CLIFF || type == TerrainType.PLATEAU || type == TerrainType.DOME) {
+            return 5;
+        } else if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.PEAK || type == TerrainType.HORN || type == TerrainType.CLIFF || type == TerrainType.PEAK_FOREST) {
+            return 6;
+        }
+        return 3;
     }
 
     public static void clearAllPillars(Level level) {

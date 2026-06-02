@@ -133,17 +133,17 @@ public class TerraBlenderCompat {
     }
 
     private boolean isAridTerrain(TerrainType terrain) {
-        return switch (terrain) {
-            case TerrainType.DUNE, TerrainType.GOBI, TerrainType.YARDANG, TerrainType.SALT_FLAT -> true;
-            default -> false;
-        };
+        if (terrain == TerrainType.DUNE || terrain == TerrainType.GOBI || terrain == TerrainType.YARDANG || terrain == TerrainType.SALT_FLAT) {
+            return true;
+        }
+        return false;
     }
 
     private boolean isCoastalTerrain(TerrainType terrain) {
-        return switch (terrain) {
-            case TerrainType.BEACH, TerrainType.SEA_CLIFF, TerrainType.FJORD, TerrainType.DELTA, TerrainType.SEA_PLATEAU -> true;
-            default -> false;
-        };
+        if (terrain == TerrainType.BEACH || terrain == TerrainType.SEA_CLIFF || terrain == TerrainType.FJORD || terrain == TerrainType.DELTA || terrain == TerrainType.SEA_PLATEAU) {
+            return true;
+        }
+        return false;
     }
 
     private void addBiomeIfNotExists(Set<ResourceLocation> existing, List<ResourceLocation> biomes, String biomeId) {

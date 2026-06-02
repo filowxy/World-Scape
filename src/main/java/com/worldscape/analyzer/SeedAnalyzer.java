@@ -671,19 +671,17 @@ public class SeedAnalyzer {
             if (depthBelowSea > 5) return "GRAVEL";
             return "SAND";
         }
-        switch (type) {
-            case HIGH_MOUNTAINS: case RIDGE: case PEAK: case HORN:
-            case CLIFF: case CANYON: case PLATEAU: case SEA_CLIFF:
-                return "GRAVEL";
-            case GOBI: case SALT_FLAT: case DUNE: case YARDANG:
-                return "SAND";
-            case BEACH:
-                return "SAND";
-            case ICE_SHEET:
-                return "SNOW_BLOCK";
-            default:
-                return "GRASS_BLOCK";
+        if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.RIDGE || type == TerrainType.PEAK || type == TerrainType.HORN
+                || type == TerrainType.CLIFF || type == TerrainType.CANYON || type == TerrainType.PLATEAU || type == TerrainType.SEA_CLIFF) {
+            return "GRAVEL";
+        } else if (type == TerrainType.GOBI || type == TerrainType.SALT_FLAT || type == TerrainType.DUNE || type == TerrainType.YARDANG) {
+            return "SAND";
+        } else if (type == TerrainType.BEACH) {
+            return "SAND";
+        } else if (type == TerrainType.ICE_SHEET) {
+            return "SNOW_BLOCK";
         }
+        return "GRASS_BLOCK";
     }
 
     // @AESTHETIC: Sub-surface block mimics the dirt-under-grass fix in FallbackSurfaceAdapter.
@@ -695,17 +693,15 @@ public class SeedAnalyzer {
             if (depthBelowSea > 5) return "GRAVEL";
             return "SAND";
         }
-        switch (type) {
-            case HIGH_MOUNTAINS: case RIDGE: case PEAK: case HORN:
-            case CLIFF: case CANYON: case PLATEAU: case SEA_CLIFF:
-            case ICE_SHEET:
-                return "GRAVEL";
-            case GOBI: case SALT_FLAT: case DUNE: case YARDANG:
-            case BEACH:
-                return "SAND";
-            default:
-                return "DIRT"; // The fix: dry land has dirt, not stone
+        if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.RIDGE || type == TerrainType.PEAK || type == TerrainType.HORN
+                || type == TerrainType.CLIFF || type == TerrainType.CANYON || type == TerrainType.PLATEAU || type == TerrainType.SEA_CLIFF
+                || type == TerrainType.ICE_SHEET) {
+            return "GRAVEL";
+        } else if (type == TerrainType.GOBI || type == TerrainType.SALT_FLAT || type == TerrainType.DUNE || type == TerrainType.YARDANG
+                || type == TerrainType.BEACH) {
+            return "SAND";
         }
+        return "DIRT"; // The fix: dry land has dirt, not stone
     }
 
     private void analyzeSurfaceBlocks(int gridSize, Map<String, Integer> surfaceCounts, Map<String, Integer> subSurfaceCounts, double[] heightMap) {
@@ -1022,29 +1018,22 @@ public class SeedAnalyzer {
         for (Map.Entry<TerrainType, Integer> entry : terrainTypes.entrySet()) {
             TerrainType type = entry.getKey();
             int count = entry.getValue();
-            switch (type) {
-                case PLAINS: case HILLS: case FLOODPLAIN: case VALLEY:
-                case GLACIAL_VALLEY: case FJORD: case CIRQUE:
-                case PEAK_FOREST: case DOME: case BASIN:
-                case ALLUVIAL_FAN: case SINKHOLE: case DELTA:
-                    dryLandSamples += count;
-                    break;
-                case HIGH_MOUNTAINS: case RIDGE: case PEAK: case HORN:
-                case CLIFF: case CANYON: case PLATEAU: case SEA_CLIFF:
-                    stonySamples += count;
-                    break;
-                case GOBI: case SALT_FLAT: case DUNE: case YARDANG:
-                    desertSamples += count;
-                    break;
-                case ICE_SHEET:
-                    iceSamples += count;
-                    break;
-                case TRENCH: case SEA_PLATEAU:
-                    underwaterSamples += count;
-                    break;
-                case BEACH:
-                    beachSamples += count;
-                    break;
+            if (type == TerrainType.PLAINS || type == TerrainType.HILLS || type == TerrainType.FLOODPLAIN || type == TerrainType.VALLEY
+                    || type == TerrainType.GLACIAL_VALLEY || type == TerrainType.FJORD || type == TerrainType.CIRQUE
+                    || type == TerrainType.PEAK_FOREST || type == TerrainType.DOME || type == TerrainType.BASIN
+                    || type == TerrainType.ALLUVIAL_FAN || type == TerrainType.SINKHOLE || type == TerrainType.DELTA) {
+                dryLandSamples += count;
+            } else if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.RIDGE || type == TerrainType.PEAK || type == TerrainType.HORN
+                    || type == TerrainType.CLIFF || type == TerrainType.CANYON || type == TerrainType.PLATEAU || type == TerrainType.SEA_CLIFF) {
+                stonySamples += count;
+            } else if (type == TerrainType.GOBI || type == TerrainType.SALT_FLAT || type == TerrainType.DUNE || type == TerrainType.YARDANG) {
+                desertSamples += count;
+            } else if (type == TerrainType.ICE_SHEET) {
+                iceSamples += count;
+            } else if (type == TerrainType.TRENCH || type == TerrainType.SEA_PLATEAU) {
+                underwaterSamples += count;
+            } else if (type == TerrainType.BEACH) {
+                beachSamples += count;
             }
         }
         writer.write("## Surface Block Analysis / 地表方块分析");

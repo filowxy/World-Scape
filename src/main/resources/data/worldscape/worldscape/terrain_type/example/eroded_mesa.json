@@ -1,0 +1,75 @@
+{
+  "_comment": "Example custom terrain type: Eroded Mesa | 示例自定义地形类型：被侵蚀的台地",
+  "_comment_en": "This file demonstrates how to create a custom terrain type for World Scape. It is NOT auto-loaded — integrators should copy the terrain_types entry into their own data pack or config directory.",
+  "_comment_zh": "此文件演示如何为 World Scape 创建自定义地形类型。模组不会自动加载此文件——集成者应将 terrain_types 条目复制到自己的数据包或配置目录中。",
+  "_note_structure": "Each terrain type entry requires: id, min_height, max_height, tier_whitelist, functions[], combinator, final, and optional climate. | 每个地形类型条目需要：id、min_height、max_height、tier_whitelist、functions[]、combinator、final，以及可选的 climate。",
+  "_note_functions": "Available noise primitives: fbm, turbulence, domain_rotated, sine, gradient, gaussian, sigmoid, tanh_scaled, abs, negate, constant, math, gradient_constrained_sine, fm_sine, contributing_point_distance. | 可用的噪声原语：fbm、turbulence、domain_rotated、sine、gradient、gaussian、sigmoid、tanh_scaled、abs、negate、constant、math、gradient_constrained_sine、fm_sine、contributing_point_distance。",
+  "_note_math": "The 'math' primitive supports expressions with sin, cos, abs, sqrt, tanh, exp, log, max(a,b), min(a,b), clamp(x,lo,hi), and variables x, z (coordinates), plus custom bindings referencing other function IDs. | 'math' 原语支持包含 sin、cos、abs、sqrt、tanh、exp、log、max(a,b)、min(a,b)、clamp(x,lo,hi)、变量 x, z（坐标）以及引用其他函数 ID 的自定义绑定的表达式。",
+
+  "terrain_types": [
+    {
+      "_comment": "Eroded Mesa — flat-topped landform with steep sides, sculpted by fbm noise and turbulence erosion | 被侵蚀的台地——由 fbm 噪声和湍流侵蚀塑造的平顶陡坡地形",
+      "_comment_en": "Tier 4–5 mesa with hot arid climate. The tanh function creates a flat mesa top, while sin-based erosion channels and turbulence add realistic weathering detail.",
+      "_comment_zh": "第 4–5 级台地，具有干热气候。tanh 函数创建平坦的台地顶部，而基于 sin 的侵蚀沟道和湍流增加了逼真的风化细节。",
+
+      "id": "worldscape:eroded_mesa",
+      "min_height": 140,
+      "max_height": 300,
+      "tier_whitelist": [4, 5],
+      "height_cap": 320.0,
+      "coordinate_transform": null,
+
+      "functions": [
+        {
+          "_comment": "Base mesa plateau shape via fbm noise | 通过 fbm 噪声生成基础台地高原形状",
+          "id": "mesa_base",
+          "name": "fbm",
+          "params": { "octaves": 4, "gain": 0.45 },
+          "amplitude": 120.0
+        },
+        {
+          "_comment": "Wind and water erosion turbulence for surface roughness | 风和水侵蚀湍流用于表面粗糙度",
+          "id": "erosion",
+          "name": "turbulence",
+          "params": { "strength": 0.85 },
+          "amplitude": 45.0
+        },
+        {
+          "_comment": "Mesa edge sharpening: tanh plateau + directional sin ridges + turbulence-driven erosion channels | 台地边缘锐化：tanh 高原 + 方向性 sin 脊线 + 湍流驱动侵蚀沟道",
+          "_comment_math_expr": "tanh(m * 0.04) * 55 : flat-top plateau effect — when fbm value is high, tanh saturates near 1, adding ~55 height; when low, tanh saturates near -1, removing ~55 height, creating steep mesa edges.",
+          "_comment_math_expr_zh": "tanh(m * 0.04) * 55 : 平顶高原效果——当 fbm 值较高时，tanh 饱和趋近于 1，增加约 55 高度；当较低时，tanh 饱和趋近于 -1，减少约 55 高度，形成陡峭的台地边缘。",
+          "_comment_math_expr2": "sin(x * 0.01 + z * 0.009) * 18 : directional erosion ridges along a diagonal axis, mimicking wind-carved butte formations.",
+          "_comment_math_expr2_zh": "sin(x * 0.01 + z * 0.009) * 18 : 沿对角线轴的方向性侵蚀脊线，模拟风蚀孤峰形态。",
+          "_comment_math_expr3": "abs(sin(e * 0.04 + x * 0.005)) * 12 : turbulence-modulated gully channels — abs(sin(...)) creates sharp-bottomed channels from turbulence input.",
+          "_comment_math_expr3_zh": "abs(sin(e * 0.04 + x * 0.005)) * 12 : 湍流调制的冲沟——abs(sin(...)) 从湍流输入创建尖底沟道。",
+          "id": "mesa_edge",
+          "name": "math",
+          "params": {
+            "expression": "tanh(m * 0.04) * 55 + sin(x * 0.01 + z * 0.009) * 18 + abs(sin(e * 0.04 + x * 0.005)) * 12",
+            "bindings": {
+              "m": "mesa_base",
+              "e": "erosion"
+            }
+          },
+          "amplitude": 1.0
+        }
+      ],
+
+      "combinator": {
+        "_comment": "Add mesa_base, mesa_edge, and erosion together for composite height | 将 mesa_base、mesa_edge 和 erosion 叠加生成复合高度",
+        "type": "add",
+        "terms": ["mesa_base", "mesa_edge", "erosion"]
+      },
+
+      "final": "base + combined",
+
+      "climate": {
+        "_comment": "Hot arid climate typical of mesa/canyon regions | 台地/峡谷地区的典型干热气候",
+        "temperature": 0.8,
+        "humidity": 0.05,
+        "seasonality": 0.75,
+        "continentality": 0.85
+      }
+    }
+  ]
+}

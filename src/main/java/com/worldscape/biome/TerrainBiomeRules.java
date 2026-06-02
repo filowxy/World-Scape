@@ -31,7 +31,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,11 +50,11 @@ import org.slf4j.Logger;
 public class TerrainBiomeRules {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String CONFIG_FILE = "config/worldscape/terrain_biome_rules.json";
-    private final Map<TerrainType, TerrainBiomeRule> rules = new EnumMap<TerrainType, TerrainBiomeRule>(TerrainType.class);
+    private final Map<TerrainType, TerrainBiomeRule> rules = new HashMap<TerrainType, TerrainBiomeRule>();
     private final Map<String, Set<Holder<Biome>>> tagCache = new ConcurrentHashMap<String, Set<Holder<Biome>>>();
     private Registry<Biome> biomeRegistry;
-    private final Map<TerrainType, List<Holder<Biome>>> allowedBiomesCache = new EnumMap<TerrainType, List<Holder<Biome>>>(TerrainType.class);
-    private final Map<TerrainType, Set<Holder<Biome>>> excludedBiomesCache = new EnumMap<TerrainType, Set<Holder<Biome>>>(TerrainType.class);
+    private final Map<TerrainType, List<Holder<Biome>>> allowedBiomesCache = new HashMap<TerrainType, List<Holder<Biome>>>();
+    private final Map<TerrainType, Set<Holder<Biome>>> excludedBiomesCache = new HashMap<TerrainType, Set<Holder<Biome>>>();
     private boolean defaultUseWhitelist = false;
     private boolean autoScan = true;
     private double confidenceThreshold = 0.3;
@@ -144,7 +144,7 @@ public class TerrainBiomeRules {
                 JsonObject terrainRules = root.getAsJsonObject("terrain_biome_rules");
                 for (Map.Entry entry : terrainRules.entrySet()) {
                     try {
-                        TerrainType terrain = TerrainType.valueOf(((String)entry.getKey()).toUpperCase().replace("-", "_"));
+                        TerrainType terrain = TerrainType.getById("worldscape:" + ((String)entry.getKey()).toLowerCase());
                         JsonObject ruleJson = ((JsonElement)entry.getValue()).getAsJsonObject();
                         if (ruleJson.has("enabled") && !ruleJson.get("enabled").getAsBoolean()) continue;
                         boolean useWhitelist = ruleJson.has("use_whitelist") && ruleJson.get("use_whitelist").getAsBoolean();

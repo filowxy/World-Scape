@@ -21,74 +21,58 @@ public class TerrainControlPoint {
     }
 
     private double clampOffset(TerrainType type, double rawOffset) {
-        double minOffset;
-        double d = minOffset = 0.0;
-        return Math.max(d, Math.min(switch (type) {
-            case TerrainType.PLAINS -> {
-                minOffset = -5.0;
-                yield 5.0;
-            }
-            case TerrainType.HILLS -> {
-                minOffset = 10.0;
-                yield 30.0;
-            }
-            case TerrainType.RIDGE -> {
-                minOffset = 40.0;
-                yield 80.0;
-            }
-            case TerrainType.HIGH_MOUNTAINS -> {
-                minOffset = 80.0;
-                yield 150.0;
-            }
-            case TerrainType.CANYON -> {
-                minOffset = -80.0;
-                yield -30.0;
-            }
-            case TerrainType.DUNE -> {
-                minOffset = 0.0;
-                yield 15.0;
-            }
-            case TerrainType.PLATEAU -> {
-                minOffset = 30.0;
-                yield 60.0;
-            }
-            case TerrainType.DOME -> {
-                minOffset = 15.0;
-                yield 35.0;
-            }
-            case TerrainType.CLIFF -> {
-                minOffset = 0.0;
-                yield 0.0;
-            }
-            case TerrainType.BASIN -> {
-                minOffset = -30.0;
-                yield -10.0;
-            }
-            case TerrainType.GLACIAL_VALLEY -> {
-                minOffset = -40.0;
-                yield -10.0;
-            }
-            case TerrainType.BEACH -> {
-                minOffset = -2.0;
-                yield 6.0;
-            }
-            case TerrainType.TRENCH -> {
-                minOffset = -100.0;
-                yield -60.0;
-            }
-            case TerrainType.SEA_PLATEAU -> {
-                minOffset = -30.0;
-                yield -10.0;
-            }
-            case TerrainType.DELTA -> {
-                minOffset = -5.0;
-                yield 5.0;
-            }
-            default -> {
-                minOffset = -10.0;
-                yield 10.0;
-            }
-        }, rawOffset));
+        double minOffset = 0.0;
+        double maxOffset;
+        if (type == TerrainType.PLAINS) {
+            maxOffset = 5.0;
+            minOffset = -5.0;
+        } else if (type == TerrainType.HILLS) {
+            maxOffset = 30.0;
+            minOffset = 10.0;
+        } else if (type == TerrainType.RIDGE) {
+            maxOffset = 80.0;
+            minOffset = 40.0;
+        } else if (type == TerrainType.HIGH_MOUNTAINS) {
+            maxOffset = 150.0;
+            minOffset = 80.0;
+        } else if (type == TerrainType.CANYON) {
+            maxOffset = -30.0;
+            minOffset = -80.0;
+        } else if (type == TerrainType.DUNE) {
+            maxOffset = 15.0;
+            minOffset = 0.0;
+        } else if (type == TerrainType.PLATEAU) {
+            maxOffset = 60.0;
+            minOffset = 30.0;
+        } else if (type == TerrainType.DOME) {
+            maxOffset = 35.0;
+            minOffset = 15.0;
+        } else if (type == TerrainType.CLIFF) {
+            maxOffset = 0.0;
+            minOffset = 0.0;
+        } else if (type == TerrainType.BASIN) {
+            maxOffset = -10.0;
+            minOffset = -30.0;
+        } else if (type == TerrainType.GLACIAL_VALLEY) {
+            maxOffset = -10.0;
+            minOffset = -40.0;
+        } else if (type == TerrainType.BEACH) {
+            maxOffset = 6.0;
+            minOffset = -2.0;
+        } else if (type == TerrainType.TRENCH) {
+            maxOffset = -60.0;
+            minOffset = -100.0;
+        } else if (type == TerrainType.SEA_PLATEAU) {
+            maxOffset = -10.0;
+            minOffset = -30.0;
+        } else if (type == TerrainType.DELTA) {
+            maxOffset = 5.0;
+            minOffset = -5.0;
+        } else {
+            maxOffset = 10.0;
+            minOffset = -10.0;
+        }
+        return Math.max(minOffset, Math.min(maxOffset, rawOffset));
     }
 
     public double calculateInfluence(int targetX, int targetZ) {

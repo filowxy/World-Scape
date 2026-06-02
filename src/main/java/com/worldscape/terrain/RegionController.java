@@ -199,43 +199,69 @@ public class RegionController {
     }
 
     private double getBaseHeightForTerrainType(TerrainType type) {
-        return switch (type) {
-            default -> {
-                // 未知地形类型使用安全默认值，避免运行时崩溃
-                // Unknown terrain type falls back to safe default to prevent runtime crashes
-                LOGGER.warn("[World Scape] Unknown terrain type {} in getBaseHeightForTerrainType, using default=0.0", type);
-                yield 0.0;
-            }
-            case TerrainType.HIGH_MOUNTAINS -> 110.0;
-            case TerrainType.HILLS -> 28.0;
-            case TerrainType.CLIFF -> 44.0;
-            case TerrainType.PLATEAU -> 83.0;
-            case TerrainType.VALLEY -> 17.0;
-            case TerrainType.RIDGE -> 83.0;
-            case TerrainType.PEAK -> 110.0;
-            case TerrainType.CANYON -> -11.0;
-            case TerrainType.ALLUVIAL_FAN -> 28.0;
-            case TerrainType.FLOODPLAIN -> 17.0;
-            case TerrainType.DUNE -> 14.0;
-            case TerrainType.GOBI -> 22.0;
-            case TerrainType.YARDANG -> 28.0;
-            case TerrainType.SALT_FLAT -> 11.0;
-            case TerrainType.ICE_SHEET -> 55.0;
-            case TerrainType.GLACIAL_VALLEY -> -6.0;
-            case TerrainType.CIRQUE -> 55.0;
-            case TerrainType.HORN -> 110.0;
-            case TerrainType.BEACH -> 11.0;
-            case TerrainType.SEA_CLIFF -> 28.0;
-            case TerrainType.FJORD -> -6.0;
-            case TerrainType.DELTA -> 8.0;
-            case TerrainType.PEAK_FOREST -> 55.0;
-            case TerrainType.SINKHOLE -> -6.0;
-            case TerrainType.PLAINS -> 17.0;
-            case TerrainType.BASIN -> 0.0;
-            case TerrainType.DOME -> 83.0;
-            case TerrainType.TRENCH -> -44.0;
-            case TerrainType.SEA_PLATEAU -> -11.0;
-        };
+        if (type == TerrainType.HIGH_MOUNTAINS) {
+            return 110.0;
+        } else if (type == TerrainType.HILLS) {
+            return 28.0;
+        } else if (type == TerrainType.CLIFF) {
+            return 44.0;
+        } else if (type == TerrainType.PLATEAU) {
+            return 83.0;
+        } else if (type == TerrainType.VALLEY) {
+            return 17.0;
+        } else if (type == TerrainType.RIDGE) {
+            return 83.0;
+        } else if (type == TerrainType.PEAK) {
+            return 110.0;
+        } else if (type == TerrainType.CANYON) {
+            return -11.0;
+        } else if (type == TerrainType.ALLUVIAL_FAN) {
+            return 28.0;
+        } else if (type == TerrainType.FLOODPLAIN) {
+            return 17.0;
+        } else if (type == TerrainType.DUNE) {
+            return 14.0;
+        } else if (type == TerrainType.GOBI) {
+            return 22.0;
+        } else if (type == TerrainType.YARDANG) {
+            return 28.0;
+        } else if (type == TerrainType.SALT_FLAT) {
+            return 11.0;
+        } else if (type == TerrainType.ICE_SHEET) {
+            return 55.0;
+        } else if (type == TerrainType.GLACIAL_VALLEY) {
+            return -6.0;
+        } else if (type == TerrainType.CIRQUE) {
+            return 55.0;
+        } else if (type == TerrainType.HORN) {
+            return 110.0;
+        } else if (type == TerrainType.BEACH) {
+            return 11.0;
+        } else if (type == TerrainType.SEA_CLIFF) {
+            return 28.0;
+        } else if (type == TerrainType.FJORD) {
+            return -6.0;
+        } else if (type == TerrainType.DELTA) {
+            return 8.0;
+        } else if (type == TerrainType.PEAK_FOREST) {
+            return 55.0;
+        } else if (type == TerrainType.SINKHOLE) {
+            return -6.0;
+        } else if (type == TerrainType.PLAINS) {
+            return 17.0;
+        } else if (type == TerrainType.BASIN) {
+            return 0.0;
+        } else if (type == TerrainType.DOME) {
+            return 83.0;
+        } else if (type == TerrainType.TRENCH) {
+            return -44.0;
+        } else if (type == TerrainType.SEA_PLATEAU) {
+            return -11.0;
+        }
+        // 未知地形类型使用安全默认值，避免运行时崩溃
+        // Unknown terrain type falls back to safe default to prevent runtime crashes
+        LOGGER.warn("[World Scape] Unknown terrain type {} in getBaseHeightForTerrainType, using default=0.0", type);
+        return 0.0;
     }
 
     private double getTierMinimumHeight(int tier) {
@@ -243,23 +269,21 @@ public class RegionController {
     }
 
     private TerrainBlendResult determineDominantTerrainType(List<PointWeight> weightedPoints, double totalWeight) {
-        double[] typeWeights = new double[TerrainType.values().length];
+        java.util.Map<TerrainType, Double> typeWeights = new java.util.HashMap<>();
         for (PointWeight pw : weightedPoints) {
             double normalizedWeight = pw.weight / totalWeight;
             TerrainType type = pw.point.getTerrainType();
-            int idx = type.ordinal();
-            if (idx >= typeWeights.length) continue;
-            int n = idx;
-            typeWeights[n] = typeWeights[n] + normalizedWeight;
+            typeWeights.merge(type, normalizedWeight, Double::sum);
         }
-        int maxIdx = 0;
+        TerrainType maxType = null;
         double maxWeight = 0.0;
-        for (int i = 0; i < typeWeights.length; ++i) {
-            if (!(typeWeights[i] > maxWeight)) continue;
-            maxWeight = typeWeights[i];
-            maxIdx = i;
+        for (java.util.Map.Entry<TerrainType, Double> entry : typeWeights.entrySet()) {
+            if (entry.getValue() > maxWeight) {
+                maxWeight = entry.getValue();
+                maxType = entry.getKey();
+            }
         }
-        return new TerrainBlendResult(0.0, null, List.of(), 0.0, TerrainType.values()[maxIdx], maxWeight);
+        return new TerrainBlendResult(0.0, null, List.of(), 0.0, maxType, maxWeight);
     }
 
     /*

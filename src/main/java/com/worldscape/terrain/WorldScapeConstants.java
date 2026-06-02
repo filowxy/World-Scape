@@ -11,7 +11,6 @@ public final class WorldScapeConstants {
     public static final int SEA_LEVEL_FALLBACK = 63;
     public static final int MIN_TERRAIN_HEIGHT = -64;
     public static final int MAX_TERRAIN_HEIGHT = 512;
-    public static final double HIGH_MOUNTAIN_PEAK_CEILING = 510.0;
     public static final int OVERWORLD_MIN_Y = -64;
     public static final int OVERWORLD_HEIGHT = 384;
     public static final int DEEPSLATE_TOP_Y = 0;
@@ -32,55 +31,8 @@ public final class WorldScapeConstants {
     public static final int FBM_OCTAVES = 6;
     public static final double FBM_LACUNARITY = 2.0;
     public static final double FBM_GAIN = 0.5;
-    public static final int DOME_OFFSET_FBM_OCTAVES = 2;
-    public static final double DOME_OFFSET_FBM_GAIN = 0.2;
-    public static final int SALT_FLAT_FBM_OCTAVES = 2;
-    public static final double SALT_FLAT_FBM_GAIN = 0.1;
-    public static final int CANYON_GRAD_FBM_OCTAVES = 3;
-    public static final double CANYON_GRAD_FBM_GAIN = 0.4;
-    public static final int CANYON_FBM_OCTAVES = 4;
-    public static final double CANYON_FBM_GAIN = 0.5;
-    public static final int VALLEY_FBM_OCTAVES = 4;
-    public static final double VALLEY_FBM_GAIN = 0.5;
-    public static final int FLOODPLAIN_FBM_OCTAVES = 3;
-    public static final double FLOODPLAIN_FBM_GAIN = 0.15;
-    public static final int ALLUVIAL_FAN_FBM_OCTAVES = 3;
-    public static final double ALLUVIAL_FAN_FBM_GAIN = 0.3;
-    public static final int BASIN_OFFSET_FBM_OCTAVES = 2;
-    public static final double BASIN_OFFSET_FBM_GAIN = 0.2;
-    public static final int CIRQUE_OFFSET_FBM_OCTAVES = 2;
-    public static final double CIRQUE_OFFSET_FBM_GAIN = 0.2;
-    public static final int FJORD_CLIFF_FBM_OCTAVES = 3;
-    public static final double FJORD_CLIFF_FBM_GAIN = 0.3;
-    public static final int ICE_SHEET_FBM_OCTAVES = 3;
-    public static final double ICE_SHEET_FBM_GAIN = 0.2;
-    public static final int SEA_CLIFF_EDGE_FBM_OCTAVES = 4;
-    public static final double SEA_CLIFF_EDGE_FBM_GAIN = 0.4;
-    public static final int BEACH_DIST_FBM_OCTAVES = 2;
-    public static final double BEACH_DIST_FBM_GAIN = 0.2;
-    public static final int PEAK_FOREST_FBM_OCTAVES = 4;
-    public static final double PEAK_FOREST_FBM_GAIN = 0.5;
-    public static final double PEAK_FOREST_TURB_STRENGTH = 0.7;
-    public static final int TRENCH_AXIS_FBM_OCTAVES = 3;
-    public static final double TRENCH_AXIS_FBM_GAIN = 0.3;
-    public static final int SEA_PLATEAU_FBM_OCTAVES = 3;
-    public static final double SEA_PLATEAU_FBM_GAIN = 0.15;
-    public static final double RIDGE_SINE_PRIMARY_AMP = 35.0;
-    public static final double RIDGE_SINE_SECONDARY_AMP = 18.0;
-    public static final double RIDGE_GRADIENT_SENSITIVITY = 0.6;
     public static final double DOMAIN_ROTATION_STRENGTH = 0.15;
-    public static final double ENERGY_STRETCH_ALONG_RIDGE = 1.5;
-    public static final double ENERGY_STRETCH_ACROSS_RIDGE = 0.7;
     public static final double RIDGE_TURBULENCE_STRENGTH = 0.6;
-    public static final double RIDGE_SINE_FREQ_X = 0.007;
-    public static final double RIDGE_SINE_FREQ_Z = 0.004;
-    public static final double RIDGE_SINE2_FREQ_X = 0.025;
-    public static final double RIDGE_SINE2_FREQ_Z = 0.018;
-    public static final double RIDGE_SINE_LOW_WEIGHT = 0.3;
-    public static final double RIDGE_GRADIENT_HALF_FACTOR = 0.5;
-    public static final double RIDGE_FBM_AMP = 150.0;
-    public static final double RIDGE_TURB_AMP = 15.0;
-    public static final double RIDGE_DOMAIN_AMP = 10.0;
     public static final double RIVER_GRADIENT_FOLLOW_STRENGTH = 0.8;
     public static final double RIVER_MOUNTAIN_WIDTH = 10.0;
     public static final double RIVER_PLAIN_WIDTH = 20.0;
@@ -117,118 +69,6 @@ public final class WorldScapeConstants {
     public static final double ALLUVIAL_FAN_DISTANCE_NORM = 100.0;
     public static final double ERF_APPROX_FACTOR = 0.886;
     public static final double SIGMOID_STEEPNESS_DEFAULT = 1.0;
-    public static final double TANH_STEEPNESS_CLIFF = 2.0;
-    public static final double TANH_STEEPNESS_SEA_CLIFF = 3.0;
-    public static final double GAUSSIAN_SIGMA_DOME = 200.0;
-    public static final double GAUSSIAN_SIGMA_CIRQUE = 150.0;
-    public static final double GAUSSIAN_SIGMA_SINKHOLE = 80.0;
-    public static final double GAUSSIAN_SIGMA_BASIN = 300.0;
-    public static final double HIGH_MOUNTAINS_HEIGHT_AMP = 200.0;
-    public static final double HIGH_MOUNTAINS_DOMAIN_AMP = 15.0;
-    public static final double HIGH_MOUNTAINS_TURB_AMP = 20.0;
-    public static final double HIGH_MOUNTAINS_HEIGHT_CAP = 250.0;
-    public static final double PEAK_FBM_GAIN = 0.4;
-    public static final double PEAK_HEIGHT_AMP = 120.0;
-    public static final double PEAK_TURB_AMP = 80.0;
-    public static final double PEAK_DOMAIN_AMP = 12.0;
-    public static final double HORN_FBM_GAIN = 0.3;
-    public static final double HORN_HEIGHT_AMP = 100.0;
-    public static final double HORN_TURB_STRENGTH = 0.8;
-    public static final double HORN_TURB_AMP = 70.0;
-    public static final double CLIFF_HEIGHT_AMP = 80.0;
-    public static final double CLIFF_TANH_AMP = 40.0;
-    public static final int PLATEAU_FBM_OCTAVES = 3;
-    public static final double PLATEAU_FBM_GAIN = 0.3;
-    public static final double PLATEAU_HEIGHT_AMP = 100.0;
-    public static final double DOME_AMPLITUDE = 150.0;
-    public static final double DOME_OFFSET = 50.0;
-    public static final int DOME_OFFSET_SEED_DISTANCE = 10000;
-    public static final double DUNE_PRIMARY_AMP = 25.0;
-    public static final double DUNE_SECONDARY_AMP = 8.0;
-    public static final double DUNE_SINE_FREQ_X = 0.02;
-    public static final double DUNE_SINE_FREQ_Z = 0.005;
-    public static final double DUNE_SINE2_FREQ_X = 0.005;
-    public static final double DUNE_SINE2_FREQ_Z = 0.015;
-    public static final double DUNE_FBM_AMP = 5.0;
-    public static final double YARDANG_AMP = 30.0;
-    public static final double YARDANG_SINE_FREQ_X = 0.015;
-    public static final double YARDANG_SINE_FREQ_Z = 0.003;
-    public static final double YARDANG_DOMAIN_STRENGTH = 0.2;
-    public static final double YARDANG_DOMAIN_AMP = 15.0;
-    // @AESTHETIC: Frequency modulation strength to break uniform yardang ridge spacing
-    // 频率调制强度 —— 打破雅丹脊线均匀间距，增加不规则性
-    public static final int YARDANG_FREQ_MOD_OCTAVES = 2;
-    public static final double YARDANG_FREQ_MOD_GAIN = 0.3;
-    public static final double YARDANG_FREQ_MOD_AMP = 0.4;
-    // @AESTHETIC: Sharpening turbulence for steep wind-eroded rock ridge edges
-    // 锐化湍流 —— 模拟风蚀残丘的陡峭岩石边缘
-    public static final double YARDANG_SHARP_STRENGTH = 0.7;
-    public static final double YARDANG_SHARP_AMP = 10.0;
-    public static final int GOBI_FBM_OCTAVES = 4;
-    public static final double GOBI_FBM_GAIN = 0.7;
-    public static final double GOBI_HEIGHT_AMP = 15.0;
-    // @AESTHETIC: High-frequency gravel texture for GOBI - creates rough stony surface feel
-    // 高频碎石纹理 —— 模拟戈壁粗糙的石质表面
-    public static final double GOBI_GRAVEL_STRENGTH = 0.8;
-    public static final double GOBI_GRAVEL_AMP = 3.0;
-    public static final double SALT_FLAT_HEIGHT_AMP = 3.0;
-    // @AESTHETIC: Crack-like texture for SALT_FLAT - turbulence with abs() creates polygonal crack patterns
-    // 裂纹纹理 —— turbulence + abs() 模拟盐滩多边形干裂图案
-    public static final double SALT_FLAT_CRACK_STRENGTH = 0.6;
-    public static final double SALT_FLAT_CRACK_AMP = 1.5;
-    public static final double CANYON_DEPTH_AMP = 60.0;
-    public static final double CANYON_FBM_AMP = 10.0;
-    public static final double VALLEY_SIGMOID_INPUT_SCALE = 5.0;
-    public static final double VALLEY_DEPTH = 40.0;
-    public static final double VALLEY_FBM_AMP = 10.0;
-    public static final double FLOODPLAIN_HEIGHT_AMP = 5.0;
-    public static final double DELTA_GRADIENT_HEIGHT = 10.0;
-    public static final double DELTA_DOMAIN_STRENGTH = 0.05;
-    public static final double DELTA_DOMAIN_AMP = 8.0;
-    public static final double BASIN_DEPTH = 30.0;
-    public static final double BASIN_OFFSET = 80.0;
-    public static final int BASIN_OFFSET_SEED_DISTANCE = 20000;
-    public static final double FJORD_TURB_STRENGTH = 0.7;
-    public static final double FJORD_TURB_AMP = 55.0;
-    public static final double FJORD_CLIFF_AMP = 80.0;
-    public static final double GLACIAL_VALLEY_DEPTH = 60.0;
-    public static final double GLACIAL_VALLEY_FBM_AMP = 8.0;
-    public static final double CIRQUE_DEPTH = 70.0;
-    public static final double CIRQUE_EDGE_TURBULENCE = 40.0;
-    public static final double CIRQUE_OFFSET_AMP = 40.0;
-    public static final int CIRQUE_OFFSET_SEED_DISTANCE = 30000;
-    public static final double ICE_SHEET_HEIGHT_AMP = 8.0;
-    // @AESTHETIC: Directional ridge noise for ice crevasses - simulates glacial flow ridges and fissures
-    // 冰裂隙方向性脊线 —— 模拟冰川流动脊线和裂缝
-    public static final double ICE_SHEET_CREVASSE_TURB_STRENGTH = 0.5;
-    public static final double ICE_SHEET_CREVASSE_TURB_AMP = 5.0;
-    public static final double ICE_SHEET_RIDGE_FREQ_X = 0.004;
-    public static final double ICE_SHEET_RIDGE_FREQ_Z = 0.012;
-    public static final double ICE_SHEET_RIDGE_AMP = 3.0;
-    public static final double SEA_CLIFF_AMP = 100.0;
-    public static final double BEACH_SIGMOID_INPUT_SCALE = 3.0;
-    public static final double BEACH_HEIGHT_AMP = 5.0;
-    public static final double SINKHOLE_OFFSET_AMP = 30.0;
-    public static final int SINKHOLE_OFFSET_SEED_DISTANCE = 40000;
-    public static final double SINKHOLE_DEPTH = 40.0;
-    public static final double PEAK_FOREST_TURB_AMP = 80.0;
-    public static final double PEAK_FOREST_FBM_AMP = 40.0;
-    public static final double TRENCH_SIGMOID_INPUT_SCALE = 3.0;
-    public static final double TRENCH_DEPTH = 30.0;
-    public static final double TRENCH_BASE_OFFSET = 20.0;
-    public static final double SEA_PLATEAU_HEIGHT_AMP = 15.0;
-    public static final double HILLS_FBM_GAIN = 0.65;
-    public static final double HILLS_HEIGHT_AMP = 40.0;
-    // @AESTHETIC: Turbulence adds rolling hill character distinct from flat fBm terrain
-    // 湍流增加丘陵起伏特征，区别于平坦的 fBm 地形
-    public static final double HILLS_TURB_STRENGTH = 0.3;
-    public static final double HILLS_TURB_AMP = 30.0;
-    public static final double PLAINS_HEIGHT_AMP = 15.0;
-    // @AESTHETIC: Subtle erosion gully texture for PLAINS - very low amplitude to avoid breaking flatness
-    // 微弱侵蚀沟纹 —— 极低振幅，保持平原平坦但非绝对平面
-    public static final double PLAINS_GULLY_STRENGTH = 0.2;
-    public static final double PLAINS_GULLY_AMP = 1.5;
-    public static final double DEFAULT_HEIGHT_AMP = 20.0;
     public static final double SLOPE_ANOMALY_THRESHOLD = 30.0;
     public static final int HEIGHT_CHANGE_WARNING_THRESHOLD = 100;
     public static final int HEIGHT_CHANGE_CRITICAL_THRESHOLD = 150;
@@ -276,25 +116,6 @@ public final class WorldScapeConstants {
     public static final double ELEVATION_COOLING_PER_TIER = 0.05;
     public static final double LATITUDE_COOLING_FACTOR = 0.3;
     public static final double GLACIAL_LATITUDE_THRESHOLD = 0.44;
-    public static final int PLAINS_FBM_OCTAVES = 4;
-    public static final double PLAINS_FBM_GAIN = 0.2;
-    public static final int HILLS_FBM_OCTAVES = 6;
-    public static final int GLACIAL_VALLEY_FBM_OCTAVES = 4;
-    public static final double GLACIAL_VALLEY_FBM_GAIN = 0.5;
-    public static final double PLAINS_LONGWAVE_OCTAVES = 2;
-    public static final double PLAINS_LONGWAVE_GAIN = 0.05;
-    public static final double PLAINS_LONGWAVE_AMP = 3.0;
-    // @AESTHETIC: River stripe frequency for floodplain channel texture
-    // ~100-block period simulates multiple braided channel ridges on alluvial plains.
-    // May appear too dense; adjustable after visual testing.
-    // 冲积平原河道纹理频率 —— 约100格周期模拟辫状河道脊线。视觉测试后可能需要调整。
-    public static final double FLOODPLAINS_RIVER_FREQ_X = 0.01;
-    public static final double FLOODPLAINS_RIVER_FREQ_Z = 0.003;
-    public static final double FLOODPLAINS_RIVER_AMP = 2.0;
-    public static final int SEA_PLATEAU_TEXTURE_SCALE = 4;
-    public static final int SEA_PLATEAU_TEXTURE_OCTAVES = 2;
-    public static final double SEA_PLATEAU_TEXTURE_GAIN = 0.3;
-    public static final double SEA_PLATEAU_TEXTURE_AMP = 2.0;
     public static final double CLIMATE_BLEND_THRESHOLD = 0.9;
     public static final double TEMPERATE_THRESHOLD = 0.5;
     public static final int OCEAN_ELEVATION_TIER_MAX = 1;
@@ -350,10 +171,6 @@ public final class WorldScapeConstants {
     public static final int VIEWPORT_LINE_MARGIN = 10;
     public static final long DOUBLE_CLICK_THRESHOLD = 300L;
     public static final float MOVE_SPEED_PER_TICK = 20.0f;
-    public static final double RIDGE_NOISE_SCALE = 2.0;
-    public static final double RIDGE_NOISE_SECONDARY_WEIGHT = 0.5;
-    public static final double DUNE_PHASE_MULTIPLIER = 3.0;
-    public static final double DUNE_SECONDARY_MULTIPLIER = 5.0;
     public static final int BIOME_CELLS_PER_AXIS = 4;
     public static final int BIOME_CELLS_PER_SECTION_Y = 4;
     public static final int BIOME_CELL_SIZE = 4;
@@ -362,4 +179,3 @@ public final class WorldScapeConstants {
     private WorldScapeConstants() {
     }
 }
-

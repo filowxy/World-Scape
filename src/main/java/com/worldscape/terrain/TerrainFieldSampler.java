@@ -123,38 +123,66 @@ public class TerrainFieldSampler {
     }
 
     private static double getTypeModifier(TerrainType type) {
-        return switch (type) {
-            case TerrainType.TRENCH -> -90.0;
-            case TerrainType.SEA_PLATEAU -> -70.0;
-            case TerrainType.DELTA -> -45.0;
-            case TerrainType.BEACH -> -15.0;
-            case TerrainType.SALT_FLAT -> -5.0;
-            case TerrainType.FLOODPLAIN -> -10.0;
-            case TerrainType.DUNE -> 0.0;
-            case TerrainType.SEA_CLIFF -> 5.0;
-            case TerrainType.FJORD -> -20.0;
-            case TerrainType.PLAINS -> 0.0;
-            case TerrainType.GOBI -> 5.0;
-            case TerrainType.YARDANG -> 10.0;
-            case TerrainType.BASIN -> -15.0;
-            case TerrainType.SINKHOLE -> -20.0;
-            case TerrainType.PEAK_FOREST -> 25.0;
-            case TerrainType.HILLS -> 20.0;
-            case TerrainType.CLIFF -> 45.0;
-            case TerrainType.PLATEAU -> 50.0;
-            case TerrainType.DOME -> 40.0;
-            case TerrainType.VALLEY -> 25.0;
-            case TerrainType.CANYON -> 15.0;
-            case TerrainType.ALLUVIAL_FAN -> 30.0;
-            case TerrainType.CIRQUE -> 35.0;
-            case TerrainType.GLACIAL_VALLEY -> 20.0;
-            case TerrainType.HIGH_MOUNTAINS -> 80.0;
-            case TerrainType.RIDGE -> 70.0;
-            case TerrainType.PEAK -> 75.0;
-            case TerrainType.HORN -> 85.0;
-            case TerrainType.ICE_SHEET -> 65.0;
-            default -> 0.0;
-        };
+        if (type == TerrainType.TRENCH) {
+            return -90.0;
+        } else if (type == TerrainType.SEA_PLATEAU) {
+            return -70.0;
+        } else if (type == TerrainType.DELTA) {
+            return -45.0;
+        } else if (type == TerrainType.BEACH) {
+            return -15.0;
+        } else if (type == TerrainType.SALT_FLAT) {
+            return -5.0;
+        } else if (type == TerrainType.FLOODPLAIN) {
+            return -10.0;
+        } else if (type == TerrainType.DUNE) {
+            return 0.0;
+        } else if (type == TerrainType.SEA_CLIFF) {
+            return 5.0;
+        } else if (type == TerrainType.FJORD) {
+            return -20.0;
+        } else if (type == TerrainType.PLAINS) {
+            return 0.0;
+        } else if (type == TerrainType.GOBI) {
+            return 5.0;
+        } else if (type == TerrainType.YARDANG) {
+            return 10.0;
+        } else if (type == TerrainType.BASIN) {
+            return -15.0;
+        } else if (type == TerrainType.SINKHOLE) {
+            return -20.0;
+        } else if (type == TerrainType.PEAK_FOREST) {
+            return 25.0;
+        } else if (type == TerrainType.HILLS) {
+            return 20.0;
+        } else if (type == TerrainType.CLIFF) {
+            return 45.0;
+        } else if (type == TerrainType.PLATEAU) {
+            return 50.0;
+        } else if (type == TerrainType.DOME) {
+            return 40.0;
+        } else if (type == TerrainType.VALLEY) {
+            return 25.0;
+        } else if (type == TerrainType.CANYON) {
+            return 15.0;
+        } else if (type == TerrainType.ALLUVIAL_FAN) {
+            return 30.0;
+        } else if (type == TerrainType.CIRQUE) {
+            return 35.0;
+        } else if (type == TerrainType.GLACIAL_VALLEY) {
+            return 20.0;
+        } else if (type == TerrainType.HIGH_MOUNTAINS) {
+            return 80.0;
+        } else if (type == TerrainType.RIDGE) {
+            return 70.0;
+        } else if (type == TerrainType.PEAK) {
+            return 75.0;
+        } else if (type == TerrainType.HORN) {
+            return 85.0;
+        } else if (type == TerrainType.ICE_SHEET) {
+            return 65.0;
+        }
+        return 0.0;
     }
 
     private TerrainType selectTier0Type(double m) {
@@ -325,6 +353,25 @@ public class TerrainFieldSampler {
         double main = this.energyMain.getValue(stretchedX * 2.44140625E-4, stretchedZ * 2.44140625E-4, 0.0);
         double detail = this.energyDetail.getValue(stretchedX * 9.765625E-4, stretchedZ * 9.765625E-4, 0.0);
         return main * 0.7 + detail * 0.3;
+    }
+
+    public double[] getEnergyStretchedCoords(int x, int z) {
+        double cx = (double)x + 0.5;
+        double cz = (double)z + 0.5;
+        double primaryGradX = Math.cos((double)x * 0.007 + (double)z * 0.004) * 0.007;
+        double primaryGradZ = Math.cos((double)x * 0.007 + (double)z * 0.004) * 0.004;
+        double ridgeAngle = Math.atan2(primaryGradZ, primaryGradX);
+        double angleNoise = this.domainAngle.getValue(cx * 1.220703125E-4, cz * 1.220703125E-4, 0.0);
+        ridgeAngle += angleNoise * Math.PI * 0.5;
+        double cosA = Math.cos(ridgeAngle);
+        double sinA = Math.sin(ridgeAngle);
+        double along = cx * cosA + cz * sinA;
+        double across = -cx * sinA + cz * cosA;
+        along *= 1.5;
+        across *= 0.7;
+        double tx = along * cosA - across * sinA;
+        double tz = along * sinA + across * cosA;
+        return new double[]{tx, tz};
     }
 
     public static double sigmoid(double t) {

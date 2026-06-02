@@ -268,24 +268,38 @@ public class VoronoiControlPointManager {
     }
 
     private int getTerrainTypeColor(TerrainType type) {
-        return switch (type) {
-            case TerrainType.HIGH_MOUNTAINS, TerrainType.PEAK, TerrainType.HORN -> -2937041;
-            case TerrainType.CLIFF, TerrainType.SEA_CLIFF -> -43230;
-            case TerrainType.HILLS -> -16121;
-            case TerrainType.PLATEAU, TerrainType.DOME, TerrainType.RIDGE -> -6543440;
-            case TerrainType.PLAINS -> -11751600;
-            case TerrainType.CANYON, TerrainType.VALLEY, TerrainType.GLACIAL_VALLEY -> -14575885;
-            case TerrainType.BEACH, TerrainType.DELTA -> -16728876;
-            case TerrainType.DUNE, TerrainType.GOBI, TerrainType.YARDANG -> -1249295;
-            case TerrainType.TRENCH, TerrainType.BASIN, TerrainType.SINKHOLE -> -15064194;
-            case TerrainType.ICE_SHEET, TerrainType.CIRQUE -> -4987396;
-            case TerrainType.FLOODPLAIN, TerrainType.ALLUVIAL_FAN -> -7617718;
-            case TerrainType.SEA_PLATEAU -> -15906911;
-            case TerrainType.SALT_FLAT -> -657931;
-            case TerrainType.PEAK_FOREST -> -13070788;
-            case TerrainType.FJORD -> -15108398;
-            default -> -6381922;
-        };
+        if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.PEAK || type == TerrainType.HORN) {
+            return -2937041;
+        } else if (type == TerrainType.CLIFF || type == TerrainType.SEA_CLIFF) {
+            return -43230;
+        } else if (type == TerrainType.HILLS) {
+            return -16121;
+        } else if (type == TerrainType.PLATEAU || type == TerrainType.DOME || type == TerrainType.RIDGE) {
+            return -6543440;
+        } else if (type == TerrainType.PLAINS) {
+            return -11751600;
+        } else if (type == TerrainType.CANYON || type == TerrainType.VALLEY || type == TerrainType.GLACIAL_VALLEY) {
+            return -14575885;
+        } else if (type == TerrainType.BEACH || type == TerrainType.DELTA) {
+            return -16728876;
+        } else if (type == TerrainType.DUNE || type == TerrainType.GOBI || type == TerrainType.YARDANG) {
+            return -1249295;
+        } else if (type == TerrainType.TRENCH || type == TerrainType.BASIN || type == TerrainType.SINKHOLE) {
+            return -15064194;
+        } else if (type == TerrainType.ICE_SHEET || type == TerrainType.CIRQUE) {
+            return -4987396;
+        } else if (type == TerrainType.FLOODPLAIN || type == TerrainType.ALLUVIAL_FAN) {
+            return -7617718;
+        } else if (type == TerrainType.SEA_PLATEAU) {
+            return -15906911;
+        } else if (type == TerrainType.SALT_FLAT) {
+            return -657931;
+        } else if (type == TerrainType.PEAK_FOREST) {
+            return -13070788;
+        } else if (type == TerrainType.FJORD) {
+            return -15108398;
+        }
+        return -6381922;
     }
 
     private int getTierColor(int tier) {

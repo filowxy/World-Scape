@@ -30,7 +30,7 @@ public class ConfigManager {
     }
 
     private static void refreshSnapshot() {
-        ConfigSnapshot snapshot = new ConfigSnapshot((Integer)ConfigManager.CONFIG.seaLevel.get(), (Integer)ConfigManager.CONFIG.cacheMaxSize.get(), (Double)ConfigManager.CONFIG.autoMatchThreshold.get(), (Boolean)ConfigManager.CONFIG.enableTemperatureLink.get(), (Boolean)ConfigManager.CONFIG.silenceNoisiumWarning.get(), (Integer)ConfigManager.CONFIG.controlPointMinDistance.get(), (Integer)ConfigManager.CONFIG.controlPointMaxDistance.get(), (Integer)ConfigManager.CONFIG.elevationDiffThreshold.get(), (Integer)ConfigManager.CONFIG.plainsMacroWavelength.get(), (Double)ConfigManager.CONFIG.plainsMacroAmplitude.get(), (Integer)ConfigManager.CONFIG.plainsMesoWavelength.get(), (Double)ConfigManager.CONFIG.plainsMesoAmplitude.get(), (Integer)ConfigManager.CONFIG.plainsMicroWavelength.get(), (Double)ConfigManager.CONFIG.plainsMicroAmplitude.get(), (Double)ConfigManager.CONFIG.plainsErosionDepth.get(), (Integer)ConfigManager.CONFIG.regionSize.get(), (Integer)ConfigManager.CONFIG.cellSize.get(), (Integer)ConfigManager.CONFIG.searchRadius.get(), (Integer)ConfigManager.CONFIG.reloadCooldown.get());
+        ConfigSnapshot snapshot = new ConfigSnapshot((Integer)ConfigManager.CONFIG.seaLevel.get(), (Integer)ConfigManager.CONFIG.cacheMaxSize.get(), (Double)ConfigManager.CONFIG.autoMatchThreshold.get(), (Boolean)ConfigManager.CONFIG.enableTemperatureLink.get(), (Boolean)ConfigManager.CONFIG.silenceNoisiumWarning.get(), (Integer)ConfigManager.CONFIG.controlPointMinDistance.get(), (Integer)ConfigManager.CONFIG.controlPointMaxDistance.get(), (Integer)ConfigManager.CONFIG.elevationDiffThreshold.get(), (Integer)ConfigManager.CONFIG.plainsMacroWavelength.get(), (Double)ConfigManager.CONFIG.plainsMacroAmplitude.get(), (Integer)ConfigManager.CONFIG.plainsMesoWavelength.get(), (Double)ConfigManager.CONFIG.plainsMesoAmplitude.get(), (Integer)ConfigManager.CONFIG.plainsMicroWavelength.get(), (Double)ConfigManager.CONFIG.plainsMicroAmplitude.get(), (Double)ConfigManager.CONFIG.plainsErosionDepth.get(), (Integer)ConfigManager.CONFIG.regionSize.get(), (Integer)ConfigManager.CONFIG.cellSize.get(), (Integer)ConfigManager.CONFIG.searchRadius.get(), (Integer)ConfigManager.CONFIG.reloadCooldown.get(), (String)ConfigManager.CONFIG.terrainTypeConfigDir.get());
         SNAPSHOT.set(snapshot);
     }
 
@@ -119,6 +119,16 @@ public class ConfigManager {
         return ConfigManager.getSnapshot().reloadCooldown();
     }
 
+    /**
+     * Get the configured terrain type config directory path.
+     * 获取配置的地形类型配置目录路径。
+     *
+     * @return the directory path string, or empty string if not configured / 目录路径字符串，未配置时返回空字符串
+     */
+    public static String getTerrainTypeConfigDirStatic() {
+        return ConfigManager.getSnapshot().terrainTypeConfigDir();
+    }
+
     static {
         SNAPSHOT = new AtomicReference();
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -126,7 +136,7 @@ public class ConfigManager {
         SPEC = builder.build();
     }
 
-    public record ConfigSnapshot(int seaLevel, int cacheMaxSize, double autoMatchThreshold, boolean enableTemperatureLink, boolean silenceNoisiumWarning, int controlPointMinDistance, int controlPointMaxDistance, int elevationDiffThreshold, int plainsMacroWavelength, double plainsMacroAmplitude, int plainsMesoWavelength, double plainsMesoAmplitude, int plainsMicroWavelength, double plainsMicroAmplitude, double plainsErosionDepth, int regionSize, int cellSize, int searchRadius, int reloadCooldown) {
+    public record ConfigSnapshot(int seaLevel, int cacheMaxSize, double autoMatchThreshold, boolean enableTemperatureLink, boolean silenceNoisiumWarning, int controlPointMinDistance, int controlPointMaxDistance, int elevationDiffThreshold, int plainsMacroWavelength, double plainsMacroAmplitude, int plainsMesoWavelength, double plainsMesoAmplitude, int plainsMicroWavelength, double plainsMicroAmplitude, double plainsErosionDepth, int regionSize, int cellSize, int searchRadius, int reloadCooldown, String terrainTypeConfigDir) {
     }
 
     public static class Config {
@@ -149,6 +159,7 @@ public class ConfigManager {
         public final ModConfigSpec.IntValue cellSize;
         public final ModConfigSpec.IntValue searchRadius;
         public final ModConfigSpec.IntValue reloadCooldown;
+        public final ModConfigSpec.ConfigValue<String> terrainTypeConfigDir;
 
         public Config(ModConfigSpec.Builder builder) {
             builder.push("general");
@@ -157,6 +168,7 @@ public class ConfigManager {
             this.autoMatchThreshold = builder.comment("\u751f\u7269\u7fa4\u7cfb\u4e0e\u5730\u5f62\u5339\u914d\u7684\u9608\u503c\uff080.0-1.0\uff09").defineInRange("auto_match_threshold", 0.3, 0.0, 1.0);
             this.enableTemperatureLink = builder.comment("\u542f\u7528\u4e0e\u6e29\u5ea6\u76f8\u5173\u6a21\u7ec4\u7684\u94fe\u63a5").define("enable_temperature_link", true);
             this.silenceNoisiumWarning = builder.comment("\u9759\u97f3 Noisium \u6a21\u7ec4\u8b66\u544a").define("silence_noisium_warning", false);
+            this.terrainTypeConfigDir = builder.comment("Custom terrain type JSON directory (highest priority). Leave empty to disable.", "自定义地形类型 JSON 目录（最高优先级）。留空则禁用。").define("terrain_type_config_dir", "");
             builder.pop();
             builder.push("control_points");
             this.controlPointMinDistance = builder.comment("\u63a7\u5236\u70b9\u4e4b\u95f4\u7684\u6700\u5c0f\u8ddd\u79bb\uff08\u65b9\u5757\uff09").defineInRange("control_point_min_distance", 150, 50, 500);

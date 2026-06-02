@@ -1,0 +1,497 @@
+{
+  "_comment": "WorldScape Terrain Type Defaults — 地形类型默认定义 | Mathematical definitions exactly matching TerrainCalculator.calcHeightForType() | 数学定义与 TerrainCalculator.calcHeightForType() 完全一致",
+  "_comment_final": "The 'final' field describes how to combine with baseHeight | 'final' 字段描述如何与 baseHeight 组合",
+  "_comment_clamp": "The final clamp Math.max(-64, Math.min(512, height)) is applied by the caller, NOT in the JSON | 最终的 clamp 由调用方执行，不在 JSON 中",
+  "_comment_height_cap": "height_cap is applied AFTER adding baseHeight (relative cap) or is absolute | height_cap 在加上 baseHeight 后应用（相对上限）或为绝对上限",
+  "_comment_climate": "Climate values: temperature, humidity, seasonality, continentality (all 0.0–1.0) | 气候值：温度、湿度、季节性、大陆性（均为 0.0–1.0）",
+  "_comment_subtractive": "For subtractive types (CANYON, VALLEY, BASIN, CIRQUE, GLACIAL_VALLEY, TRENCH, SINKHOLE, FJORD): additive noise terms use negative amplitude so that 'base - combined' = base - depth + noise | 对于减法类型：加法噪声项使用负振幅，使得 'base - combined' = base - depth + noise",
+
+  "terrain_types": [
+    {
+      "_comment": "Tier 5 - Mountain Peaks | 高山",
+      "id": "worldscape:high_mountains",
+      "min_height": 260,
+      "max_height": 512,
+      "tier_whitelist": [5],
+      "height_cap": 250.0,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "hm_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.5 }, "amplitude": 200.0 },
+        { "id": "hm_domain", "name": "domain_rotated", "params": { "warp_strength": 0.15 }, "amplitude": 15.0 },
+        { "id": "hm_turb", "name": "turbulence", "params": { "strength": 0.6 }, "amplitude": 20.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["hm_fbm", "hm_domain", "hm_turb"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.2, "humidity": 0.3, "seasonality": 0.6, "continentality": 0.7 }
+    },
+    {
+      "_comment": "Tier 5 - Ridge Lines with gradient-constrained sine | 山脊线（梯度约束正弦波）",
+      "id": "worldscape:ridge",
+      "min_height": 140,
+      "max_height": 275,
+      "tier_whitelist": [5],
+      "height_cap": null,
+      "coordinate_transform": { "type": "energy_stretched", "params": { "along": 1.5, "across": 0.7 } },
+      "functions": [
+        { "id": "r_sine", "name": "gradient_constrained_sine", "params": { "freq_x": 0.007, "freq_z": 0.004, "primary_amp": 35.0, "secondary_amp": 18.0, "sec_freq_x": 0.025, "sec_freq_z": 0.018, "gradient_sensitivity": 0.6, "gradient_half_factor": 0.5 }, "amplitude": 1.0 },
+        { "id": "r_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.5 }, "amplitude": 150.0 },
+        { "id": "r_turb", "name": "turbulence", "params": { "strength": 0.6 }, "amplitude": 15.0 },
+        { "id": "r_domain", "name": "domain_rotated", "params": { "warp_strength": 0.15 }, "amplitude": 10.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["r_sine", "r_fbm", "r_turb", "r_domain"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 5 - Sharp Peaks | 尖峰",
+      "id": "worldscape:peak",
+      "min_height": 165,
+      "max_height": 330,
+      "tier_whitelist": [5],
+      "height_cap": 510.0,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "p_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.4 }, "amplitude": 120.0 },
+        { "id": "p_turb", "name": "turbulence", "params": { "strength": 0.6 }, "amplitude": 80.0 },
+        { "id": "p_domain", "name": "domain_rotated", "params": { "warp_strength": 0.15 }, "amplitude": 12.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["p_fbm", "p_turb", "p_domain"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 5 - Horn (glacial pyramid peak) | 角峰（冰川金字塔峰）",
+      "id": "worldscape:horn",
+      "min_height": 165,
+      "max_height": 330,
+      "tier_whitelist": [5],
+      "height_cap": 510.0,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "h_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.3 }, "amplitude": 100.0 },
+        { "id": "h_turb", "name": "turbulence", "params": { "strength": 0.8 }, "amplitude": 70.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["h_fbm", "h_turb"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 4-5 - Cliff | 悬崖",
+      "id": "worldscape:cliff",
+      "min_height": 55,
+      "max_height": 220,
+      "tier_whitelist": [4, 5],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "c_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.5 }, "amplitude": 80.0 },
+        { "id": "c_tanh", "name": "tanh_scaled", "params": { "input": "c_fbm", "steepness": 2.0 }, "amplitude": 40.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["c_fbm", "c_tanh"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 4-5 - Plateau | 高原",
+      "id": "worldscape:plateau",
+      "min_height": 165,
+      "max_height": 275,
+      "tier_whitelist": [4, 5],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "pl_fbm", "name": "fbm", "params": { "octaves": 3, "gain": 0.3 }, "amplitude": 100.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["pl_fbm"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 4 - Dome (broad uplift) | 穹丘（宽阔隆起） | gaussian with fbm-offset center",
+      "id": "worldscape:dome",
+      "min_height": 83,
+      "max_height": 193,
+      "tier_whitelist": [4],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "d_offset_x", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 50.0 },
+        { "id": "d_offset_z", "name": "fbm", "params": { "octaves": 2, "gain": 0.2, "seed_offset": 10000 }, "amplitude": 50.0 },
+        { "id": "d_gauss", "name": "gaussian", "params": { "sigma": 200.0, "offset_x": "d_offset_x", "offset_z": "d_offset_z" }, "amplitude": 150.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["d_gauss"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 3-4 - Dune (sand ridges) | 沙丘 | sqrt(primary^2+4)-2 + secondary",
+      "id": "worldscape:dune",
+      "min_height": 28,
+      "max_height": 55,
+      "tier_whitelist": [3, 4],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "du_primary_sine", "name": "sine", "params": { "freq_x": 0.02, "freq_z": 0.005 }, "amplitude": 25.0 },
+        { "id": "du_secondary_sine", "name": "sine", "params": { "freq_x": 0.005, "freq_z": 0.015 }, "amplitude": 8.0 },
+        { "id": "du_ridge", "name": "math", "params": { "expression": "sqrt(p*p + 4) - 2 + s", "p": "du_primary_sine", "s": "du_secondary_sine" }, "amplitude": 1.0 },
+        { "id": "du_fbm", "name": "fbm", "params": { "octaves": 2, "gain": 0.1 }, "amplitude": 5.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["du_ridge", "du_fbm"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.8, "humidity": 0.0, "seasonality": 0.8, "continentality": 0.95 }
+    },
+    {
+      "_comment": "Tier 4 - Yardang (wind-eroded rock ridges) | 雅丹（风蚀岩脊） | frequency-modulated sine",
+      "id": "worldscape:yardang",
+      "min_height": 44,
+      "max_height": 99,
+      "tier_whitelist": [4],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "ya_freq_mod", "name": "fbm", "params": { "octaves": 2, "gain": 0.3 }, "amplitude": 1.0 },
+        { "id": "ya_primary", "name": "fm_sine", "params": { "freq_x": 0.015, "freq_z": 0.003, "freq_mod_input": "ya_freq_mod", "freq_mod_amp": 0.4 }, "amplitude": 30.0 },
+        { "id": "ya_sharp", "name": "turbulence", "params": { "strength": 0.7 }, "amplitude": 10.0 },
+        { "id": "ya_domain", "name": "domain_rotated", "params": { "warp_strength": 0.2 }, "amplitude": 15.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["ya_primary", "ya_sharp", "ya_domain"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.8, "humidity": 0.0, "seasonality": 0.8, "continentality": 0.95 }
+    },
+    {
+      "_comment": "Tier 4 - Gobi (gravel desert) | 戈壁（砾石荒漠）",
+      "id": "worldscape:gobi",
+      "min_height": 33,
+      "max_height": 66,
+      "tier_whitelist": [4],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "go_fbm", "name": "fbm", "params": { "octaves": 4, "gain": 0.7 }, "amplitude": 15.0 },
+        { "id": "go_gravel", "name": "turbulence", "params": { "strength": 0.8 }, "amplitude": 3.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["go_fbm", "go_gravel"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.8, "humidity": 0.0, "seasonality": 0.8, "continentality": 0.95 }
+    },
+    {
+      "_comment": "Tier 2 - Salt Flat | 盐滩",
+      "id": "worldscape:salt_flat",
+      "min_height": 22,
+      "max_height": 33,
+      "tier_whitelist": [2],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "sf_fbm", "name": "fbm", "params": { "octaves": 2, "gain": 0.1 }, "amplitude": 3.0 },
+        { "id": "sf_crack", "name": "turbulence", "params": { "strength": 0.6 }, "amplitude": 1.5 }
+      ],
+      "combinator": { "type": "add", "terms": ["sf_fbm", "sf_crack"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.8, "humidity": 0.0, "seasonality": 0.8, "continentality": 0.95 }
+    },
+    {
+      "_comment": "Tier 4 - Canyon | 峡谷 | subtractive: base - depth + fbm | 减法：base - depth + fbm",
+      "id": "worldscape:canyon",
+      "min_height": 11,
+      "max_height": 83,
+      "tier_whitelist": [4],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "ca_grad", "name": "fbm", "params": { "octaves": 3, "gain": 0.4 }, "amplitude": 1.0 },
+        { "id": "ca_depth", "name": "abs", "params": { "input": "ca_grad" }, "amplitude": 60.0 },
+        { "id": "ca_fbm", "name": "fbm", "params": { "octaves": 4, "gain": 0.5 }, "amplitude": -10.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["ca_depth", "ca_fbm"] },
+      "final": "base - combined",
+      "climate": { "temperature": 0.5, "humidity": 0.8, "seasonality": 0.55, "continentality": 0.75 }
+    },
+    {
+      "_comment": "Tier 4 - Valley | 山谷 | subtractive: base - depth + fbm | 减法：base - depth + fbm",
+      "id": "worldscape:valley",
+      "min_height": 28,
+      "max_height": 83,
+      "tier_whitelist": [4],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "v_grad", "name": "gradient", "params": {}, "amplitude": 1.0 },
+        { "id": "v_depth", "name": "sigmoid", "params": { "input": "v_grad", "scale": 5.0 }, "amplitude": 40.0 },
+        { "id": "v_fbm", "name": "fbm", "params": { "octaves": 4, "gain": 0.5 }, "amplitude": -10.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["v_depth", "v_fbm"] },
+      "final": "base - combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 2-3 - Floodplain | 泛滥平原 | fbm + sine river stripes",
+      "id": "worldscape:floodplain",
+      "min_height": 28,
+      "max_height": 44,
+      "tier_whitelist": [2, 3],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "fp_fbm", "name": "fbm", "params": { "octaves": 3, "gain": 0.15 }, "amplitude": 5.0 },
+        { "id": "fp_river", "name": "sine", "params": { "freq_x": 0.01, "freq_z": 0.003 }, "amplitude": 2.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["fp_fbm", "fp_river"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 1-2 - Delta | 三角洲 | gradient + domain_rotated",
+      "id": "worldscape:delta",
+      "min_height": 22,
+      "max_height": 39,
+      "tier_whitelist": [1, 2],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "dt_grad", "name": "gradient", "params": {}, "amplitude": 10.0 },
+        { "id": "dt_domain", "name": "domain_rotated", "params": { "warp_strength": 0.05 }, "amplitude": 8.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["dt_grad", "dt_domain"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 4 - Alluvial Fan | 冲积扇 | contributing_point_distance + tanh math + fbm",
+      "id": "worldscape:alluvial_fan",
+      "min_height": 44,
+      "max_height": 110,
+      "tier_whitelist": [4],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "af_cp_dist", "name": "contributing_point_distance", "params": { "distance_period": 200.0 }, "amplitude": 1.0 },
+        { "id": "af_slope", "name": "math", "params": { "expression": "tanh(d / 100.0 * 0.886) * 25.0", "d": "af_cp_dist" }, "amplitude": 1.0 },
+        { "id": "af_fbm", "name": "fbm", "params": { "octaves": 3, "gain": 0.3 }, "amplitude": 5.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["af_slope", "af_fbm"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 3 - Basin | 盆地 | subtractive: base - gaussian_depth | 减法：base - gaussian_depth",
+      "id": "worldscape:basin",
+      "min_height": 22,
+      "max_height": 66,
+      "tier_whitelist": [3],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "b_offset_x", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 80.0 },
+        { "id": "b_offset_z", "name": "fbm", "params": { "octaves": 2, "gain": 0.2, "seed_offset": 20000 }, "amplitude": 80.0 },
+        { "id": "b_gauss", "name": "gaussian", "params": { "sigma": 300.0, "offset_x": "b_offset_x", "offset_z": "b_offset_z" }, "amplitude": 30.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["b_gauss"] },
+      "final": "base - combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 2 - Fjord | 峡湾 | subtractive: base - turbulence + tanh | 减法：base - turbulence + tanh",
+      "id": "worldscape:fjord",
+      "min_height": 17,
+      "max_height": 110,
+      "tier_whitelist": [2],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "fj_cliff_edge", "name": "fbm", "params": { "octaves": 3, "gain": 0.3 }, "amplitude": 1.0 },
+        { "id": "fj_turb", "name": "turbulence", "params": { "strength": 0.7 }, "amplitude": 55.0 },
+        { "id": "fj_tanh", "name": "tanh_scaled", "params": { "input": "fj_cliff_edge", "steepness": 2.0 }, "amplitude": -80.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["fj_turb", "fj_tanh"] },
+      "final": "base - combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 4-5 - Glacial Valley | 冰川谷 | subtractive: base - depth + fbm | 减法：base - depth + fbm",
+      "id": "worldscape:glacial_valley",
+      "min_height": 28,
+      "max_height": 110,
+      "tier_whitelist": [4, 5],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "gv_grad", "name": "gradient", "params": {}, "amplitude": 1.0 },
+        { "id": "gv_depth", "name": "sigmoid", "params": { "input": "gv_grad", "scale": 5.0 }, "amplitude": 60.0 },
+        { "id": "gv_fbm", "name": "fbm", "params": { "octaves": 4, "gain": 0.5 }, "amplitude": -8.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["gv_depth", "gv_fbm"] },
+      "final": "base - combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 4-5 - Cirque (glacial bowl) | 冰斗 | subtractive: base - gaussian_depth + edge_turbulence | 减法：base - gaussian_depth + edge_turbulence",
+      "id": "worldscape:cirque",
+      "min_height": 83,
+      "max_height": 193,
+      "tier_whitelist": [4, 5],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "ci_offset_x", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 40.0 },
+        { "id": "ci_offset_z", "name": "fbm", "params": { "octaves": 2, "gain": 0.2, "seed_offset": 30000 }, "amplitude": 40.0 },
+        { "id": "ci_gauss", "name": "gaussian", "params": { "sigma": 150.0, "offset_x": "ci_offset_x", "offset_z": "ci_offset_z" }, "amplitude": 70.0 },
+        { "id": "ci_edge_turb", "name": "turbulence", "params": { "strength": 0.5 }, "amplitude": -40.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["ci_gauss", "ci_edge_turb"] },
+      "final": "base - combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 5 - Ice Sheet | 冰盖 | fbm + directional sine + turbulence",
+      "id": "worldscape:ice_sheet",
+      "min_height": 55,
+      "max_height": 165,
+      "tier_whitelist": [5],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "is_fbm", "name": "fbm", "params": { "octaves": 3, "gain": 0.2 }, "amplitude": 8.0 },
+        { "id": "is_ridge", "name": "sine", "params": { "freq_x": 0.004, "freq_z": 0.012 }, "amplitude": 3.0 },
+        { "id": "is_crevasse", "name": "turbulence", "params": { "strength": 0.5 }, "amplitude": 5.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["is_fbm", "is_ridge", "is_crevasse"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.0, "humidity": 0.6, "seasonality": 0.1, "continentality": 0.8 }
+    },
+    {
+      "_comment": "Tier 2 - Sea Cliff | 海蚀崖 | tanh_scaled only",
+      "id": "worldscape:sea_cliff",
+      "min_height": 44,
+      "max_height": 110,
+      "tier_whitelist": [2],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "sc_edge", "name": "fbm", "params": { "octaves": 4, "gain": 0.4 }, "amplitude": 1.0 },
+        { "id": "sc_tanh", "name": "tanh_scaled", "params": { "input": "sc_edge", "steepness": 3.0 }, "amplitude": 100.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["sc_tanh"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 2 - Beach | 海滩 | sigmoid(fbm * 3) * 5",
+      "id": "worldscape:beach",
+      "min_height": 28,
+      "max_height": 39,
+      "tier_whitelist": [2],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "be_dist", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 1.0 },
+        { "id": "be_sigmoid", "name": "sigmoid", "params": { "input": "be_dist", "scale": 3.0 }, "amplitude": 5.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["be_sigmoid"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.7, "seasonality": 0.3, "continentality": 0.2 }
+    },
+    {
+      "_comment": "Tier 3 - Sinkhole | 落水洞 | subtractive: base - gaussian_depth | 减法：base - gaussian_depth",
+      "id": "worldscape:sinkhole",
+      "min_height": 11,
+      "max_height": 55,
+      "tier_whitelist": [3],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "sk_offset_x", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 30.0 },
+        { "id": "sk_offset_z", "name": "fbm", "params": { "octaves": 2, "gain": 0.2, "seed_offset": 40000 }, "amplitude": 30.0 },
+        { "id": "sk_gauss", "name": "gaussian", "params": { "sigma": 80.0, "offset_x": "sk_offset_x", "offset_z": "sk_offset_z" }, "amplitude": 40.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["sk_gauss"] },
+      "final": "base - combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 3 - Peak Forest (karst) | 峰林（喀斯特） | turbulence + fbm",
+      "id": "worldscape:peak_forest",
+      "min_height": 83,
+      "max_height": 193,
+      "tier_whitelist": [3],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "pf_turb", "name": "turbulence", "params": { "strength": 0.7 }, "amplitude": 80.0 },
+        { "id": "pf_fbm", "name": "fbm", "params": { "octaves": 4, "gain": 0.5 }, "amplitude": 40.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["pf_turb", "pf_fbm"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 0 - Trench (deep ocean) | 海沟（深海） | subtractive: base - 20 - sigmoid_depth | 减法：base - 20 - sigmoid_depth",
+      "id": "worldscape:trench",
+      "min_height": -55,
+      "max_height": 0,
+      "tier_whitelist": [0],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "tr_axis", "name": "fbm", "params": { "octaves": 3, "gain": 0.3 }, "amplitude": 1.0 },
+        { "id": "tr_neg_axis", "name": "negate", "params": { "input": "tr_axis" }, "amplitude": 1.0 },
+        { "id": "tr_depth", "name": "sigmoid", "params": { "input": "tr_neg_axis", "scale": 3.0 }, "amplitude": 30.0 },
+        { "id": "tr_base", "name": "constant", "params": { "value": 1.0 }, "amplitude": 20.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["tr_base", "tr_depth"] },
+      "final": "base - combined",
+      "climate": { "temperature": 0.08, "humidity": 0.95, "seasonality": 0.05, "continentality": 0.05 }
+    },
+    {
+      "_comment": "Tier 0-1 - Sea Plateau | 海底高原 | fbm + texture-scaled fbm (scaled by 4x) | 用4x坐标缩放的纹理fbm",
+      "id": "worldscape:sea_plateau",
+      "min_height": -28,
+      "max_height": 17,
+      "tier_whitelist": [0, 1],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "_note_texture": "The texture fbm in the Java code uses worldX*4, worldZ*4 coordinates. This is approximated here with regular fbm(2, 0.3)*2.0. | Java代码中的纹理fbm使用 worldX*4, worldZ*4 坐标，此处用普通 fbm(2, 0.3)*2.0 近似。",
+      "functions": [
+        { "id": "sp_fbm", "name": "fbm", "params": { "octaves": 3, "gain": 0.15 }, "amplitude": 15.0 },
+        { "id": "sp_texture", "name": "fbm", "params": { "octaves": 2, "gain": 0.3 }, "amplitude": 2.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["sp_fbm", "sp_texture"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.55, "humidity": 0.75, "seasonality": 0.35, "continentality": 0.15 }
+    },
+    {
+      "_comment": "Tier 3-4 - Hills | 丘陵 | fbm + turbulence",
+      "id": "worldscape:hills",
+      "min_height": 55,
+      "max_height": 110,
+      "tier_whitelist": [3, 4],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "hi_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.65 }, "amplitude": 40.0 },
+        { "id": "hi_turb", "name": "turbulence", "params": { "strength": 0.3 }, "amplitude": 30.0 }
+      ],
+      "combinator": { "type": "add", "terms": ["hi_fbm", "hi_turb"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+    },
+    {
+      "_comment": "Tier 3 - Plains | 平原 | fbm + longwave + gully turbulence",
+      "id": "worldscape:plains",
+      "min_height": 33,
+      "max_height": 55,
+      "tier_whitelist": [3],
+      "height_cap": null,
+      "coordinate_transform": null,
+      "functions": [
+        { "id": "pl_fbm", "name": "fbm", "params": { "octaves": 4, "gain": 0.2 }, "amplitude": 15.0 },
+        { "id": "pl_longwave", "name": "fbm", "params": { "octaves": 2, "gain": 0.05 }, "amplitude": 3.0 },
+        { "id": "pl_gully", "name": "turbulence", "params": { "strength": 0.2 }, "amplitude": 1.5 }
+      ],
+      "combinator": { "type": "add", "terms": ["pl_fbm", "pl_longwave", "pl_gully"] },
+      "final": "base + combined",
+      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.6, "continentality": 0.5 }
+    }
+  ]
+}
