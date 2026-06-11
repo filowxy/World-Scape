@@ -22,11 +22,11 @@ public class MacroVoronoiSystem {
     private static final double WATER_TRANSITION_MULTIPLIER = 6.0;
     private static final int OCEAN_TIER_THRESHOLD = 2;
     // @AESTHETIC: Spawn ocean constraint radius (in Voronoi cells, ~2048 blocks each).
-    // RADIUS=1 limits ocean enforcement to immediate spawn cell, letting dist≥1 cells
+    // RADIUS=0 limits ocean enforcement to the spawn cell itself, letting dist≥1 cells
     // develop natural tier distribution including mountains.
-    // RADIUS=1 将海洋约束限制在出生点所在单元，距离≥1的单元可获得自然 Tier 分布（含山地）。
-    private static final int SPAWN_OCEAN_RADIUS_CELLS = 1;
-    private static final double SPAWN_MAX_OCEAN_WEIGHT = 0.4;
+    // RADIUS=0 将海洋约束限制在出生点所在单元本身，距离≥1的单元可获得自然 Tier 分布（含山地）。
+    private static final int SPAWN_OCEAN_RADIUS_CELLS = 0;
+    private static final double SPAWN_MAX_OCEAN_WEIGHT = 0.35;
     private final long worldSeed;
     private final int seaLevel;
     private final long voronoiXSeed;
@@ -140,7 +140,9 @@ public class MacroVoronoiSystem {
             }
             double primaryDist = Math.sqrt(minDistSq);
             double secondDist = Math.sqrt(secondMinDistSq);
-            double distRatio = primaryDist / (primaryDist + secondDist + 0.001);
+            // 使用较大的 epsilon (1.0) 避免近距离时 distRatio 数值不稳定
+            // Use larger epsilon (1.0) to avoid numerical instability in distRatio at close distances
+            double distRatio = primaryDist / (primaryDist + secondDist + 1.0);
             double halfBand = Math.min(0.45, (double)(transitionWidth / 2048) * 2.0);
             double minHalfBand = 0.08;
             if (halfBand < 0.08) {
@@ -179,16 +181,18 @@ public class MacroVoronoiSystem {
         RandomSource random = RandomSource.create((long)seed);
         int tier = random.nextInt(6);
         int distFromSpawn = Math.max(Math.abs(cellX), Math.abs(cellZ));
-        if (distFromSpawn <= 2) {
-            double oceanWeight = 0.4 * (1.0 - (double)distFromSpawn / 3.0);
-            if (random.nextDouble() < oceanWeight && tier > 1) {
+        if (distFromSpawn <= SPAWN_OCEAN_RADIUS_CELLS) {
+            double oceanWeight = SPAWN_MAX_OCEAN_WEIGHT * (1.0 - (double)distFromSpawn / 3.0);
+            if (random.nextDouble() < oceanWeight && tier > 1 && tier < 4) {
                 tier = random.nextInt(2);
             }
         }
-        // @AESTHETIC: Tier cap distribution adjusted from 25/30/25/20 to 10/25/35/30.
-        // Old: T4+T5=11.7%, New: T4+T5=17.0% (46% more mountain cells).
-        // 将 Tier 上限概率从 25/30/25/20 调整为 10/25/35/30，T4+T5 从 11.7% 提升至 17.0%。
-        tier = (r = random.nextDouble()) < 0.10 ? Math.min(tier, 2) : (r < 0.35 ? Math.min(tier, 3) : (r < 0.70 ? Math.min(tier, 4) : Math.min(tier, 5)));
+        // @AESTHETIC: Tier cap distribution adjusted from 10/25/35/30 to 10/20/30/40.
+        // Old: T4+T5=17.0%, New: T4+T5=22.0% (29% more mountain cells).
+        // T5 cap boosted from 30% to 40% to increase high-mountain terrain diversity.
+        // 将 Tier 上限概率从 10/25/35/30 调整为 10/20/30/40，T4+T5 从 17.0% 提升至 22.0%。
+        // T5 cap 从 30% 提升至 40%，增加高山地形多样性。
+        tier = (r = random.nextDouble()) < 0.10 ? Math.min(tier, 2) : (r < 0.30 ? Math.min(tier, 3) : (r < 0.60 ? Math.min(tier, 4) : Math.min(tier, 5)));
         return tier;
     }
 
@@ -208,9 +212,11 @@ public class MacroVoronoiSystem {
             }
             // @AESTHETIC: Symmetric neighbor correction — pull down isolated peaks AND pull up isolated valleys.
             // Eliminates iteration-order dependency by collecting min/max first, then correcting once.
+            // New threshold 3: allows more natural terrain variation instead of oversmoothing.
             // 对称邻居修正：同时拉低孤立高峰和拉高孤立低谷，先收集 min/max 再统一修正，消除迭代顺序依赖。
-            if (tier - minNeighborTier > 2) tier = minNeighborTier + 2;
-            if (maxNeighborTier - tier > 2) tier = Math.max(tier, maxNeighborTier - 2);
+            // 新阈值 3：允许更自然地形的变化，避免过度平滑。
+            if (tier - minNeighborTier > 3) tier = minNeighborTier + 3;
+            if (maxNeighborTier - tier > 3) tier = Math.max(tier, maxNeighborTier - 3);
             return tier;
         });
     }

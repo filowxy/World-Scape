@@ -27,6 +27,7 @@
 package com.worldscape.generator;
 
 import com.worldscape.generator.SurfaceAdapter;
+import com.worldscape.terrain.TerrainType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
@@ -205,16 +206,14 @@ implements SurfaceAdapter {
     }
 
     // @AESTHETIC: Apply WS-specific surface block corrections as an overlay on vanilla SurfaceRules.
-    // Corrects high-altitude snow and glacier ice that vanilla rules may not handle correctly.
-    // 在原版 SurfaceRules 之上叠加 WS 专属地表方块修正，修正高海拔雪块和冰川冰块。
+    // Overrides surface and sub-surface blocks for ALL 29 terrain types, consistent with FallbackSurfaceAdapter.
+    // 在原版 SurfaceRules 之上叠加 WS 专属地表方块修正，覆盖全部 29 种地形类型，与 FallbackSurfaceAdapter 保持一致。
     private void applyWorldScapeSurfaceOverlay(ChunkAccess chunk, SurfaceAdapter.SurfaceBuildContext context) {
         int[][] heightMap = context.getHeightMap();
+        TerrainType[][] terrainTypeMap = context.getTerrainTypeMap();
         int minX = context.getMinBlockX();
         int minZ = context.getMinBlockZ();
         int seaLevel = this.settings.seaLevel();
-        net.minecraft.world.level.block.state.BlockState snowBlock = Blocks.SNOW_BLOCK.defaultBlockState();
-        net.minecraft.world.level.block.state.BlockState packedIce = Blocks.PACKED_ICE.defaultBlockState();
-        net.minecraft.world.level.block.state.BlockState air = Blocks.AIR.defaultBlockState();
         net.minecraft.core.BlockPos.MutableBlockPos pos = new net.minecraft.core.BlockPos.MutableBlockPos();
 
         for (int x = 0; x < 16; ++x) {
@@ -224,28 +223,126 @@ implements SurfaceAdapter {
                 int worldX = minX + x;
                 int worldZ = minZ + z;
 
-                // High altitude snow overlay (> 90 blocks above sea level)
-                // 高海拔雪块叠加（海平面以上 > 90 格）
-                if (terrainHeight > seaLevel + 90) {
-                    pos.set(worldX, terrainHeight, worldZ);
-                    if (!chunk.getBlockState(pos).isAir()) {
-                        chunk.setBlockState(pos, snowBlock, false);
-                    }
+                TerrainType terrainType = (terrainTypeMap != null) ? terrainTypeMap[x][z] : null;
+                if (terrainType == null) continue;
+
+                // Override surface block based on terrain type (all 29 types)
+                // 根据地形类型覆盖表面方块（全部 29 种类型）
+                net.minecraft.world.level.block.state.BlockState surfaceBlock = this.determineSurfaceBlockByTerrainType(terrainType);
+                pos.set(worldX, terrainHeight, worldZ);
+                if (!chunk.getBlockState(pos).isAir()) {
+                    chunk.setBlockState(pos, surfaceBlock, false);
                 }
 
-                // Glacier/ice sheet subsurface overlay (> 120 blocks above sea level)
-                // 冰川/冰原次表层冰块叠加（海平面以上 > 120 格）
-                if (terrainHeight > seaLevel + 120) {
-                    for (int dy = 1; dy <= 3; ++dy) {
-                        pos.set(worldX, terrainHeight - dy, worldZ);
-                        net.minecraft.world.level.block.state.BlockState current = chunk.getBlockState(pos);
-                        if (!current.isAir() && current.getBlock() != Blocks.WATER) {
-                            chunk.setBlockState(pos, packedIce, false);
-                        }
+                // Override sub-surface blocks based on terrain type (all 29 types)
+                // 根据地形类型覆盖次表层方块（全部 29 种类型）
+                boolean isUnderwater = false;
+                net.minecraft.world.level.block.state.BlockState subSurfaceBlock = this.determineSubSurfaceBlockByTerrainType(terrainType, isUnderwater);
+                for (int dy = 1; dy <= 3; ++dy) {
+                    pos.set(worldX, terrainHeight - dy, worldZ);
+                    net.minecraft.world.level.block.state.BlockState current = chunk.getBlockState(pos);
+                    if (!current.isAir() && current.getBlock() != Blocks.WATER) {
+                        chunk.setBlockState(pos, subSurfaceBlock, false);
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Determine surface block based on TerrainType, mirroring FallbackSurfaceAdapter logic.
+     * 根据 TerrainType 确定表面方块，与 FallbackSurfaceAdapter 逻辑一致。
+     */
+    private net.minecraft.world.level.block.state.BlockState determineSurfaceBlockByTerrainType(TerrainType terrainType) {
+        // Mountain/rocky types → gravel
+        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.RIDGE
+            || terrainType == TerrainType.PEAK || terrainType == TerrainType.HORN
+            || terrainType == TerrainType.CLIFF || terrainType == TerrainType.CANYON
+            || terrainType == TerrainType.PLATEAU || terrainType == TerrainType.SEA_CLIFF) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // Desert/arid types → sand
+        if (terrainType == TerrainType.GOBI || terrainType == TerrainType.SALT_FLAT
+            || terrainType == TerrainType.DUNE || terrainType == TerrainType.YARDANG) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // Beach → sand
+        if (terrainType == TerrainType.BEACH) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // Ice/snow types → snow block (always, no height threshold)
+        if (terrainType == TerrainType.ICE_SHEET || terrainType == TerrainType.GLACIAL_VALLEY
+            || terrainType == TerrainType.CIRQUE) {
+            return Blocks.SNOW_BLOCK.defaultBlockState();
+        }
+
+        // Underwater types → gravel
+        if (terrainType == TerrainType.TRENCH || terrainType == TerrainType.SEA_PLATEAU) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // Delta → sand
+        if (terrainType == TerrainType.DELTA) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // Fjord → gravel
+        if (terrainType == TerrainType.FJORD) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // Default: PLAINS, HILLS, VALLEY, FLOODPLAIN, ALLUVIAL_FAN, PEAK_FOREST,
+        // BASIN, SINKHOLE, DOME → grass block
+        return Blocks.GRASS_BLOCK.defaultBlockState();
+    }
+
+    /**
+     * Determine sub-surface block based on TerrainType, mirroring FallbackSurfaceAdapter logic.
+     * 根据 TerrainType 确定次表层方块，与 FallbackSurfaceAdapter 逻辑一致。
+     */
+    private net.minecraft.world.level.block.state.BlockState determineSubSurfaceBlockByTerrainType(TerrainType terrainType, boolean isUnderwater) {
+        // Ice/snow types → packed ice (always, no height threshold)
+        if (terrainType == TerrainType.ICE_SHEET || terrainType == TerrainType.GLACIAL_VALLEY
+            || terrainType == TerrainType.CIRQUE) {
+            return Blocks.PACKED_ICE.defaultBlockState();
+        }
+
+        // Mountain/rocky types → gravel
+        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.RIDGE
+            || terrainType == TerrainType.PEAK || terrainType == TerrainType.HORN
+            || terrainType == TerrainType.CLIFF || terrainType == TerrainType.CANYON
+            || terrainType == TerrainType.PLATEAU || terrainType == TerrainType.SEA_CLIFF
+            || terrainType == TerrainType.FJORD) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // Desert/arid types → sand
+        if (terrainType == TerrainType.GOBI || terrainType == TerrainType.SALT_FLAT
+            || terrainType == TerrainType.DUNE || terrainType == TerrainType.YARDANG) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // Beach/delta → sand
+        if (terrainType == TerrainType.BEACH || terrainType == TerrainType.DELTA) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // Underwater types → gravel
+        if (terrainType == TerrainType.TRENCH || terrainType == TerrainType.SEA_PLATEAU) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // Default underwater → sand
+        if (isUnderwater) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // Default land: PLAINS, HILLS, VALLEY, FLOODPLAIN, ALLUVIAL_FAN, PEAK_FOREST,
+        // BASIN, SINKHOLE, DOME → dirt
+        return Blocks.DIRT.defaultBlockState();
     }
 
     private void injectNoiseChunk(ChunkAccess chunk, Object noiseChunk, ReflectionCache cache) {
@@ -258,9 +355,11 @@ implements SurfaceAdapter {
                 return;
             }
             catch (Exception exception) {
+                // 字段注入失败，尝试下一个候选字段名 / Field injection failed, trying next candidate field name
+                LOGGER.debug("{} Failed to inject via field '{}': {}", (Object)MOD_ID, (Object)fieldName, (Object)exception.getMessage());
             }
         }
-        LOGGER.warn("{} Could not inject noiseChunk into chunk", (Object)MOD_ID);
+        LOGGER.error("{} Could not inject noiseChunk into chunk", (Object)MOD_ID);
     }
 
     private Object getPositionalRandom(RandomState randomState, ReflectionCache cache) {

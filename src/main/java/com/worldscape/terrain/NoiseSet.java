@@ -85,23 +85,22 @@ public class NoiseSet {
     public double sample(NoiseProfile profile, int x, int z) {
         double cx = (double)x + 0.5;
         double cz = (double)z + 0.5;
-        return switch (profile.ordinal()) {
-            default -> throw new MatchException(null, null);
-            case 0 -> this.continent.getValue(cx / 2048.0, cz / 2048.0, 0.0);
-            case 1 -> this.region.getValue(cx / 1024.0, cz / 1024.0, 0.0);
-            case 2 -> this.mountain.getValue(cx / 512.0, cz / 512.0, 0.0);
-            case 3 -> this.valley.getValue(cx / 256.0, cz / 256.0, 0.0);
-            case 4 -> this.hills.getValue(cx / 128.0, cz / 128.0, 0.0);
-            case 5 -> this.plainsMacro.getValue(cx / 512.0, cz / 512.0, 0.0);
-            case 6 -> this.plainsMeso.getValue(cx / 96.0, cz / 96.0, 0.0);
-            case 7 -> this.plainsMicro.getValue(cx / 24.0, cz / 24.0, 0.0);
-            case 8 -> this.riverPath.getValue(cx / 512.0, cz / 512.0, 0.0);
-            case 9 -> this.riverWidth.getValue(cx / 256.0, cz / 256.0, 0.0);
-            case 10 -> this.drainage.getValue(cx / 256.0, cz / 256.0, 0.0);
-            case 11 -> this.mountainPeaks.getValue(cx / 256.0, cz / 256.0, 0.0);
-            case 12 -> this.mountainRidge.getValue(cx / 128.0, cz / 128.0, 0.0);
-            case 13 -> this.mountainDetail.getValue(cx / 64.0, cz / 64.0, 0.0);
-            case 14 -> this.seabed.getValue(cx / 64.0, cz / 64.0, 0.0);
+        return switch (profile) {
+            case CONTINENT -> this.continent.getValue(cx / 2048.0, cz / 2048.0, 0.0);
+            case REGION -> this.region.getValue(cx / 1024.0, cz / 1024.0, 0.0);
+            case MOUNTAIN -> this.mountain.getValue(cx / 512.0, cz / 512.0, 0.0);
+            case VALLEY -> this.valley.getValue(cx / 256.0, cz / 256.0, 0.0);
+            case HILLS -> this.hills.getValue(cx / 128.0, cz / 128.0, 0.0);
+            case PLAINS_MACRO -> this.plainsMacro.getValue(cx / 512.0, cz / 512.0, 0.0);
+            case PLAINS_MESO -> this.plainsMeso.getValue(cx / 96.0, cz / 96.0, 0.0);
+            case PLAINS_MICRO -> this.plainsMicro.getValue(cx / 24.0, cz / 24.0, 0.0);
+            case RIVER_PATH -> this.riverPath.getValue(cx / 512.0, cz / 512.0, 0.0);
+            case RIVER_WIDTH -> this.riverWidth.getValue(cx / 256.0, cz / 256.0, 0.0);
+            case DRAINAGE -> this.drainage.getValue(cx / 256.0, cz / 256.0, 0.0);
+            case MOUNTAIN_PEAKS -> this.mountainPeaks.getValue(cx / 256.0, cz / 256.0, 0.0);
+            case MOUNTAIN_RIDGE -> this.mountainRidge.getValue(cx / 128.0, cz / 128.0, 0.0);
+            case MOUNTAIN_DETAIL -> this.mountainDetail.getValue(cx / 64.0, cz / 64.0, 0.0);
+            case SEABED -> this.seabed.getValue(cx / 64.0, cz / 64.0, 0.0);
         };
     }
 

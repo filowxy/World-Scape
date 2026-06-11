@@ -29,6 +29,10 @@ dependencies {
     // Mixin annotation processor
     compileOnly 'org.spongepowered:mixin:0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+
+    // Test dependencies
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.register('runSeedAnalyzer', JavaExec) {
@@ -40,4 +44,13 @@ tasks.register('runSeedAnalyzer', JavaExec) {
     } else {
         args '--help'
     }
+}
+
+test {
+    useJUnitPlatform()
+
+    // Include NeoForge/Minecraft dependencies on the test classpath.
+    // ModDev 2.0 injects Minecraft via the main sourceSet runtimeClasspath
+    // but does not automatically extend the test classpath with it.
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.test.runtimeClasspath
 }

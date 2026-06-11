@@ -57,6 +57,11 @@ public class RegionController {
     }
 
     public TerrainBlendResult getTerrainBlend(int x, int z, BlendCache cache) {
+        // 无缓存路径搜索 3×3 区域（searchRadius=1200），有缓存路径按 influenceRadius 过滤。
+        // 两者功能等价：缓存包含相同的 3×3 区域控制点，且 influenceRadius < searchRadius。
+        // Cache-less path searches 3×3 regions (searchRadius=1200); cached path filters by influenceRadius.
+        // Both are functionally equivalent: the cache contains the same 3×3 region points,
+        // and all influence radii are less than searchRadius.
         ArrayList<TerrainControlPoint> points;
         MacroRegionInfo macroInfo = this.macroSystem.getRegionInfo(x, z);
         if (cache != null) {
@@ -79,8 +84,8 @@ public class RegionController {
                 return new TerrainBlendResult(macroBaseHeight, macroInfo, List.of(), 0.0, defaultType, 0.0);
             }
         } else {
-            int regionX = Math.floorDiv(x, 512);
-            int regionZ = Math.floorDiv(z, 512);
+            int regionX = Math.floorDiv(x, ControlPointRegion.REGION_SIZE);
+            int regionZ = Math.floorDiv(z, ControlPointRegion.REGION_SIZE);
             points = new ArrayList();
             double searchRadius = 1200.0;
             ControlPointRegion region = this.getOrCreateRegion(regionX, regionZ);
@@ -142,20 +147,18 @@ public class RegionController {
         double tierMinHeight = this.lerp(secondMin, primaryMin, blendWeight);
         microHeight = Math.max(microHeight, tierMinHeight);
         double tierAdjustment = (double)(primaryTier - 4) * WorldScapeConstants.TIER_BASE_HEIGHT * WorldScapeConstants.TIER_ADJUSTMENT_FACTOR;
-        if (blendWeight > WorldScapeConstants.BLEND_WEIGHT_THRESHOLD) {
-            finalHeight = macroBaseHeight + microHeight + tierAdjustment;
-        } else {
-            double boundaryProximityRaw = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
-            boundaryProximityRaw = Math.max(0.0, Math.min(1.0, boundaryProximityRaw));
-            double boundaryProximity = WorldScapeUtils.smoothstep(0.0, 1.0, boundaryProximityRaw);
-            double macroInfluence = boundaryProximity * WorldScapeConstants.MAX_MACRO_INFLUENCE;
-            if (primaryTier == 0) {
-                macroInfluence *= WorldScapeConstants.OCEAN_TIER0_MACRO_DAMPING;
-            } else if (primaryTier == 1) {
-                macroInfluence *= WorldScapeConstants.OCEAN_TIER1_MACRO_DAMPING;
-            }
-            finalHeight = this.lerp(macroBaseHeight + microHeight + tierAdjustment, macroBaseHeight, macroInfluence);
+        // macroInfluence naturally approaches 0 as blendWeight → 1.0,
+        // eliminating the need for a hard threshold switch.
+        double boundaryProximityRaw = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
+        boundaryProximityRaw = Math.max(0.0, Math.min(1.0, boundaryProximityRaw));
+        double boundaryProximity = WorldScapeUtils.smoothstep(0.0, 1.0, boundaryProximityRaw);
+        double macroInfluence = boundaryProximity * WorldScapeConstants.MAX_MACRO_INFLUENCE;
+        if (primaryTier == 0) {
+            macroInfluence *= WorldScapeConstants.OCEAN_TIER0_MACRO_DAMPING;
+        } else if (primaryTier == 1) {
+            macroInfluence *= WorldScapeConstants.OCEAN_TIER1_MACRO_DAMPING;
         }
+        finalHeight = this.lerp(macroBaseHeight + microHeight + tierAdjustment, macroBaseHeight, macroInfluence);
         TerrainBlendResult typeResult = this.determineDominantTerrainType(weightedPoints, totalWeight);
         ClimateUtils.ClimateProfile blendedClimate = this.calculateBlendedClimate(weightedPoints, totalWeight, macroInfo.getElevationTier());
         return new TerrainBlendResult(finalHeight, macroInfo, weightedPoints, macroBaseHeight - microHeight, typeResult.dominantType, typeResult.dominantWeight, blendedClimate);
@@ -308,8 +311,8 @@ public class RegionController {
         // pairs do NOT contend on the same lock, eliminating the C2ME serial bottleneck.
         long regionGenStart = System.nanoTime();
         region = this.terrainRegionCache.computeIfAbsent(key, k -> {
-            int centerBlockX = regionX * 512 + 256;
-            int centerBlockZ = regionZ * 512 + 256;
+            int centerBlockX = regionX * ControlPointRegion.REGION_SIZE + ControlPointRegion.REGION_SIZE / 2;
+            int centerBlockZ = regionZ * ControlPointRegion.REGION_SIZE + ControlPointRegion.REGION_SIZE / 2;
             int macroTier = this.macroSystem.getRegionInfo(centerBlockX, centerBlockZ).getElevationTier();
             return new ControlPointRegion(regionX, regionZ, this.worldSeed, macroTier);
         });

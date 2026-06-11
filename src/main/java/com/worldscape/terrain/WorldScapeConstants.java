@@ -10,7 +10,7 @@ public final class WorldScapeConstants {
     public static final int CHUNK_CENTER_OFFSET = 8;
     public static final int SEA_LEVEL_FALLBACK = 63;
     public static final int MIN_TERRAIN_HEIGHT = -64;
-    public static final int MAX_TERRAIN_HEIGHT = 512;
+    public static final int MAX_TERRAIN_HEIGHT = 400;
     public static final int OVERWORLD_MIN_Y = -64;
     public static final int OVERWORLD_HEIGHT = 384;
     public static final int DEEPSLATE_TOP_Y = 0;
@@ -23,7 +23,9 @@ public final class WorldScapeConstants {
     public static final int MAX_BEDROCK_LAYERS = 3;
     public static final double DOMINANT_WEIGHT_THRESHOLD = 0.4;
     public static final double BLEND_WEIGHT_THRESHOLD = 0.8;
-    public static final double MAX_MACRO_INFLUENCE = 0.15;
+    // 宏观影响最大值：控制 Voronoi 边界过渡的平滑度
+    // Maximum macro influence: controls smoothness of Voronoi boundary transitions
+    public static final double MAX_MACRO_INFLUENCE = 0.25;
     public static final double OCEAN_TIER0_MACRO_DAMPING = 0.33;
     public static final double OCEAN_TIER1_MACRO_DAMPING = 0.5;
     public static final double TIER_BASE_HEIGHT = 8.0;
@@ -52,11 +54,27 @@ public final class WorldScapeConstants {
     // 山地类型侵蚀更强（更深的沟壑），平原/冰盖类型侵蚀更弱
     public static final double EROSION_MULTIPLIER_MOUNTAIN = 1.5;
     public static final double EROSION_MULTIPLIER_PLAIN = 0.5;
-    // @AESTHETIC: Terrain-type-dependent river depth multipliers
+    // @AESTHETIC: Terrain-type-dependent river depth multipliers (legacy, kept for erosion)
     // Mountain rivers are deeper/narrower; plain rivers are shallower/wider
     // 山区河流更深（×1.5），平原河流更浅（×0.8）
     public static final double RIVER_DEPTH_MULTIPLIER_MOUNTAIN = 1.5;
     public static final double RIVER_DEPTH_MULTIPLIER_PLAIN = 0.8;
+    // @AESTHETIC: Continuous elevation-based river depth interpolation parameters.
+    // Replaces hard tier switching — depth multiplier lerps smoothly from sea level
+    // to high elevation, preserving river continuity across terrain transitions.
+    // 基于海拔的连续河流深度插值参数：替代硬切换，深度乘数从海平面到高海拔平滑过渡，
+    // 保持河流跨越地形变化时的连续性。
+    public static final double RIVER_DEPTH_ELEVATION_MIN = 0.0;
+    public static final double RIVER_DEPTH_ELEVATION_MAX = 200.0;
+    public static final double RIVER_DEPTH_MULTIPLIER_LOW = 0.8;
+    public static final double RIVER_DEPTH_MULTIPLIER_HIGH = 1.5;
+    // @AESTHETIC: Gradient-driven river depth factor.
+    // Steeper terrain → deeper river incision. Gradient is a smoothly varying field,
+    // so depth transitions remain continuous even when crossing terrain boundaries.
+    // 基于梯度的河流深度因子：陡坡→更深河流切割。梯度是平滑变化的场，
+    // 因此深度过渡即使在跨越地形边界时也保持连续。
+    public static final double RIVER_GRADIENT_REFERENCE = 0.2;
+    public static final double RIVER_GRADIENT_DEPTH_FACTOR = 0.5;
     public static final double ELEVATION_NORMALIZATION_FACTOR = 100.0;
     public static final double ALLUVIAL_FAN_AMPLITUDE = 25.0;
     public static final double ALLUVIAL_FAN_FBM_AMP = 5.0;
@@ -128,11 +146,12 @@ public final class WorldScapeConstants {
     public static final int SUBSURFACE_LAYER_DEPTH = 4;
     public static final int UNDERWATER_STONE_DEPTH = 5;
     public static final int DEEP_STONE_LAYER_DEPTH = 16;
-    public static final int STONE_VARIANT_CHANCE = 8;
+    public static final int STONE_VARIANT_CHANCE = 10;
     public static final int STONE_VARIANT_ROLL_RANGE = 100;
-    public static final int GRANITE_THRESHOLD = 8;
-    public static final int DIORITE_THRESHOLD = 16;
-    public static final int ANDESITE_THRESHOLD = 24;
+    public static final int GRANITE_THRESHOLD = 10;
+    public static final int DIORITE_THRESHOLD = 20;
+    public static final int ANDESITE_THRESHOLD = 30;
+    public static final int COBBLESTONE_THRESHOLD = 33;
     public static final int SNOW_ALTITUDE_OFFSET = 50;
     public static final int LOCATE_MAX_SEARCH_RADIUS = 20000;
     public static final int LOCATE_SEARCH_STEP = 64;

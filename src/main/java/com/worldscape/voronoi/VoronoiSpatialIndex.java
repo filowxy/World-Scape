@@ -3,6 +3,7 @@
  */
 package com.worldscape.voronoi;
 
+import com.worldscape.terrain.ControlPointRegion;
 import com.worldscape.voronoi.VoronoiControlPoint;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class VoronoiSpatialIndex {
-    public static final int CELL_SIZE = 512;
+    public static final int CELL_SIZE = ControlPointRegion.REGION_SIZE;
     private static final int MAX_QUERY_CACHE = 256;
     private final Map<Long, List<VoronoiControlPoint>> grid = new ConcurrentHashMap<Long, List<VoronoiControlPoint>>();
     private final AtomicInteger pointCount = new AtomicInteger(0);
@@ -68,10 +69,10 @@ public class VoronoiSpatialIndex {
             return cached;
         }
         long radiusSq = (long)radius * (long)radius;
-        int minCellX = Math.floorDiv(cx - radius, 512);
-        int maxCellX = Math.floorDiv(cx + radius, 512);
-        int minCellZ = Math.floorDiv(cz - radius, 512);
-        int maxCellZ = Math.floorDiv(cz + radius, 512);
+        int minCellX = Math.floorDiv(cx - radius, CELL_SIZE);
+        int maxCellX = Math.floorDiv(cx + radius, CELL_SIZE);
+        int minCellZ = Math.floorDiv(cz - radius, CELL_SIZE);
+        int maxCellZ = Math.floorDiv(cz + radius, CELL_SIZE);
         ArrayList<VoronoiControlPoint> result = new ArrayList<VoronoiControlPoint>();
         for (int cellX = minCellX; cellX <= maxCellX; ++cellX) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; ++cellZ) {
@@ -91,10 +92,10 @@ public class VoronoiSpatialIndex {
     }
 
     public List<VoronoiControlPoint> queryViewport(int viewportMinX, int viewportMinZ, int viewportMaxX, int viewportMaxZ) {
-        int minCellX = Math.floorDiv(viewportMinX, 512);
-        int maxCellX = Math.floorDiv(viewportMaxX, 512);
-        int minCellZ = Math.floorDiv(viewportMinZ, 512);
-        int maxCellZ = Math.floorDiv(viewportMaxZ, 512);
+        int minCellX = Math.floorDiv(viewportMinX, CELL_SIZE);
+        int maxCellX = Math.floorDiv(viewportMaxX, CELL_SIZE);
+        int minCellZ = Math.floorDiv(viewportMinZ, CELL_SIZE);
+        int maxCellZ = Math.floorDiv(viewportMaxZ, CELL_SIZE);
         ArrayList<VoronoiControlPoint> result = new ArrayList<VoronoiControlPoint>();
         for (int cellX = minCellX; cellX <= maxCellX; ++cellX) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; ++cellZ) {
@@ -149,14 +150,14 @@ public class VoronoiSpatialIndex {
     }
 
     private long getCellKey(int worldX, int worldZ) {
-        int cellX = Math.floorDiv(worldX, 512);
-        int cellZ = Math.floorDiv(worldZ, 512);
+        int cellX = Math.floorDiv(worldX, CELL_SIZE);
+        int cellZ = Math.floorDiv(worldZ, CELL_SIZE);
         return (long)cellX << 32 | (long)cellZ & 0xFFFFFFFFL;
     }
 
     private void invalidateQueryCache(int worldX, int worldZ) {
-        int cellX = Math.floorDiv(worldX, 512);
-        int cellZ = Math.floorDiv(worldZ, 512);
+        int cellX = Math.floorDiv(worldX, CELL_SIZE);
+        int cellZ = Math.floorDiv(worldZ, CELL_SIZE);
         this.queryCache.clear();
     }
 

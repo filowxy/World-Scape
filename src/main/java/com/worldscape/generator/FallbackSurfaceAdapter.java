@@ -15,10 +15,12 @@
 package com.worldscape.generator;
 
 import com.worldscape.generator.SurfaceAdapter;
-import java.lang.reflect.Method;
+import com.worldscape.terrain.TerrainType;
+import com.worldscape.terrain.WorldScapeConstants;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.lang.reflect.Method;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.biome.Biome;
@@ -72,6 +74,8 @@ implements SurfaceAdapter {
         ChunkAccess chunk = (ChunkAccess)context.getChunk();
         WorldGenRegion region = (WorldGenRegion)context.getRegion();
         int[][] heightMap = context.getHeightMap();
+        // 获取地形类型映射表，优先使用 TerrainType 而非 biome 字符串匹配 / Get terrain type map, prefer TerrainType over biome string matching
+        TerrainType[][] terrainTypeMap = context.getTerrainTypeMap();
         int minY = context.getMinY();
         int maxY = context.getMaxY();
         int minX = context.getMinBlockX();
@@ -95,31 +99,43 @@ implements SurfaceAdapter {
                 int terrainHeight = heightMap[x][z];
                 int worldX = minX + x;
                 int worldZ = minZ + z;
+
+                // 优先使用 TerrainType 确定表面方块 / Prefer TerrainType for surface block determination
+                TerrainType terrainType = (terrainTypeMap != null) ? terrainTypeMap[x][z] : null;
+
+                // 仅在 terrainTypeMap 不可用时才使用 biome 字符串匹配作为回退 / Only use biome string matching as fallback when terrainTypeMap is unavailable
                 Biome biome = null;
-                try {
-                    biome = (Biome)region.getBiome(new BlockPos(worldX, terrainHeight, worldZ)).value();
-                }
-                catch (Exception e) {
-                    LOGGER.debug("{} Failed to get biome at ({}, {}, {}), using default", new Object[]{MOD_ID, worldX, terrainHeight, worldZ});
-                }
                 String biomeId = "minecraft:plains";
-                if (biome != null) {
-                    // @PERF: Cache biomeId to avoid repeated reflection per column
-                    // 缓存 biomeId 避免每列重复反射
-                    biomeId = this.biomeIdCache.computeIfAbsent(biome, b -> {
-                        try {
-                            Method getKeyMethod = Biome.class.getMethod("getKey", new Class[0]);
-                            Object key = getKeyMethod.invoke(b, new Object[0]);
-                            if (key != null) {
-                                Method toStringMethod = key.getClass().getMethod("toString", new Class[0]);
-                                return toStringMethod.invoke(key, new Object[0]).toString();
+                boolean useBiomeFallback = (terrainType == null);
+
+                if (useBiomeFallback) {
+                    try {
+                        biome = (Biome)region.getBiome(new BlockPos(worldX, terrainHeight, worldZ)).value();
+                    }
+                    catch (Exception e) {
+                        LOGGER.debug("{} Failed to get biome at ({}, {}, {}), using default", new Object[]{MOD_ID, worldX, terrainHeight, worldZ});
+                    }
+                    if (biome != null) {
+                        // @PERF: Cache biomeId to avoid repeated reflection per column
+                        // 缓存 biomeId 避免每列重复反射
+                        biomeId = this.biomeIdCache.computeIfAbsent(biome, b -> {
+                            try {
+                                Method getKeyMethod = Biome.class.getMethod("getKey", new Class[0]);
+                                Object key = getKeyMethod.invoke(b, new Object[0]);
+                                if (key != null) {
+                                    Method toStringMethod = key.getClass().getMethod("toString", new Class[0]);
+                                    return toStringMethod.invoke(key, new Object[0]).toString();
+                                }
                             }
-                        }
-                        catch (Exception ignored) {
-                        }
-                        return "minecraft:plains";
-                    });
+                            catch (Exception e) {
+                                // 反射获取 biome ID 失败，使用默认值 / Failed to get biome ID via reflection, using default
+                                LOGGER.debug("{} Failed to get biome ID via reflection: {}", (Object)MOD_ID, (Object)e.getClass().getSimpleName());
+                            }
+                            return "minecraft:plains";
+                        });
+                    }
                 }
+
                 boolean isHighAltitude = terrainHeight > surfaceLevel + 30;
                 boolean isMountain = biomeId.contains("mountain") || biomeId.contains("highland") || biomeId.contains("summit") || biomeId.contains("peak");
                 boolean isSnowy = biomeId.contains("snowy") || biomeId.contains("ice") || biomeId.contains("frozen");
@@ -129,31 +145,51 @@ implements SurfaceAdapter {
                 long stoneVariantSeed = (long)worldX * 31341L + (long)worldZ * 45231L + this.worldSeed;
                 Random stoneRand = THREAD_LOCAL_RANDOM.get();
                 stoneRand.setSeed(stoneVariantSeed);
-                BlockState deepStone = this.getRandomStoneVariant(stoneRand);
+                BlockState deepStone = getRandomStoneVariant(stoneRand);
                 for (int y = minY; y < maxY; ++y) {
                     BlockPos pos = new BlockPos(worldX, y, worldZ);
                     if (y > terrainHeight) {
                         boolean isOceanBiome;
                         if (y > surfaceLevel) continue;
-                        boolean bl = isOceanBiome = biomeId.contains("ocean") || biomeId.contains("deep_ocean") || biomeId.contains("sea") || biomeId.contains("cold_ocean") || biomeId.contains("frozen_ocean") || biomeId.contains("lukewarm_ocean") || biomeId.contains("warm_ocean");
-                        if (!isOceanBiome) continue;
+                        // 水下填充：优先根据 TerrainType 判断 / Underwater fill: prefer TerrainType-based check
+                        if (terrainType != null) {
+                            if (!isUnderwaterTerrainType(terrainType)) continue;
+                        } else {
+                            boolean bl = isOceanBiome = biomeId.contains("ocean") || biomeId.contains("deep_ocean") || biomeId.contains("sea") || biomeId.contains("cold_ocean") || biomeId.contains("frozen_ocean") || biomeId.contains("lukewarm_ocean") || biomeId.contains("warm_ocean");
+                            if (!isOceanBiome) continue;
+                        }
                         chunk.setBlockState(pos, water, false);
                         continue;
                     }
                     if (y == terrainHeight) {
-                        BlockState surfaceBlock = this.determineSurfaceBlock(biomeId, isHighAltitude, isMountain, isSnowy, isDesert, isBeach, isStony, terrainHeight, surfaceLevel);
+                        // 优先使用 TerrainType 确定表面方块 / Prefer TerrainType for surface block
+                        BlockState surfaceBlock;
+                        if (terrainType != null) {
+                            surfaceBlock = determineSurfaceBlockByTerrainType(terrainType, terrainHeight, surfaceLevel);
+                        } else {
+                            surfaceBlock = this.determineSurfaceBlock(biomeId, isHighAltitude, isMountain, isSnowy, isDesert, isBeach, isStony, terrainHeight, surfaceLevel);
+                        }
                         chunk.setBlockState(pos, surfaceBlock, false);
                         continue;
                     }
-                    // @AESTHETIC: Sub-surface layering — dirt on dry land, sand near sea level/desert, gravel on mountain
-                    // 次表层分层：干燥陆地用泥土，近海/沙漠用沙子，山地用砂砾
+                    // @AESTHETIC: Sub-surface layering based on TerrainType / 基于 TerrainType 的次表层分层
                     if (y > terrainHeight - 4) {
                         if (terrainHeight <= surfaceLevel) {
+                            // 水下次表层 / Underwater sub-surface
+                            if (terrainType != null) {
+                                chunk.setBlockState(pos, determineSubSurfaceBlockByTerrainType(terrainType, true), false);
+                                continue;
+                            }
                             if (isStony || terrainHeight < surfaceLevel - 5) {
                                 chunk.setBlockState(pos, gravel, false);
                                 continue;
                             }
                             chunk.setBlockState(pos, sand, false);
+                            continue;
+                        }
+                        // 陆上次表层 / Land sub-surface
+                        if (terrainType != null) {
+                            chunk.setBlockState(pos, determineSubSurfaceBlockByTerrainType(terrainType, false), false);
                             continue;
                         }
                         // @AESTHETIC: Glacier and ice terrain — use packed ice sub-surface for snowy high-altitude areas
@@ -177,7 +213,7 @@ implements SurfaceAdapter {
                     // 扩展石头变体混合 —— 更深范围，更高变体概率，深层使用深板岩
                     if (y > terrainHeight - 32) {
                         if (stoneRand.nextInt(4) == 0) {
-                            chunk.setBlockState(pos, this.getRandomStoneVariant(stoneRand), false);
+                            chunk.setBlockState(pos, getRandomStoneVariant(stoneRand), false);
                             continue;
                         }
                         chunk.setBlockState(pos, stone, false);
@@ -185,7 +221,7 @@ implements SurfaceAdapter {
                     }
                     if (y > 0) {
                         if (stoneRand.nextInt(3) == 0) {
-                            chunk.setBlockState(pos, this.getRandomStoneVariant(stoneRand), false);
+                            chunk.setBlockState(pos, getRandomStoneVariant(stoneRand), false);
                             continue;
                         }
                         chunk.setBlockState(pos, stone, false);
@@ -197,18 +233,18 @@ implements SurfaceAdapter {
         }
     }
 
-    private BlockState getRandomStoneVariant(Random rand) {
-        int roll = rand.nextInt(100);
-        if (roll < 10) {
+    static BlockState getRandomStoneVariant(Random rand) {
+        int roll = rand.nextInt(WorldScapeConstants.STONE_VARIANT_ROLL_RANGE);
+        if (roll < WorldScapeConstants.GRANITE_THRESHOLD) {
             return Blocks.GRANITE.defaultBlockState();
         }
-        if (roll < 20) {
+        if (roll < WorldScapeConstants.DIORITE_THRESHOLD) {
             return Blocks.DIORITE.defaultBlockState();
         }
-        if (roll < 30) {
+        if (roll < WorldScapeConstants.ANDESITE_THRESHOLD) {
             return Blocks.ANDESITE.defaultBlockState();
         }
-        if (roll < 33) {
+        if (roll < WorldScapeConstants.COBBLESTONE_THRESHOLD) {
             return Blocks.COBBLESTONE.defaultBlockState();
         }
         return Blocks.STONE.defaultBlockState();
@@ -243,6 +279,126 @@ implements SurfaceAdapter {
             return Blocks.SAND.defaultBlockState();
         }
         return Blocks.GRASS_BLOCK.defaultBlockState();
+    }
+
+    /**
+     * 根据 TerrainType 确定表面方块，替代 biome 字符串匹配。
+     * Determine surface block based on TerrainType, replacing biome string matching.
+     *
+     * @param terrainType  地形类型 / terrain type
+     * @param terrainHeight 地形高度 / terrain height
+     * @param seaLevel     海平面 / sea level
+     * @return 表面方块状态 / surface block state
+     */
+    static BlockState determineSurfaceBlockByTerrainType(TerrainType terrainType, int terrainHeight, int seaLevel) {
+        // 高山/岩石类型 → 砂砾 / Mountain/rocky types → gravel
+        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.RIDGE
+            || terrainType == TerrainType.PEAK || terrainType == TerrainType.HORN
+            || terrainType == TerrainType.CLIFF || terrainType == TerrainType.CANYON
+            || terrainType == TerrainType.PLATEAU || terrainType == TerrainType.SEA_CLIFF) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // 沙漠/荒漠类型 → 沙子 / Desert/arid types → sand
+        if (terrainType == TerrainType.GOBI || terrainType == TerrainType.SALT_FLAT
+            || terrainType == TerrainType.DUNE || terrainType == TerrainType.YARDANG) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // 海滩 → 沙子 / Beach → sand
+        if (terrainType == TerrainType.BEACH) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // 冰雪类型 → 雪块 / Ice/snow types → snow block
+        if (terrainType == TerrainType.ICE_SHEET || terrainType == TerrainType.GLACIAL_VALLEY
+            || terrainType == TerrainType.CIRQUE) {
+            return Blocks.SNOW_BLOCK.defaultBlockState();
+        }
+
+        // 水下类型 → 砂砾 / Underwater types → gravel
+        if (terrainType == TerrainType.TRENCH || terrainType == TerrainType.SEA_PLATEAU) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // 三角洲 → 沙子 / Delta → sand
+        if (terrainType == TerrainType.DELTA) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // 峡湾 → 砂砾 / Fjord → gravel
+        if (terrainType == TerrainType.FJORD) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // 草地/平原/丘陵等类型 → 草方块 / Grass/plains/hills types → grass block
+        // PLAINS, HILLS, VALLEY, FLOODPLAIN, ALLUVIAL_FAN, PEAK_FOREST, BASIN, SINKHOLE, DOME
+        return Blocks.GRASS_BLOCK.defaultBlockState();
+    }
+
+    /**
+     * 根据 TerrainType 确定次表层方块。
+     * Determine sub-surface block based on TerrainType.
+     *
+     * @param terrainType 地形类型 / terrain type
+     * @param isUnderwater 是否在水下 / whether underwater
+     * @return 次表层方块状态 / sub-surface block state
+     */
+    static BlockState determineSubSurfaceBlockByTerrainType(TerrainType terrainType, boolean isUnderwater) {
+        // 冰雪类型 → 浮冰 / Ice/snow types → packed ice
+        if (terrainType == TerrainType.ICE_SHEET || terrainType == TerrainType.GLACIAL_VALLEY
+            || terrainType == TerrainType.CIRQUE) {
+            return Blocks.PACKED_ICE.defaultBlockState();
+        }
+
+        // 高山/岩石类型 → 砂砾 / Mountain/rocky types → gravel
+        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.RIDGE
+            || terrainType == TerrainType.PEAK || terrainType == TerrainType.HORN
+            || terrainType == TerrainType.CLIFF || terrainType == TerrainType.CANYON
+            || terrainType == TerrainType.PLATEAU || terrainType == TerrainType.SEA_CLIFF
+            || terrainType == TerrainType.FJORD) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // 沙漠/荒漠类型 → 沙子 / Desert/arid types → sand
+        if (terrainType == TerrainType.GOBI || terrainType == TerrainType.SALT_FLAT
+            || terrainType == TerrainType.DUNE || terrainType == TerrainType.YARDANG) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // 海滩/三角洲 → 沙子 / Beach/delta → sand
+        if (terrainType == TerrainType.BEACH || terrainType == TerrainType.DELTA) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // 水下类型 → 砂砾 / Underwater types → gravel
+        if (terrainType == TerrainType.TRENCH || terrainType == TerrainType.SEA_PLATEAU) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
+        // 水下次表层默认用沙子 / Default underwater sub-surface → sand
+        if (isUnderwater) {
+            return Blocks.SAND.defaultBlockState();
+        }
+
+        // 草地/平原/丘陵等类型 → 泥土 / Grass/plains/hills types → dirt
+        return Blocks.DIRT.defaultBlockState();
+    }
+
+    /**
+     * 判断地形类型是否为水下类型（需要填充水）。
+     * Determine whether the terrain type is an underwater type (requires water fill).
+     *
+     * @param terrainType 地形类型 / terrain type
+     * @return 是否为水下类型 / whether it's an underwater type
+     */
+    static boolean isUnderwaterTerrainType(TerrainType terrainType) {
+        return terrainType == TerrainType.TRENCH
+            || terrainType == TerrainType.SEA_PLATEAU
+            || terrainType == TerrainType.BEACH
+            || terrainType == TerrainType.DELTA
+            || terrainType == TerrainType.SEA_CLIFF
+            || terrainType == TerrainType.FJORD;
     }
 }
 

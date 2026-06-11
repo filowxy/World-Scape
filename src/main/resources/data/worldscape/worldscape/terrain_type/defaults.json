@@ -185,7 +185,7 @@
       "coordinate_transform": null,
       "functions": [
         { "id": "sf_fbm", "name": "fbm", "params": { "octaves": 2, "gain": 0.1 }, "amplitude": 3.0 },
-        { "id": "sf_crack", "name": "turbulence", "params": { "strength": 0.6 }, "amplitude": 1.5 }
+        { "id": "sf_crack", "name": "turbulence", "params": { "strength": 0.8 }, "amplitude": 3.0 }
       ],
       "combinator": { "type": "add", "terms": ["sf_fbm", "sf_crack"] },
       "final": "base + combined",
@@ -242,7 +242,7 @@
       "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
     },
     {
-      "_comment": "Tier 1-2 - Delta | 三角洲 | gradient + domain_rotated",
+      "_comment": "Tier 1-2 - Delta | gradient + branching channel sine + domain_rotated + fbm",
       "id": "worldscape:delta",
       "min_height": 22,
       "max_height": 39,
@@ -250,12 +250,14 @@
       "height_cap": null,
       "coordinate_transform": null,
       "functions": [
-        { "id": "dt_grad", "name": "gradient", "params": {}, "amplitude": 10.0 },
-        { "id": "dt_domain", "name": "domain_rotated", "params": { "warp_strength": 0.05 }, "amplitude": 8.0 }
+        { "id": "dt_grad", "name": "gradient", "params": {}, "amplitude": 8.0 },
+        { "id": "dt_channel", "name": "gradient_constrained_sine", "params": { "freq_x": 0.008, "freq_z": 0.012, "primary_amp": 4.0, "secondary_amp": 2.0, "secondary_freq_x": 0.02, "secondary_freq_z": 0.015, "gradient_sensitivity": 0.5, "gradient_half_factor": 0.3 }, "amplitude": 1.0 },
+        { "id": "dt_domain", "name": "domain_rotated", "params": { "warp_strength": 0.08 }, "amplitude": 5.0 },
+        { "id": "dt_fbm", "name": "fbm", "params": { "octaves": 2, "gain": 0.1 }, "amplitude": 2.0 }
       ],
-      "combinator": { "type": "add", "terms": ["dt_grad", "dt_domain"] },
+      "combinator": { "type": "add", "terms": ["dt_grad", "dt_channel", "dt_domain", "dt_fbm"] },
       "final": "base + combined",
-      "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
+      "climate": { "temperature": 0.5, "humidity": 0.6, "seasonality": 0.4, "continentality": 0.3 }
     },
     {
       "_comment": "Tier 4 - Alluvial Fan | 冲积扇 | contributing_point_distance + tanh math + fbm",

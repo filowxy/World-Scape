@@ -107,13 +107,13 @@ public final class TerrainType {
     }
 
     /**
-     * Calculate the height using the stored function definition.
-     * Falls back to 0.0 if no function definition is set.
-     * 使用存储的函数定义计算高度。若未设置函数定义则返回 0.0。
+     * @deprecated 仅由旧路径 HeightCalculator.calculateMicroHeight 使用，已替换为 getBaseHeightForTerrainType。
+     * 新代码应使用 TerrainCalculator.calcHeightForType 或 TerrainFunctionInterpreter.evaluate。
      *
-     * @param context the terrain context / 地形上下文
-     * @return the calculated height / 计算出的高度
+     * Only used by the legacy HeightCalculator.calculateMicroHeight path, replaced by getBaseHeightForTerrainType.
+     * New code should use TerrainCalculator.calcHeightForType or TerrainFunctionInterpreter.evaluate.
      */
+    @Deprecated
     public double calculateHeight(TerrainContext context) {
         return 0.0;
     }
@@ -204,23 +204,23 @@ public final class TerrainType {
         FLOODPLAIN.tierWhitelist = new int[]{2, 3};
         DUNE.tierWhitelist = new int[]{2, 3};
         SALT_FLAT.tierWhitelist = new int[]{2};
-        SEA_CLIFF.tierWhitelist = new int[]{2};
-        FJORD.tierWhitelist = new int[]{2};
+        SEA_CLIFF.tierWhitelist = new int[]{2};  // 仅控制点放置 / Control-point-only placement
+        FJORD.tierWhitelist = new int[]{2};      // 仅控制点放置 / Control-point-only placement
         PLAINS.tierWhitelist = new int[]{3};
         HILLS.tierWhitelist = new int[]{3, 4};
-        GOBI.tierWhitelist = new int[]{3, 4};
+        GOBI.tierWhitelist = new int[]{3};  // moved from {3,4} — low altitude type
         YARDANG.tierWhitelist = new int[]{3};
         BASIN.tierWhitelist = new int[]{3};
         SINKHOLE.tierWhitelist = new int[]{3};
         PEAK_FOREST.tierWhitelist = new int[]{3};
+        VALLEY.tierWhitelist = new int[]{3, 4};     // moved from {4} — added T3
+        ALLUVIAL_FAN.tierWhitelist = new int[]{3, 4}; // moved from {4} — added T3
         CLIFF.tierWhitelist = new int[]{4, 5};
         PLATEAU.tierWhitelist = new int[]{4, 5};
-        VALLEY.tierWhitelist = new int[]{4};
         CANYON.tierWhitelist = new int[]{4};
-        ALLUVIAL_FAN.tierWhitelist = new int[]{4};
         CIRQUE.tierWhitelist = new int[]{4, 5};
-        GLACIAL_VALLEY.tierWhitelist = new int[]{4, 5};
-        DOME.tierWhitelist = new int[]{4};
+        GLACIAL_VALLEY.tierWhitelist = new int[]{4}; // moved from {4,5} — removed T5 (too low for T5)
+        DOME.tierWhitelist = new int[]{4};      // 仅控制点放置 / Control-point-only placement
         HIGH_MOUNTAINS.tierWhitelist = new int[]{5};
         RIDGE.tierWhitelist = new int[]{5};
         PEAK.tierWhitelist = new int[]{5};

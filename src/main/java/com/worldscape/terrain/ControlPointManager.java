@@ -33,12 +33,12 @@ public class ControlPointManager {
     }
 
     public ControlPointRegion getRegion(int x, int z) {
-        int regionX = Math.floorDiv(x, 512);
-        int regionZ = Math.floorDiv(z, 512);
+        int regionX = Math.floorDiv(x, ControlPointRegion.REGION_SIZE);
+        int regionZ = Math.floorDiv(z, ControlPointRegion.REGION_SIZE);
         long key = (long)regionX << 32 | (long)regionZ & 0xFFFFFFFFL;
         return this.regions.computeIfAbsent(key, k -> {
-            int centerBlockX = regionX * 512 + 256;
-            int centerBlockZ = regionZ * 512 + 256;
+            int centerBlockX = regionX * ControlPointRegion.REGION_SIZE + ControlPointRegion.REGION_SIZE / 2;
+            int centerBlockZ = regionZ * ControlPointRegion.REGION_SIZE + ControlPointRegion.REGION_SIZE / 2;
             int macroTier = this.macroVoronoiSystem.getRegionInfo(centerBlockX, centerBlockZ).getElevationTier();
             return new ControlPointRegion(regionX, regionZ, this.seed, macroTier);
         });
@@ -46,8 +46,8 @@ public class ControlPointManager {
 
     public List<TerrainControlPoint> getNearbyControlPoints(int x, int z, double radius) {
         ArrayList<TerrainControlPoint> result = new ArrayList<TerrainControlPoint>();
-        int regionX = Math.floorDiv(x, 512);
-        int regionZ = Math.floorDiv(z, 512);
+        int regionX = Math.floorDiv(x, ControlPointRegion.REGION_SIZE);
+        int regionZ = Math.floorDiv(z, ControlPointRegion.REGION_SIZE);
         for (int dx = -1; dx <= 1; ++dx) {
             for (int dz = -1; dz <= 1; ++dz) {
                 ControlPointRegion region = this.getRegion(regionX + dx, regionZ + dz);

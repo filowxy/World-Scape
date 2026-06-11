@@ -86,17 +86,33 @@ public class TerrainBiomeRules {
     private void loadDefaultRules() {
         this.addRule(TerrainType.PLAINS, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river"));
         this.addRule(TerrainType.BEACH, true, List.of(), List.of("#minecraft:is_beach"));
-        this.addRule(TerrainType.DUNE, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_forest", "#minecraft:is_swamp", "#minecraft:is_jungle", "#minecraft:is_taiga"));
+        // 沙丘：排除海洋、河流、森林、沼泽、丛林、针叶林
+        // Dune: exclude ocean, river, forest, swamp, jungle, taiga
+        // 注意：#minecraft:is_swamp 不存在于原版标签，使用 NeoForge 提供的 #neoforge:is_swamp
+        // Note: #minecraft:is_swamp does not exist in vanilla tags, use NeoForge's #neoforge:is_swamp
+        this.addRule(TerrainType.DUNE, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_forest", "#neoforge:is_swamp", "#minecraft:is_jungle", "#minecraft:is_taiga"));
         this.addRule(TerrainType.SEA_PLATEAU, true, List.of(), List.of("#minecraft:is_ocean"));
         this.addRule(TerrainType.HILLS, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_badlands"));
-        this.addRule(TerrainType.HIGH_MOUNTAINS, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_badlands", "#minecraft:is_swamp"));
+        // 高山：排除海洋、河流、恶地、沼泽
+        // High mountains: exclude ocean, river, badlands, swamp
+        // 注意：#minecraft:is_swamp 不存在于原版标签，使用 NeoForge 提供的 #neoforge:is_swamp
+        // Note: #minecraft:is_swamp does not exist in vanilla tags, use NeoForge's #neoforge:is_swamp
+        this.addRule(TerrainType.HIGH_MOUNTAINS, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_badlands", "#neoforge:is_swamp"));
         this.addRule(TerrainType.PLATEAU, true, List.of(), List.of("#minecraft:is_mountain", "#minecraft:is_hill"));
         this.addRule(TerrainType.CANYON, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_forest"));
         this.addRule(TerrainType.GLACIAL_VALLEY, true, List.of(), List.of("#minecraft:is_taiga", "minecraft:snowy_taiga"));
-        this.addRule(TerrainType.ICE_SHEET, true, List.of(), List.of("minecraft:snowy_tundra", "minecraft:snowy_taiga", "minecraft:frozen_ocean"));
+        // 冰盖：白名单模式，仅允许雪原、雪地针叶林、冻洋
+        // Ice sheet: whitelist mode, only allow snowy plains, snowy taiga, frozen ocean
+        // 注意：minecraft:snowy_tundra 在 1.18+ 已重命名为 minecraft:snowy_plains
+        // Note: minecraft:snowy_tundra was renamed to minecraft:snowy_plains in 1.18+
+        this.addRule(TerrainType.ICE_SHEET, true, List.of(), List.of("minecraft:snowy_plains", "minecraft:snowy_taiga", "minecraft:frozen_ocean"));
         this.addRule(TerrainType.DELTA, true, List.of(), List.of("#minecraft:is_river", "#minecraft:is_ocean"));
         this.addRule(TerrainType.FLOODPLAIN, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_mountain"));
-        this.addRule(TerrainType.GOBI, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_forest", "#minecraft:is_swamp", "#minecraft:is_jungle"));
+        // 戈壁：排除海洋、河流、森林、沼泽、丛林
+        // Gobi: exclude ocean, river, forest, swamp, jungle
+        // 注意：#minecraft:is_swamp 不存在于原版标签，使用 NeoForge 提供的 #neoforge:is_swamp
+        // Note: #minecraft:is_swamp does not exist in vanilla tags, use NeoForge's #neoforge:is_swamp
+        this.addRule(TerrainType.GOBI, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_forest", "#neoforge:is_swamp", "#minecraft:is_jungle"));
         this.addRule(TerrainType.YARDANG, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_forest"));
         this.addRule(TerrainType.SALT_FLAT, true, List.of(), List.of("#minecraft:is_badlands", "#minecraft:is_savanna"));
         this.addRule(TerrainType.SEA_CLIFF, true, List.of(), List.of("#minecraft:is_beach", "#minecraft:is_ocean"));
@@ -110,7 +126,11 @@ public class TerrainBiomeRules {
         this.addRule(TerrainType.RIDGE, true, List.of(), List.of("#minecraft:is_mountain"));
         this.addRule(TerrainType.PEAK, true, List.of(), List.of("#minecraft:is_mountain"));
         this.addRule(TerrainType.ALLUVIAL_FAN, false, List.of(), List.of("#minecraft:is_ocean"));
-        this.addRule(TerrainType.CIRQUE, true, List.of(), List.of("minecraft:snowy_tundra", "minecraft:snowy_taiga"));
+        // 冰斗：白名单模式，仅允许雪原、雪地针叶林
+        // Cirque: whitelist mode, only allow snowy plains, snowy taiga
+        // 注意：minecraft:snowy_tundra 在 1.18+ 已重命名为 minecraft:snowy_plains
+        // Note: minecraft:snowy_tundra was renamed to minecraft:snowy_plains in 1.18+
+        this.addRule(TerrainType.CIRQUE, true, List.of(), List.of("minecraft:snowy_plains", "minecraft:snowy_taiga"));
         this.addRule(TerrainType.HORN, true, List.of(), List.of("#minecraft:is_mountain", "minecraft:snowy_taiga"));
         this.addRule(TerrainType.CLIFF, true, List.of(), List.of("#minecraft:is_mountain"));
     }
@@ -178,9 +198,8 @@ public class TerrainBiomeRules {
         Files.createDirectories(configPath.getParent(), new FileAttribute[0]);
         StringBuilder sb = new StringBuilder();
         sb.append("{\n");
-        sb.append("  // \u5730\u5f62-\u7fa4\u7cfb\u89c4\u5219\u914d\u7f6e\n");
-        sb.append("  // Terrain-Biome Rules Configuration\n\n");
-        sb.append("  terrain_biome_rules: {\n");
+        sb.append("  \"_comment\": \"Terrain-Biome Rules Configuration / \u5730\u5f62-\u7fa4\u7cfb\u89c4\u5219\u914d\u7f6e\",\n\n");
+        sb.append("  \"terrain_biome_rules\": {\n");
         boolean first = true;
         for (Map.Entry<TerrainType, TerrainBiomeRule> entry : this.rules.entrySet()) {
             int i;
@@ -189,8 +208,8 @@ public class TerrainBiomeRules {
             }
             first = false;
             sb.append("    \"").append(entry.getKey().getId()).append("\": {\n");
-            sb.append("      use_whitelist: ").append(entry.getValue().useWhitelist).append(",\n");
-            sb.append("      biomes: [");
+            sb.append("      \"use_whitelist\": ").append(entry.getValue().useWhitelist).append(",\n");
+            sb.append("      \"biomes\": [");
             for (i = 0; i < entry.getValue().biomeIds.size(); ++i) {
                 if (i > 0) {
                     sb.append(", ");
@@ -198,7 +217,7 @@ public class TerrainBiomeRules {
                 sb.append("\"").append(entry.getValue().biomeIds.get(i)).append("\"");
             }
             sb.append("],\n");
-            sb.append("      tags: [");
+            sb.append("      \"tags\": [");
             for (i = 0; i < entry.getValue().tagPaths.size(); ++i) {
                 if (i > 0) {
                     sb.append(", ");
@@ -209,10 +228,10 @@ public class TerrainBiomeRules {
             sb.append("    }");
         }
         sb.append("\n  },\n\n");
-        sb.append("  global: {\n");
-        sb.append("    default_use_whitelist: false,\n");
-        sb.append("    auto_scan: true,\n");
-        sb.append("    confidence_threshold: 0.3\n");
+        sb.append("  \"global\": {\n");
+        sb.append("    \"default_use_whitelist\": false,\n");
+        sb.append("    \"auto_scan\": true,\n");
+        sb.append("    \"confidence_threshold\": 0.3\n");
         sb.append("  }\n");
         sb.append("}\n");
         Files.writeString(configPath, (CharSequence)sb.toString(), new OpenOption[0]);

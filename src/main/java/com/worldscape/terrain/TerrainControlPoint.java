@@ -16,7 +16,9 @@ public class TerrainControlPoint {
         this.x = x;
         this.z = z;
         this.terrainType = terrainType;
-        this.elevationOffset = elevationOffset;
+        // 构造时钳制偏移量，确保海拔偏移在合法范围内
+        // Clamp offset on construction to ensure elevation offset is within valid range
+        this.elevationOffset = this.clampOffset(terrainType, elevationOffset);
         this.influenceRadius = influenceRadius;
     }
 

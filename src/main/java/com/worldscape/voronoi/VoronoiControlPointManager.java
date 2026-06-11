@@ -234,7 +234,7 @@ public class VoronoiControlPointManager {
     }
 
     private void importMicroControlPoints(int regionCenterX, int regionCenterZ, int radius, ControlPointManager controlPointManager) {
-        int regionSize = 512;
+        int regionSize = ControlPointRegion.REGION_SIZE;
         int regionRadius = radius / regionSize + 1;
         int centerRegionX = Math.floorDiv(regionCenterX, regionSize);
         int centerRegionZ = Math.floorDiv(regionCenterZ, regionSize);
@@ -243,7 +243,7 @@ public class VoronoiControlPointManager {
             for (int dz = -regionRadius; dz <= regionRadius; ++dz) {
                 int regionX = centerRegionX + dx;
                 int regionZ = centerRegionZ + dz;
-                ControlPointRegion cpRegion = controlPointManager.getRegion(regionX * 512, regionZ * 512);
+                ControlPointRegion cpRegion = controlPointManager.getRegion(regionX * regionSize, regionZ * regionSize);
                 if (cpRegion == null) continue;
                 List<TerrainControlPoint> points = cpRegion.getControlPoints();
                 int pointIndex = 0;

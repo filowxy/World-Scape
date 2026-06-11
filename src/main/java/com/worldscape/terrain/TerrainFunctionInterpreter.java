@@ -4,6 +4,8 @@ import com.worldscape.WorldScape;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Interpreter engine for terrain type function definitions.
@@ -26,6 +28,54 @@ import java.util.Map;
 public final class TerrainFunctionInterpreter {
 
     private TerrainFunctionInterpreter() {
+    }
+
+    private static final ConcurrentHashMap<String, TerrainPrimitiveProvider> customPrimitives = new ConcurrentHashMap<>();
+
+    /**
+     * Register a custom noise primitive provider.
+     * <p>
+     * Registered primitives take precedence over built-in primitives with the same name.
+     * This allows third-party mods to override or extend the noise primitive system.
+     *
+     * @param name     the primitive name (matched against JSON "name" field)
+     * @param provider the provider implementation
+     * @throws NullPointerException if name or provider is null
+     */
+    public static void registerPrimitive(String name, TerrainPrimitiveProvider provider) {
+        if (name == null || provider == null) {
+            throw new NullPointerException("Primitive name and provider must not be null");
+        }
+        customPrimitives.put(name, provider);
+        WorldScape.LOGGER.info("[World Scape] Registered custom noise primitive: '{}'", name);
+    }
+
+    /**
+     * Unregister a custom noise primitive provider.
+     * <p>
+     * After unregistration, evaluations of the named primitive will fall back to
+     * the built-in logic (or error if no built-in exists).
+     *
+     * @param name the primitive name to unregister
+     * @return the removed provider, or null if none was registered
+     */
+    public static TerrainPrimitiveProvider unregisterPrimitive(String name) {
+        TerrainPrimitiveProvider removed = customPrimitives.remove(name);
+        if (removed != null) {
+            WorldScape.LOGGER.info("[World Scape] Unregistered custom noise primitive: '{}'", name);
+        }
+        return removed;
+    }
+
+    /**
+     * Get the names of all currently registered custom primitives.
+     * <p>
+     * Useful for runtime introspection and debugging.
+     *
+     * @return an unmodifiable set of registered primitive names
+     */
+    public static Set<String> getRegisteredPrimitiveNames() {
+        return java.util.Collections.unmodifiableSet(customPrimitives.keySet());
     }
 
     /**
@@ -139,26 +189,44 @@ public final class TerrainFunctionInterpreter {
         Map<String, Object> params = primitive.params;
         double amp = primitive.amplitude;
 
+        // Custom primitive takes precedence over built-in
+        TerrainPrimitiveProvider custom = customPrimitives.get(primitive.name);
+        if (custom != null) {
+            return custom.evaluate(ix, iz, params, fs, blend) * amp;
+        }
+
         switch (primitive.name) {
             case "fbm": {
                 int octaves = getIntParam(params, "octaves", 6);
                 double gain = getDoubleParam(params, "gain", 0.5);
-                return fs.sampleFbm(ix, iz, octaves, gain) * amp;
+                return fs.sampleFbmCached(ix, iz, octaves, gain) * amp;
             }
 
             case "turbulence": {
                 double strength = getDoubleParam(params, "strength", 1.0);
-                return fs.sampleTurbulence(ix, iz, strength) * amp;
+                return fs.sampleTurbulenceCached(ix, iz, strength) * amp;
             }
 
             case "domain_rotated": {
                 double warpStrength = getDoubleParam(params, "warp_strength", 1.0);
-                return fs.sampleDomainRotated(ix, iz, warpStrength) * amp;
+                return fs.sampleDomainRotatedCached(ix, iz, warpStrength) * amp;
             }
 
             case "gaussian": {
                 double sigma = getDoubleParam(params, "sigma", 100.0);
-                return TerrainFieldSampler.gaussian(tx, tz, sigma) * amp;
+                // 支持高斯中心偏移：offset_x/offset_z 可以引用其他原语的输出值
+                // Support gaussian center offset: offset_x/offset_z can reference other primitives' output values
+                double offsetX = 0.0;
+                double offsetZ = 0.0;
+                String offsetXRef = getStringParam(params, "offset_x", null);
+                String offsetZRef = getStringParam(params, "offset_z", null);
+                if (offsetXRef != null && idToOutput.containsKey(offsetXRef)) {
+                    offsetX = idToOutput.get(offsetXRef);
+                }
+                if (offsetZRef != null && idToOutput.containsKey(offsetZRef)) {
+                    offsetZ = idToOutput.get(offsetZRef);
+                }
+                return TerrainFieldSampler.gaussian(tx - offsetX, tz - offsetZ, sigma) * amp;
             }
 
             case "sigmoid": {
@@ -257,6 +325,51 @@ public final class TerrainFunctionInterpreter {
                 double afPhase = afRawDist / distPeriod * Math.PI * 2.0;
                 double afDist = (Math.sin(afPhase) * 0.5 + 0.5) * distPeriod;
                 return afDist * amp;
+            }
+
+            case "fm_sine": {
+                // 调频正弦波：频率被另一个噪声信号调制，用于风蚀脊等纹理
+                // Frequency-modulated sine: frequency is modulated by another noise signal, used for wind-eroded ridge textures
+                double freqX = getDoubleParam(params, "freq_x", 0.01);
+                double freqZ = getDoubleParam(params, "freq_z", 0.01);
+                double freqModAmp = getDoubleParam(params, "freq_mod_amp", 0.0);
+                String freqModInput = getStringParam(params, "freq_mod_input", null);
+                double freqModValue = 0.0;
+                if (freqModInput != null && idToOutput.containsKey(freqModInput)) {
+                    freqModValue = idToOutput.get(freqModInput);
+                }
+                double phase = tx * freqX + tz * freqZ;
+                double modulatedPhase = phase * (1.0 + freqModValue * freqModAmp);
+                return Math.sin(modulatedPhase) * amp;
+            }
+
+            case "abs": {
+                // 绝对值：取另一个原语输出的绝对值，用于峡谷深度等
+                // Absolute value: takes the absolute value of another primitive's output, used for canyon depth etc.
+                String inputRef = getStringParam(params, "input", null);
+                double inputValue = 0.0;
+                if (inputRef != null && idToOutput.containsKey(inputRef)) {
+                    inputValue = idToOutput.get(inputRef);
+                }
+                return Math.abs(inputValue) * amp;
+            }
+
+            case "negate": {
+                // 取反：取另一个原语输出的负值，用于海沟轴等
+                // Negation: takes the negative of another primitive's output, used for trench axis etc.
+                String inputRef = getStringParam(params, "input", null);
+                double inputValue = 0.0;
+                if (inputRef != null && idToOutput.containsKey(inputRef)) {
+                    inputValue = idToOutput.get(inputRef);
+                }
+                return -inputValue * amp;
+            }
+
+            case "constant": {
+                // 常量：返回固定值乘以振幅，用于基础偏移等
+                // Constant: returns a fixed value multiplied by amplitude, used for base offsets etc.
+                double value = getDoubleParam(params, "value", 1.0);
+                return value * amp;
             }
 
             default:

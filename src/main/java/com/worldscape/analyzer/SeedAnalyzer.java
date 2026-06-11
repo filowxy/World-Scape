@@ -50,7 +50,17 @@ import javax.imageio.ImageIO;
  */
 public class SeedAnalyzer {
 
-    private static final int SEA_LEVEL = WorldScapeConstants.SEA_LEVEL_FALLBACK;
+    // @CONFIGURABLE: seaLevel is an instance field, allowing different values per analysis run.
+    // ALTITUDE_COLOR_STOPS is now built dynamically based on the actual seaLevel in the constructor,
+    // so the colored heightmap correctly reflects the custom sea level.
+    // seaLevel 是实例字段，允许不同分析运行使用不同的海平面值。
+    // ALTITUDE_COLOR_STOPS 现在在构造函数中根据实际 seaLevel 动态构建，
+    // 使着色高度图正确反映自定义海平面。
+    private final int seaLevel;
+
+    // Color stops for altitude visualization, built dynamically based on seaLevel.
+    // 海拔可视化的颜色阶梯，根据 seaLevel 动态构建。
+    private final double[][] altitudeColorStops;
 
     private static final double CLIFF_SAFE_THRESHOLD = 10.0;
     private static final double CLIFF_LOW_THRESHOLD = 20.0;
@@ -60,21 +70,6 @@ public class SeedAnalyzer {
     private static final int HISTOGRAM_BIN_SIZE = 20;
     private static final int HISTOGRAM_MIN_BIN = -80;
     private static final int HISTOGRAM_MAX_BIN = 520;
-
-    private static final double[][] ALTITUDE_COLOR_STOPS = {
-        {-80, 0x001040},
-        {-40, 0x003080},
-        {-10, 0x0066cc},
-        {0, 0x3399ff},
-        {SEA_LEVEL, 0x3399ff},
-        {SEA_LEVEL + 5, 0xe8d174},
-        {SEA_LEVEL + 30, 0x7ccd7c},
-        {SEA_LEVEL + 60, 0x228b22},
-        {SEA_LEVEL + 100, 0x8b6914},
-        {SEA_LEVEL + 180, 0x808080},
-        {SEA_LEVEL + 280, 0xd0d0d0},
-        {SEA_LEVEL + 380, 0xffffff}
-    };
 
     private static final double[][] CLIFF_COLOR_STOPS = {
         {0, 0x004000},
@@ -95,9 +90,16 @@ public class SeedAnalyzer {
     private boolean[] currentSubmergedMask;
     private double[] currentContinuousHeights;
 
+    // Fallback path tracking for terrain type selection statistics
+    // 回退路径跟踪，用于地形类型选择统计
+    private int collectFallbackCount;
+    private int collectTotalSamples;
+
     /**
      * 构造种子分析器，指定种子值、半径和采样步长。
      * Constructs a seed analyzer with the specified seed, radius, and sampling step.
+     * 使用默认海平面值（SEA_LEVEL_FALLBACK）。
+     * Uses the default sea level value (SEA_LEVEL_FALLBACK).
      *
      * @param seed   世界种子 / world seed
      * @param radius 分析半径（方块数）/ analysis radius in blocks
@@ -106,9 +108,49 @@ public class SeedAnalyzer {
      * @已知限制 步长越大精度越低 / Larger step results in lower precision
      */
     public SeedAnalyzer(long seed, int radius, int step) {
+        this(seed, radius, step, WorldScapeConstants.SEA_LEVEL_FALLBACK);
+    }
+
+    /**
+     * 构造种子分析器，指定种子值、半径、采样步长和海平面。
+     * Constructs a seed analyzer with the specified seed, radius, sampling step, and sea level.
+     *
+     * @param seed     世界种子 / world seed
+     * @param radius   分析半径（方块数）/ analysis radius in blocks
+     * @param step     采样步长（方块数）/ sampling step in blocks
+     * @param seaLevel 海平面高度 / sea level height
+     * @调用时机 需要自定义海平面分析时调用 / Called when custom sea level analysis is needed
+     * @已知限制 无 / None
+     */
+    public SeedAnalyzer(long seed, int radius, int step, int seaLevel) {
         this.seed = seed;
         this.radius = Math.max(16, radius);
         this.step = Math.max(1, step);
+        this.seaLevel = seaLevel;
+        this.altitudeColorStops = buildAltitudeColorStops(seaLevel);
+    }
+
+    /**
+     * Build the altitude color stops array based on the given sea level.
+     * The color stops define a gradient from deep ocean (-80) to mountain peaks (seaLevel + 380).
+     * 根据给定的海平面构建海拔颜色阶梯数组。
+     * 颜色阶梯定义了从深海（-80）到山顶（seaLevel + 380）的渐变。
+     */
+    private static double[][] buildAltitudeColorStops(int seaLevel) {
+        return new double[][] {
+            {-80,     0x001040},  // Deep ocean / 深海
+            {-40,     0x003080},  // Ocean / 海洋
+            {-10,     0x0066cc},  // Shallow ocean / 浅海
+            {0,       0x3399ff},  // Sea surface / 海面
+            {seaLevel,     0x3399ff},  // Shoreline / 海岸线
+            {seaLevel + 5,   0xe8d174},  // Beach / 沙滩
+            {seaLevel + 30,  0x7ccd7c},  // Low plains / 低平原
+            {seaLevel + 60,  0x228b22},  // Hills / 丘陵
+            {seaLevel + 100, 0x8b6914},  // Highlands / 高地
+            {seaLevel + 180, 0x808080},  // Mountains / 山脉
+            {seaLevel + 280, 0xd0d0d0},  // High mountains / 高山
+            {seaLevel + 380, 0xffffff}   // Snow peaks / 雪峰
+        };
     }
 
     /**
@@ -130,7 +172,7 @@ public class SeedAnalyzer {
      */
     private void initializeComponents() {
         if (regionController == null) {
-            regionController = new RegionController(seed, SEA_LEVEL);
+            regionController = new RegionController(seed, seaLevel);
         }
         if (noiseSet == null) {
             noiseSet = NoiseSet.getOrCreate(seed);
@@ -164,7 +206,7 @@ public class SeedAnalyzer {
         System.out.println("[SeedAnalyzer] " + "生成图片 / Generating images...");
         generateGrayscaleHeightmap(result.heightMap, result.gridSize, outputDir);
                 generateColoredHeightmap(result.heightMap, result.gridSize, outputDir);
-                generateBareEarthMap(result.heightMap, result.submergedMask, result.gridSize, outputDir);
+                generateBareEarthMap(result.continuousHeightMap, result.submergedMask, result.gridSize, outputDir);
                 generateCliffHeatmap(result.gradients, result.gridSize, outputDir);
 
         System.out.println("[SeedAnalyzer] " + "生成报告 / Generating report...");
@@ -206,6 +248,8 @@ public class SeedAnalyzer {
 
         System.out.println("[SeedAnalyzer] " + "收集地形类型 / Collecting terrain types...");
         Map<TerrainType, Integer> terrainTypes = collectTerrainTypes(gridSize);
+        int fallbackCount = collectFallbackCount;
+        int totalTypeSamples = collectTotalSamples;
 
         System.out.println("[SeedAnalyzer] " + "分析地表方块 / Analyzing surface blocks...");
         Map<String, Integer> surfaceBlockCounts = new LinkedHashMap<>();
@@ -214,9 +258,10 @@ public class SeedAnalyzer {
 
         return new AnalysisResult(
                 seed, radius, step, gridSize,
-                heightMap, gradients, currentSubmergedMask,
+                heightMap, gradients, currentSubmergedMask, currentContinuousHeights,
                 altitudeStats, cliffRisk, oceanQuality, terrainTypes,
-                surfaceBlockCounts, subSurfaceBlockCounts
+                surfaceBlockCounts, subSurfaceBlockCounts,
+                fallbackCount, totalTypeSamples
         );
     }
 
@@ -240,31 +285,12 @@ public class SeedAnalyzer {
                 int worldX = -radius + gx * step;
                 int worldZ = -radius + gz * step;
                 TerrainHeightResult result = calculateFullTerrainHeight(worldX, worldZ);
-                heightMap[idx] = result.continuousHeight;
-                currentSubmergedMask[idx] = result.erodedHeight < SEA_LEVEL;
+                heightMap[idx] = result.erodedHeight;
+                currentSubmergedMask[idx] = result.erodedHeight < seaLevel;
                 currentContinuousHeights[idx] = result.continuousHeight;
             }
         }
         return heightMap;
-    }
-
-    /**
-     * 计算指定坐标的地形高度 - 与LandscapeChunkGenerator.fillFromNoise()中的计算逻辑完全一致。
-     * Calculate terrain height at specified coordinates - identical to LandscapeChunkGenerator.fillFromNoise().
-     */
-    private double calculateTerrainHeight(int worldX, int worldZ) {
-        RegionController.TerrainBlendResult blend = regionController.getTerrainBlend(worldX, worldZ);
-        TerrainType type = TerrainCalculator.determineTerrainType(blend);
-        double continuousHeight = TerrainCalculator.calculateFinalHeight(worldX, worldZ, blend, type, noiseSet, fieldSampler);
-        boolean isRiver = TerrainCalculator.isRiverAt(worldX, worldZ, noiseSet);
-        double riverDepthMultiplier = TerrainCalculator.getRiverDepthMultiplierForTier(blend.macroInfo.elevationTier);
-        double riverDepth = TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, (int)continuousHeight, SEA_LEVEL, isRiver, riverDepthMultiplier);
-        double erosionIntensity = TerrainCalculator.getRiverErosionIntensity(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL, blend);
-        double alluvialFactor = TerrainCalculator.getAlluvialFactor(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL);
-        double erosionMultiplier = TerrainCalculator.getErosionMultiplierForTier(blend.macroInfo.elevationTier);
-        int erodedHeight = TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, SEA_LEVEL, erosionIntensity, alluvialFactor, erosionMultiplier);
-        int actualHeight = TerrainCalculator.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, WorldScapeConstants.OVERWORLD_MIN_Y);
-        return actualHeight;
     }
 
     /**
@@ -296,15 +322,21 @@ public class SeedAnalyzer {
      */
     private TerrainHeightResult calculateFullTerrainHeight(int worldX, int worldZ) {
         RegionController.TerrainBlendResult blend = regionController.getTerrainBlend(worldX, worldZ);
-        TerrainType type = TerrainCalculator.determineTerrainType(blend);
+        TerrainType type = TerrainCalculator.determineTerrainType(blend, fieldSampler, worldX, worldZ);
         double continuousHeight = TerrainCalculator.calculateFinalHeight(worldX, worldZ, blend, type, noiseSet, fieldSampler);
         boolean isRiver = TerrainCalculator.isRiverAt(worldX, worldZ, noiseSet);
-        double riverDepthMultiplier = TerrainCalculator.getRiverDepthMultiplierForTier(blend.macroInfo.elevationTier);
-        double riverDepth = TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, (int)continuousHeight, SEA_LEVEL, isRiver, riverDepthMultiplier);
-        double erosionIntensity = TerrainCalculator.getRiverErosionIntensity(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL, blend);
-        double alluvialFactor = TerrainCalculator.getAlluvialFactor(worldX, worldZ, noiseSet, continuousHeight, SEA_LEVEL);
-        double erosionMultiplier = TerrainCalculator.getErosionMultiplierForTier(blend.macroInfo.elevationTier);
-        int erodedHeight = TerrainCalculator.calculateErodedHeight(continuousHeight, isRiver, riverDepth, SEA_LEVEL, erosionIntensity, alluvialFactor, erosionMultiplier);
+        // @AESTHETIC: Gradient-aware river depth — combines elevation-based continuous
+        // interpolation with terrain gradient. Steeper terrain → deeper incision.
+        // No static type mapping — gradient and elevation are both smoothly varying fields
+        // from the same noise system, preserving river continuity.
+        // 基于梯度的河流深度：结合海拔连续插值和地形梯度。陡坡→更深切割。
+        // 无静态类型映射——梯度和海拔都是同一噪声系统的平滑场，保持河流连续性。
+        double riverDepth = TerrainCalculator.getRiverDepthAt(worldX, worldZ, noiseSet, (int)continuousHeight, seaLevel, isRiver, fieldSampler, blend.blendedHeight);
+        double erosionIntensity = TerrainCalculator.getRiverErosionIntensity(worldX, worldZ, noiseSet, continuousHeight, seaLevel, blend);
+        // @PERF: Use pre-computed alluvialFactor overload to avoid redundant noise sampling.
+        // 使用预计算 alluvialFactor 的重载避免重复噪声采样。
+        double alluvialFactor = TerrainCalculator.getAlluvialFactor(worldX, worldZ, noiseSet, continuousHeight, seaLevel, blend);
+        int erodedHeight = TerrainCalculator.calculateErodedHeight(worldX, worldZ, continuousHeight, isRiver, riverDepth, seaLevel, noiseSet, blend, erosionIntensity, alluvialFactor);
         int actualSurfaceHeight = TerrainCalculator.calculateActualSurfaceHeight(erodedHeight, isRiver, riverDepth, WorldScapeConstants.OVERWORLD_MIN_Y);
         return new TerrainHeightResult(continuousHeight, erodedHeight, actualSurfaceHeight);
     }
@@ -473,9 +505,9 @@ public class SeedAnalyzer {
         double dryLandMinFinal = dryLandCount > 0 ? dryLandMin : Double.NaN;
         double dryLandMaxFinal = dryLandCount > 0 ? dryLandMax : Double.NaN;
 
-        double seaLevelRelativeMin = minHeight - SEA_LEVEL;
-        double seaLevelRelativeMax = maxHeight - SEA_LEVEL;
-        double seaLevelRelativeMean = meanHeight - SEA_LEVEL;
+        double seaLevelRelativeMin = minHeight - seaLevel;
+        double seaLevelRelativeMax = maxHeight - seaLevel;
+        double seaLevelRelativeMean = meanHeight - seaLevel;
 
         double[] sorted = heightMap.clone();
         Arrays.sort(sorted);
@@ -509,7 +541,7 @@ public class SeedAnalyzer {
         for (int i = 0; i < total; i++) {
             if (isOcean[i]) {
                 oceanCount++;
-                double depth = SEA_LEVEL - heightMap[i];
+                double depth = seaLevel - heightMap[i];
                 oceanDepthSum += depth;
                 if (depth > maxOceanDepth) maxOceanDepth = depth;
             }
@@ -521,7 +553,7 @@ public class SeedAnalyzer {
         int shallowCount = 0;
         for (int i = 0; i < total; i++) {
             if (isOcean[i]) {
-                double depth = SEA_LEVEL - heightMap[i];
+                double depth = seaLevel - heightMap[i];
                 if (depth < 10) shallowCount++;
             }
         }
@@ -645,6 +677,8 @@ public class SeedAnalyzer {
     private Map<TerrainType, Integer> collectTerrainTypes(int gridSize) {
         Map<TerrainType, Integer> typeCounts = new LinkedHashMap<>();
         int reported = -1;
+        collectFallbackCount = 0;
+        collectTotalSamples = 0;
         for (int gz = 0; gz < gridSize; gz++) {
             int progress = (int) ((gz + 1) * 100.0 / gridSize);
             if (progress > reported && progress % 10 == 0) {
@@ -655,7 +689,11 @@ public class SeedAnalyzer {
                 int worldX = -radius + gx * step;
                 int worldZ = -radius + gz * step;
                 TerrainBlendResult blend = regionController.getTerrainBlend(worldX, worldZ);
-                TerrainType type = TerrainCalculator.determineTerrainType(blend);
+                if (blend.dominantWeight < WorldScapeConstants.DOMINANT_WEIGHT_THRESHOLD) {
+                    collectFallbackCount++;
+                }
+                collectTotalSamples++;
+                TerrainType type = TerrainCalculator.determineTerrainType(blend, fieldSampler, worldX, worldZ);
                 typeCounts.merge(type, 1, Integer::sum);
             }
         }
@@ -671,35 +709,68 @@ public class SeedAnalyzer {
             if (depthBelowSea > 5) return "GRAVEL";
             return "SAND";
         }
+        // Mountain/rocky types → gravel
         if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.RIDGE || type == TerrainType.PEAK || type == TerrainType.HORN
-                || type == TerrainType.CLIFF || type == TerrainType.CANYON || type == TerrainType.PLATEAU || type == TerrainType.SEA_CLIFF) {
+                || type == TerrainType.CLIFF || type == TerrainType.CANYON || type == TerrainType.PLATEAU || type == TerrainType.SEA_CLIFF
+                || type == TerrainType.FJORD) {
             return "GRAVEL";
-        } else if (type == TerrainType.GOBI || type == TerrainType.SALT_FLAT || type == TerrainType.DUNE || type == TerrainType.YARDANG) {
+        }
+        // Desert/arid types → sand
+        if (type == TerrainType.GOBI || type == TerrainType.SALT_FLAT || type == TerrainType.DUNE || type == TerrainType.YARDANG) {
             return "SAND";
-        } else if (type == TerrainType.BEACH) {
+        }
+        // Beach → sand
+        if (type == TerrainType.BEACH) {
             return "SAND";
-        } else if (type == TerrainType.ICE_SHEET) {
+        }
+        // Ice/snow types → snow block
+        if (type == TerrainType.ICE_SHEET || type == TerrainType.GLACIAL_VALLEY || type == TerrainType.CIRQUE) {
             return "SNOW_BLOCK";
+        }
+        // Underwater types → gravel
+        if (type == TerrainType.TRENCH || type == TerrainType.SEA_PLATEAU) {
+            return "GRAVEL";
+        }
+        // Delta → sand
+        if (type == TerrainType.DELTA) {
+            return "SAND";
         }
         return "GRASS_BLOCK";
     }
 
     // @AESTHETIC: Sub-surface block mimics the dirt-under-grass fix in FallbackSurfaceAdapter.
     // Dry land → DIRT (not STONE) after the fix. This is the key verification metric.
+    // Full mapping aligned with FallbackSurfaceAdapter.determineSubSurfaceBlockByTerrainType().
     // 次表层方块：模拟 FallbackSurfaceAdapter 中泥土层修复。干燥陆地→DIRT（修复后），这是关键的验证指标。
+    // 完整映射与 FallbackSurfaceAdapter.determineSubSurfaceBlockByTerrainType() 保持一致。
     private static String determineSubSurfaceBlock(TerrainType type, int height, int seaLevel) {
         if (height < seaLevel) {
             int depthBelowSea = seaLevel - height;
             if (depthBelowSea > 5) return "GRAVEL";
             return "SAND";
         }
+        // Ice/snow types → packed ice
+        if (type == TerrainType.ICE_SHEET || type == TerrainType.GLACIAL_VALLEY
+                || type == TerrainType.CIRQUE) {
+            return "PACKED_ICE";
+        }
+        // Mountain/rocky types → gravel
         if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.RIDGE || type == TerrainType.PEAK || type == TerrainType.HORN
                 || type == TerrainType.CLIFF || type == TerrainType.CANYON || type == TerrainType.PLATEAU || type == TerrainType.SEA_CLIFF
-                || type == TerrainType.ICE_SHEET) {
+                || type == TerrainType.FJORD) {
             return "GRAVEL";
-        } else if (type == TerrainType.GOBI || type == TerrainType.SALT_FLAT || type == TerrainType.DUNE || type == TerrainType.YARDANG
-                || type == TerrainType.BEACH) {
+        }
+        // Desert/arid types → sand
+        if (type == TerrainType.GOBI || type == TerrainType.SALT_FLAT || type == TerrainType.DUNE || type == TerrainType.YARDANG) {
             return "SAND";
+        }
+        // Beach/delta → sand
+        if (type == TerrainType.BEACH || type == TerrainType.DELTA) {
+            return "SAND";
+        }
+        // Underwater types → gravel
+        if (type == TerrainType.TRENCH || type == TerrainType.SEA_PLATEAU) {
+            return "GRAVEL";
         }
         return "DIRT"; // The fix: dry land has dirt, not stone
     }
@@ -718,9 +789,9 @@ public class SeedAnalyzer {
                 int idx = gz * gridSize + gx;
                 int height = (int)heightMap[idx];
                 TerrainBlendResult blend = regionController.getTerrainBlend(worldX, worldZ);
-                TerrainType type = TerrainCalculator.determineTerrainType(blend);
-                String surface = determineSurfaceBlock(type, height, SEA_LEVEL);
-                String subSurface = determineSubSurfaceBlock(type, height, SEA_LEVEL);
+                TerrainType type = TerrainCalculator.determineTerrainType(blend, fieldSampler, worldX, worldZ);
+                String surface = determineSurfaceBlock(type, height, seaLevel);
+                String subSurface = determineSubSurfaceBlock(type, height, seaLevel);
                 surfaceCounts.merge(surface, 1, Integer::sum);
                 subSurfaceCounts.merge(subSurface, 1, Integer::sum);
             }
@@ -829,22 +900,22 @@ public class SeedAnalyzer {
         }
     }
 
-    private static int altitudeToColor(double height) {
-        if (height <= ALTITUDE_COLOR_STOPS[0][0]) {
-            return (int) ALTITUDE_COLOR_STOPS[0][1];
+    private int altitudeToColor(double height) {
+        if (height <= altitudeColorStops[0][0]) {
+            return (int) altitudeColorStops[0][1];
         }
-        if (height >= ALTITUDE_COLOR_STOPS[ALTITUDE_COLOR_STOPS.length - 1][0]) {
-            return (int) ALTITUDE_COLOR_STOPS[ALTITUDE_COLOR_STOPS.length - 1][1];
+        if (height >= altitudeColorStops[altitudeColorStops.length - 1][0]) {
+            return (int) altitudeColorStops[altitudeColorStops.length - 1][1];
         }
-        for (int i = 0; i < ALTITUDE_COLOR_STOPS.length - 1; i++) {
-            double h0 = ALTITUDE_COLOR_STOPS[i][0];
-            double h1 = ALTITUDE_COLOR_STOPS[i + 1][0];
+        for (int i = 0; i < altitudeColorStops.length - 1; i++) {
+            double h0 = altitudeColorStops[i][0];
+            double h1 = altitudeColorStops[i + 1][0];
             if (height >= h0 && height < h1) {
                 double t = (height - h0) / (h1 - h0);
-                return interpolateColor((int) ALTITUDE_COLOR_STOPS[i][1], (int) ALTITUDE_COLOR_STOPS[i + 1][1], t);
+                return interpolateColor((int) altitudeColorStops[i][1], (int) altitudeColorStops[i + 1][1], t);
             }
         }
-        return (int) ALTITUDE_COLOR_STOPS[ALTITUDE_COLOR_STOPS.length - 1][1];
+        return (int) altitudeColorStops[altitudeColorStops.length - 1][1];
     }
 
     private static int gradientToColor(double gradient) {
@@ -890,6 +961,7 @@ public class SeedAnalyzer {
             writer.newLine();
 
             writeBasicInfo(writer, result);
+            writeTerrainTypeSelectionStats(writer, result);
             writeAltitudeStats(writer, result.altitudeStats);
             writeCliffRisk(writer, result.cliffRisk);
             writeOceanQuality(writer, result.oceanQuality);
@@ -921,9 +993,27 @@ public class SeedAnalyzer {
         writer.newLine();
         writer.write("| Total Samples / 总采样数 | " + (result.gridSize * result.gridSize) + " |");
         writer.newLine();
-        writer.write("| Sea Level / 海平面 | " + SEA_LEVEL + " |");
+        writer.write("| Sea Level / 海平面 | " + seaLevel + " |");
         writer.newLine();
         writer.write("| Calculation Chain / 计算链 | LandscapeChunkGenerator.fillFromNoise() |");
+        writer.newLine();
+        writer.newLine();
+    }
+
+    private void writeTerrainTypeSelectionStats(BufferedWriter writer, AnalysisResult result) throws IOException {
+        writer.write("## Terrain Type Selection Path / 地形类型选择路径");
+        writer.newLine();
+        writer.newLine();
+        int dominantCount = result.totalTerrainTypeSamples - result.fallbackPathCount;
+        double dominantPct = result.totalTerrainTypeSamples > 0 ? 100.0 * dominantCount / result.totalTerrainTypeSamples : 0;
+        double fallbackPct = result.totalTerrainTypeSamples > 0 ? 100.0 * result.fallbackPathCount / result.totalTerrainTypeSamples : 0;
+        writer.write("| Path / 路径 | Count / 数量 | Percentage / 百分比 |");
+        writer.newLine();
+        writer.write("|-------------|-------|--------------------|");
+        writer.newLine();
+        writer.write(String.format("| Dominant / 主导控制点 | %d | %.1f%% |", dominantCount, dominantPct));
+        writer.newLine();
+        writer.write(String.format("| Fallback / 回退路径 | %d | %.1f%% |", result.fallbackPathCount, fallbackPct));
         writer.newLine();
         writer.newLine();
     }
@@ -932,8 +1022,12 @@ public class SeedAnalyzer {
         writer.write("## Altitude Statistics / 海拔统计");
         writer.newLine();
         writer.newLine();
-        writer.write("### See-Through-Water Height / 透水海拔高度 (Raw Terrain)");
+        writer.write("### Eroded Surface Height / 侵蚀后地表高度 (Actual Terrain)");
         writer.newLine();
+        writer.newLine();
+        writer.write("> Uses eroded height (with river/erosion/alluvial modifications) for accurate surface representation.");
+        writer.newLine();
+        writer.write("> 使用侵蚀后高度（含河流/侵蚀/冲积修正），精确反映实际地表。");
         writer.newLine();
         writer.write("| Metric | Value |");
         writer.newLine();
@@ -1019,20 +1113,20 @@ public class SeedAnalyzer {
             TerrainType type = entry.getKey();
             int count = entry.getValue();
             if (type == TerrainType.PLAINS || type == TerrainType.HILLS || type == TerrainType.FLOODPLAIN || type == TerrainType.VALLEY
-                    || type == TerrainType.GLACIAL_VALLEY || type == TerrainType.FJORD || type == TerrainType.CIRQUE
                     || type == TerrainType.PEAK_FOREST || type == TerrainType.DOME || type == TerrainType.BASIN
-                    || type == TerrainType.ALLUVIAL_FAN || type == TerrainType.SINKHOLE || type == TerrainType.DELTA) {
+                    || type == TerrainType.ALLUVIAL_FAN || type == TerrainType.SINKHOLE) {
                 dryLandSamples += count;
             } else if (type == TerrainType.HIGH_MOUNTAINS || type == TerrainType.RIDGE || type == TerrainType.PEAK || type == TerrainType.HORN
-                    || type == TerrainType.CLIFF || type == TerrainType.CANYON || type == TerrainType.PLATEAU || type == TerrainType.SEA_CLIFF) {
+                    || type == TerrainType.CLIFF || type == TerrainType.CANYON || type == TerrainType.PLATEAU || type == TerrainType.SEA_CLIFF
+                    || type == TerrainType.FJORD) {
                 stonySamples += count;
             } else if (type == TerrainType.GOBI || type == TerrainType.SALT_FLAT || type == TerrainType.DUNE || type == TerrainType.YARDANG) {
                 desertSamples += count;
-            } else if (type == TerrainType.ICE_SHEET) {
+            } else if (type == TerrainType.ICE_SHEET || type == TerrainType.GLACIAL_VALLEY || type == TerrainType.CIRQUE) {
                 iceSamples += count;
             } else if (type == TerrainType.TRENCH || type == TerrainType.SEA_PLATEAU) {
                 underwaterSamples += count;
-            } else if (type == TerrainType.BEACH) {
+            } else if (type == TerrainType.BEACH || type == TerrainType.DELTA) {
                 beachSamples += count;
             }
         }
@@ -1066,7 +1160,7 @@ public class SeedAnalyzer {
         writer.newLine();
         for (Map.Entry<String, Integer> entry : subSurfaceCounts.entrySet()) {
             double pct = 100.0 * entry.getValue() / total;
-            boolean correct = entry.getKey().equals("DIRT") || entry.getKey().equals("SAND") || entry.getKey().equals("GRAVEL");
+            boolean correct = entry.getKey().equals("DIRT") || entry.getKey().equals("SAND") || entry.getKey().equals("GRAVEL") || entry.getKey().equals("PACKED_ICE");
             String status = correct ? "✅ Correct" : "⚠️ Review";
             writer.write(String.format("| %s | %d | %.1f%% | %s |", entry.getKey(), entry.getValue(), pct, status));
             writer.newLine();
@@ -1208,15 +1302,29 @@ public class SeedAnalyzer {
         }
 
         if (args.length < 1) {
-            System.out.println("Usage: java com.worldscape.analyzer.SeedAnalyzer <seed> [radius] [step]");
+            System.out.println("Usage: java com.worldscape.analyzer.SeedAnalyzer <seed> [radius] [step] [--sea-level=N]");
             System.out.println("Usage: java com.worldscape.analyzer.SeedAnalyzer --verify (Run verification tests)");
-            System.out.println("  seed   - World seed (required) / 世界种子（必填）");
-            System.out.println("  radius - Analysis radius in blocks (default: 512) / 分析半径（默认512）");
-            System.out.println("  step   - Sampling step in blocks (default: 4) / 采样步长（默认4）");
+            System.out.println("  seed       - World seed (required) / 世界种子（必填）");
+            System.out.println("  radius     - Analysis radius in blocks (default: 512) / 分析半径（默认512）");
+            System.out.println("  step       - Sampling step in blocks (default: 4) / 采样步长（默认4）");
+            System.out.println("  --sea-level=N - Override sea level (default: " + WorldScapeConstants.SEA_LEVEL_FALLBACK + ") / 自定义海平面（默认" + WorldScapeConstants.SEA_LEVEL_FALLBACK + "）");
             System.out.println("\n数据准确性验证/Data accuracy verification:");
             System.out.println("  This analyzer uses the exact same calculation chain as LandscapeChunkGenerator.fillFromNoise()");
             System.out.println("  确保分析结果与实际游戏地形100%一致 / Ensuring 100% accuracy with actual game terrain");
             return;
+        }
+
+        // @CONFIGURABLE: Parse --sea-level=N from args before constructing the analyzer.
+        // 从命令行参数中解析 --sea-level=N，在构造分析器之前处理。
+        int seaLevel = WorldScapeConstants.SEA_LEVEL_FALLBACK;
+        for (String arg : args) {
+            if (arg.startsWith("--sea-level=")) {
+                try {
+                    seaLevel = Integer.parseInt(arg.substring("--sea-level=".length()));
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid sea level / 无效海平面: " + arg);
+                }
+            }
         }
 
         long seed;
@@ -1247,7 +1355,7 @@ public class SeedAnalyzer {
             }
         }
 
-        SeedAnalyzer analyzer = new SeedAnalyzer(seed, radius, step);
+        SeedAnalyzer analyzer = new SeedAnalyzer(seed, radius, step, seaLevel);
         analyzer.analyzeAndOutput();
     }
 
@@ -1291,21 +1399,25 @@ public class SeedAnalyzer {
         public final int radius;
         public final int step;
         public final int gridSize;
-        public final double[] heightMap;
+        public final double[] heightMap; // Eroded surface height (actual terrain) / 侵蚀后地表高度（实际地形）
         public final double[] gradients;
         public final boolean[] submergedMask;
+        public final double[] continuousHeightMap; // Pre-erosion height (see-through-water view) / 侵蚀前高度（透水视图）
         public final AltitudeStatistics altitudeStats;
         public final CliffRiskAssessment cliffRisk;
         public final OceanQualityAssessment oceanQuality;
         public final Map<TerrainType, Integer> terrainTypes;
         public final Map<String, Integer> surfaceBlockCounts;
         public final Map<String, Integer> subSurfaceBlockCounts;
+        public final int fallbackPathCount;
+        public final int totalTerrainTypeSamples;
 
         AnalysisResult(long seed, int radius, int step, int gridSize,
-                       double[] heightMap, double[] gradients, boolean[] submergedMask,
+                       double[] heightMap, double[] gradients, boolean[] submergedMask, double[] continuousHeightMap,
                        AltitudeStatistics altitudeStats, CliffRiskAssessment cliffRisk,
                        OceanQualityAssessment oceanQuality, Map<TerrainType, Integer> terrainTypes,
-                       Map<String, Integer> surfaceBlockCounts, Map<String, Integer> subSurfaceBlockCounts) {
+                       Map<String, Integer> surfaceBlockCounts, Map<String, Integer> subSurfaceBlockCounts,
+                       int fallbackPathCount, int totalTerrainTypeSamples) {
             this.seed = seed;
             this.radius = radius;
             this.step = step;
@@ -1313,12 +1425,15 @@ public class SeedAnalyzer {
             this.heightMap = heightMap;
             this.gradients = gradients;
             this.submergedMask = submergedMask;
+            this.continuousHeightMap = continuousHeightMap;
             this.altitudeStats = altitudeStats;
             this.cliffRisk = cliffRisk;
             this.oceanQuality = oceanQuality;
             this.terrainTypes = terrainTypes;
             this.surfaceBlockCounts = surfaceBlockCounts;
             this.subSurfaceBlockCounts = subSurfaceBlockCounts;
+            this.fallbackPathCount = fallbackPathCount;
+            this.totalTerrainTypeSamples = totalTerrainTypeSamples;
         }
     }
 

@@ -59,20 +59,22 @@ public class ControlPointRegion {
         long regionSeed = SeedDeriver.deriveSeed(this.worldSeed, (long)this.regionX * 31L + (long)this.regionZ * 17L + 388350381470L);
         RandomSource random = RandomSource.create((long)regionSeed);
         TerrainFieldSampler fieldSampler = TerrainFieldSampler.getOrCreate(this.worldSeed);
-        int pointsPerAxis = Math.max(2, 1);
+        // 每轴控制点数固定为 2，产生 3×3=9 个控制点覆盖 512×512 区域
+        // Control points per axis is fixed at 2, producing 3×3=9 points covering a 512×512 region
+        int pointsPerAxis = 2;
         ArrayList<PointData> rawPoints = new ArrayList<PointData>();
         for (int gx = 0; gx <= pointsPerAxis; ++gx) {
             for (int gz = 0; gz <= pointsPerAxis; ++gz) {
-                int baseX = this.regionX * 512 + gx * 512;
-                int baseZ = this.regionZ * 512 + gz * 512;
-                int offsetX = (int)((random.nextDouble() - 0.5) * 512.0 * 0.75);
-                int offsetZ = (int)((random.nextDouble() - 0.5) * 512.0 * 0.75);
+                int baseX = this.regionX * REGION_SIZE + gx * REGION_SIZE;
+                int baseZ = this.regionZ * REGION_SIZE + gz * REGION_SIZE;
+                int offsetX = (int)((random.nextDouble() - 0.5) * (double)REGION_SIZE * 0.75);
+                int offsetZ = (int)((random.nextDouble() - 0.5) * (double)REGION_SIZE * 0.75);
                 int px = baseX + offsetX;
                 int pz = baseZ + offsetZ;
                 double energy = fieldSampler.sampleEnergy(px, pz);
                 double moisture = fieldSampler.sampleMoisture(px, pz);
                 int tier = fieldSampler.energyToTier(energy, this.macroElevationTier);
-                TerrainType type = fieldSampler.selectTypeByMoisture(tier, moisture);
+                TerrainType type = fieldSampler.selectTypeByMoisture(tier, moisture, px, pz);
                 double rawOffset = fieldSampler.calculateContinuousOffset(energy, type);
                 double radius = this.calculateInfluenceRadius(px, pz, type, random);
                 rawPoints.add(new PointData(px, pz, type, rawOffset, radius));
@@ -82,8 +84,8 @@ public class ControlPointRegion {
         for (PointData pd : rawPoints) {
             TerrainControlPoint point = new TerrainControlPoint(pd.x, pd.z, pd.type, pd.constrainedOffset, pd.radius);
             this.controlPoints.add(point);
-            int cellX = Math.floorDiv(pd.x - this.regionX * 512, 16);
-            int cellZ = Math.floorDiv(pd.z - this.regionZ * 512, 16);
+            int cellX = Math.floorDiv(pd.x - this.regionX * REGION_SIZE, 16);
+            int cellZ = Math.floorDiv(pd.z - this.regionZ * REGION_SIZE, 16);
             if (cellX < 0 || cellX >= this.cellsPerSide || cellZ < 0 || cellZ >= this.cellsPerSide) continue;
             if (this.cellIndex[cellX][cellZ] == null) {
                 this.cellIndex[cellX][cellZ] = new ArrayList<TerrainControlPoint>(2);
@@ -309,8 +311,8 @@ public class ControlPointRegion {
     public List<TerrainControlPoint> getPointsInRange(int targetX, int targetZ, double radius) {
         ArrayList<TerrainControlPoint> result = new ArrayList<TerrainControlPoint>();
         int cellRadius = (int)Math.ceil(radius / 16.0);
-        int centerCellX = Math.floorDiv(targetX - this.regionX * 512, 16);
-        int centerCellZ = Math.floorDiv(targetZ - this.regionZ * 512, 16);
+        int centerCellX = Math.floorDiv(targetX - this.regionX * REGION_SIZE, 16);
+        int centerCellZ = Math.floorDiv(targetZ - this.regionZ * REGION_SIZE, 16);
         for (int dx = -cellRadius; dx <= cellRadius; ++dx) {
             for (int dz = -cellRadius; dz <= cellRadius; ++dz) {
                 List<TerrainControlPoint> cell;

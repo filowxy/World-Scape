@@ -12,7 +12,6 @@ import com.worldscape.terrain.MacroRegionInfo;
 import com.worldscape.terrain.MacroVoronoiSystem;
 import com.worldscape.terrain.RiverInfo;
 import com.worldscape.terrain.RiverNoiseSampler;
-import com.worldscape.terrain.TerrainContext;
 import com.worldscape.terrain.TerrainControlPoint;
 import com.worldscape.terrain.TerrainType;
 import com.worldscape.terrain.WorldScapeConstants;
@@ -69,8 +68,18 @@ public class HeightCalculator {
         microHeight = Math.max(microHeight, tierMinHeight);
         double tierAdjustment = (double)(elevationTier - 4) * WorldScapeConstants.TIER_BASE_HEIGHT * WorldScapeConstants.TIER_ADJUSTMENT_FACTOR;
         double finalHeight;
+        // 一致性修复：添加 macroBaseHeight 以与 RegionController.calculateBlend 保持一致
+        // Consistency fix: add macroBaseHeight to match RegionController.calculateBlend
+        // RegionController 使用 macroBaseHeight + microHeight + tierAdjustment，
+        // 其中 microHeight 是相对于 macroBaseHeight 的偏移量（包含 baseHeightForType），
+        // 而非绝对高度。缺少 macroBaseHeight 会导致高 Tier 地形过低、低 Tier 地形过高，
+        // 在 Tier 边界处产生地形反转。
+        // RegionController uses macroBaseHeight + microHeight + tierAdjustment,
+        // where microHeight is a delta from macroBaseHeight (includes baseHeightForType),
+        // NOT an absolute height. Missing macroBaseHeight causes high-tier terrain to be
+        // too low and low-tier terrain too high, producing terrain inversion at tier boundaries.
         if (blendWeight > WorldScapeConstants.BLEND_WEIGHT_THRESHOLD) {
-            finalHeight = microHeight + tierAdjustment;
+            finalHeight = macroBaseHeight + microHeight + tierAdjustment;
         } else {
             double boundaryProximityRaw = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
             boundaryProximityRaw = Math.max(0.0, Math.min(1.0, boundaryProximityRaw));
@@ -81,29 +90,34 @@ public class HeightCalculator {
             } else if (elevationTier == 1) {
                 macroInfluence *= WorldScapeConstants.OCEAN_TIER1_MACRO_DAMPING;
             }
-            finalHeight = WorldScapeUtils.lerp(microHeight + tierAdjustment, macroBaseHeight, macroInfluence);
+            // 边界处从 (macroBaseHeight + microHeight + tierAdjustment) 插值到 macroBaseHeight
+            // 与 RegionController.calculateBlend 的边界公式一致
+            // At boundary, lerp from (macroBaseHeight + microHeight + tierAdjustment) to macroBaseHeight,
+            // consistent with RegionController.calculateBlend's boundary formula
+            finalHeight = WorldScapeUtils.lerp(macroBaseHeight + microHeight + tierAdjustment, macroBaseHeight, macroInfluence);
         }
         double smoothNoise = this.n3Noise.getValue((double)x / 16.0, (double)z / 16.0, 0.0) * 6.0;
         return finalHeight + smoothNoise;
     }
 
     private double calculateMicroHeight(int x, int z, List<TerrainControlPoint> points, HeightCache cache) {
-        double n1 = cache != null ? cache.n1 : this.n1Noise.getValue((double)x / 512.0, (double)z / 512.0, 0.0);
-        double n2 = cache != null ? cache.n2 : this.n2Noise.getValue((double)x / 128.0, (double)z / 128.0, 0.0);
-        double n3 = cache != null ? cache.n3 : this.n3Noise.getValue((double)x / 32.0, (double)z / 32.0, 0.0);
         double totalWeight = 0.0;
         double totalHeight = 0.0;
         for (TerrainControlPoint point : points) {
             double distance = point.squaredDistanceTo(x, z);
-            double effectiveRadius = point.getRadius() * 1.5;
+            double effectiveRadius = point.getRadius();
             double sqrtDistance = Math.sqrt(distance);
             double normalizedDistance = Math.min(sqrtDistance / effectiveRadius, 1.0);
-            double weight = this.smoothStep(1.0 - normalizedDistance);
+            double weight = (1.0 - normalizedDistance) * (1.0 - normalizedDistance);
             if (!(weight > 0.001)) continue;
-            TerrainContext context = new TerrainContext(n1, n2, n3, sqrtDistance, this.controlPointManager.getSeed());
-            double pointHeight = point.getElevationOffset() + point.getTerrainType().calculateHeight(context);
-            double terrainIntensity = this.smoothStep(1.0 - Math.min(sqrtDistance / point.getRadius(), 1.0));
-            pointHeight = this.applyTerrainIntensity(pointHeight, point.getTerrainType(), terrainIntensity);
+            // 一致性修复：使用 getBaseHeightForTerrainType 替代 calculateHeight(context)
+            // Consistency fix: use getBaseHeightForTerrainType instead of calculateHeight(context)
+            // calculateHeight(context) 始终返回 0.0，导致 microHeight 缺少地形类型基础高度，
+            // 与 RegionController.calculateBlend 中的 elevationOffset + baseHeightForType 不一致。
+            // calculateHeight(context) always returns 0.0, causing microHeight to miss the
+            // terrain-type base height, inconsistent with RegionController.calculateBlend's
+            // elevationOffset + baseHeightForType.
+            double pointHeight = point.getElevationOffset() + this.getBaseHeightForTerrainType(point.getTerrainType());
             totalWeight += weight;
             totalHeight += weight * pointHeight;
         }
@@ -112,6 +126,78 @@ public class HeightCalculator {
 
     private double getTierMinimumHeight(int tier) {
         return MacroVoronoiSystem.getTierMinimumHeight(tier);
+    }
+
+    // 地形类型基础高度查找表，与 RegionController.getBaseHeightForTerrainType 保持一致
+    // Terrain type base height lookup table, consistent with RegionController.getBaseHeightForTerrainType
+    // 这些值是相对于 macroBaseHeight 的偏移量，代表每种地形类型的典型局部高度变化，
+    // 而非绝对高度。最终高度 = macroBaseHeight + microHeight(含 baseHeightForType) + tierAdjustment。
+    // These values are deltas from macroBaseHeight, representing typical local height variation
+    // for each terrain type, NOT absolute heights. Final height = macroBaseHeight + microHeight
+    // (includes baseHeightForType) + tierAdjustment.
+    private double getBaseHeightForTerrainType(TerrainType type) {
+        if (type == TerrainType.HIGH_MOUNTAINS) {
+            return 110.0;
+        } else if (type == TerrainType.HILLS) {
+            return 28.0;
+        } else if (type == TerrainType.CLIFF) {
+            return 44.0;
+        } else if (type == TerrainType.PLATEAU) {
+            return 83.0;
+        } else if (type == TerrainType.VALLEY) {
+            return 17.0;
+        } else if (type == TerrainType.RIDGE) {
+            return 83.0;
+        } else if (type == TerrainType.PEAK) {
+            return 110.0;
+        } else if (type == TerrainType.CANYON) {
+            return -11.0;
+        } else if (type == TerrainType.ALLUVIAL_FAN) {
+            return 28.0;
+        } else if (type == TerrainType.FLOODPLAIN) {
+            return 17.0;
+        } else if (type == TerrainType.DUNE) {
+            return 14.0;
+        } else if (type == TerrainType.GOBI) {
+            return 22.0;
+        } else if (type == TerrainType.YARDANG) {
+            return 28.0;
+        } else if (type == TerrainType.SALT_FLAT) {
+            return 11.0;
+        } else if (type == TerrainType.ICE_SHEET) {
+            return 55.0;
+        } else if (type == TerrainType.GLACIAL_VALLEY) {
+            return -6.0;
+        } else if (type == TerrainType.CIRQUE) {
+            return 55.0;
+        } else if (type == TerrainType.HORN) {
+            return 110.0;
+        } else if (type == TerrainType.BEACH) {
+            return 11.0;
+        } else if (type == TerrainType.SEA_CLIFF) {
+            return 28.0;
+        } else if (type == TerrainType.FJORD) {
+            return -6.0;
+        } else if (type == TerrainType.DELTA) {
+            return 8.0;
+        } else if (type == TerrainType.PEAK_FOREST) {
+            return 55.0;
+        } else if (type == TerrainType.SINKHOLE) {
+            return -6.0;
+        } else if (type == TerrainType.PLAINS) {
+            return 17.0;
+        } else if (type == TerrainType.BASIN) {
+            return 0.0;
+        } else if (type == TerrainType.DOME) {
+            return 83.0;
+        } else if (type == TerrainType.TRENCH) {
+            return -44.0;
+        } else if (type == TerrainType.SEA_PLATEAU) {
+            return -11.0;
+        }
+        // 未知地形类型使用安全默认值，避免运行时崩溃
+        // Unknown terrain type falls back to safe default to prevent runtime crashes
+        return 0.0;
     }
 
     public double calculateHeight(int x, int z) {
@@ -123,12 +209,11 @@ public class HeightCalculator {
         return x * x * (3.0 - 2.0 * x);
     }
 
-    private double applyTerrainIntensity(double height, TerrainType terrainType, double intensity) {
-        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.CLIFF) {
-            intensity *= 0.7;
-        }
-        return WorldScapeUtils.lerp(this.seaLevel, height, intensity);
-    }
+    // 已移除 applyTerrainIntensity：该方法将高度向海平面插值，与 macroBaseHeight 叠加后
+    // 产生错误结果（macroBaseHeight + seaLevel），且 RegionController.calculateBlend 不使用此逻辑。
+    // Removed applyTerrainIntensity: it lerped height toward seaLevel, which conflicts with
+    // macroBaseHeight addition (producing macroBaseHeight + seaLevel), and RegionController
+    // does not use this logic.
 
     public static class HeightCache {
         public final List<TerrainControlPoint> controlPoints;

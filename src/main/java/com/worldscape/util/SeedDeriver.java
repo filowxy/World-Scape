@@ -106,11 +106,21 @@ public class SeedDeriver {
     }
 
     public static double smoothstep(double edge0, double edge1, double x) {
+        // 保护：当 edge0 == edge1 时避免除零，返回阶梯函数
+        // Guard: avoid division by zero when edge0 == edge1, return step function
+        if (edge0 == edge1) {
+            return x >= edge0 ? 1.0 : 0.0;
+        }
         double t = Math.max(0.0, Math.min(1.0, (x - edge0) / (edge1 - edge0)));
         return t * t * (3.0 - 2.0 * t);
     }
 
     public static double smootherstep(double edge0, double edge1, double x) {
+        // 保护：当 edge0 == edge1 时避免除零，返回阶梯函数
+        // Guard: avoid division by zero when edge0 == edge1, return step function
+        if (edge0 == edge1) {
+            return x >= edge0 ? 1.0 : 0.0;
+        }
         double t = Math.max(0.0, Math.min(1.0, (x - edge0) / (edge1 - edge0)));
         return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
     }

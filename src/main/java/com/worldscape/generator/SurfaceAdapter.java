@@ -3,6 +3,8 @@
  */
 package com.worldscape.generator;
 
+import com.worldscape.terrain.TerrainType;
+
 public interface SurfaceAdapter {
     public boolean buildSurface(SurfaceBuildContext var1);
 
@@ -19,6 +21,8 @@ public interface SurfaceAdapter {
         private final int[][] heightMap;
         private final boolean[][] riverMap;
         private final double[][] riverDepthMap;
+        // 地形类型映射表，用于根据 TerrainType 确定表面方块 / Terrain type map for determining surface blocks based on TerrainType
+        private final TerrainType[][] terrainTypeMap;
         private final int minY;
         private final int maxY;
         private final int minBlockX;
@@ -33,6 +37,7 @@ public interface SurfaceAdapter {
             this.heightMap = builder.heightMap;
             this.riverMap = builder.riverMap;
             this.riverDepthMap = builder.riverDepthMap;
+            this.terrainTypeMap = builder.terrainTypeMap;
             this.minY = builder.minY;
             this.maxY = builder.maxY;
             this.minBlockX = builder.minBlockX;
@@ -71,6 +76,11 @@ public interface SurfaceAdapter {
             return this.riverDepthMap;
         }
 
+        // 获取地形类型映射表 / Get the terrain type map
+        public TerrainType[][] getTerrainTypeMap() {
+            return this.terrainTypeMap;
+        }
+
         public int getMinY() {
             return this.minY;
         }
@@ -100,6 +110,8 @@ public interface SurfaceAdapter {
             private int[][] heightMap;
             private boolean[][] riverMap;
             private double[][] riverDepthMap;
+            // 地形类型映射表 / Terrain type map
+            private TerrainType[][] terrainTypeMap;
             private int minY;
             private int maxY;
             private int minBlockX;
@@ -142,6 +154,12 @@ public interface SurfaceAdapter {
 
             public Builder riverDepthMap(double[][] val) {
                 this.riverDepthMap = val;
+                return this;
+            }
+
+            // 设置地形类型映射表 / Set the terrain type map
+            public Builder terrainTypeMap(TerrainType[][] val) {
+                this.terrainTypeMap = val;
                 return this;
             }
 

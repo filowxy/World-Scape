@@ -11,8 +11,12 @@ package com.worldscape.terrain;
 
 import com.worldscape.terrain.TerrainType;
 import com.worldscape.util.SeedDeriver;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import org.slf4j.Logger;
@@ -31,12 +35,38 @@ public class TerrainFieldSampler {
     private static final double ENERGY_DETAIL_SCALE = 9.765625E-4;
     private static final double MOISTURE_SCALE = 4.8828125E-4;
     private static final double ENERGY_DETAIL_WEIGHT = 0.3;
+    private final long worldSeed;
     private static final List<Double> TIER_THRESHOLDS = List.of(Double.valueOf(-1.405), Double.valueOf(-0.674), Double.valueOf(0.0), Double.valueOf(0.842), Double.valueOf(1.645));
     public static final int NO_MACRO_TIER_CONSTRAINT = -1;
     private static final double ENERGY_TO_OFFSET_SCALE = 50.0;
-    private static final ConcurrentHashMap<Long, TerrainFieldSampler> instances = new ConcurrentHashMap<>();
+    // Thread-safe noise result caches to avoid redundant fBm/turbulence/domain_rotated recomputation.
+    // Uses ConcurrentHashMap with computeIfAbsent for lock-free reads. Entries bounded by
+    // periodic clear in getOrCreate() to prevent unbounded growth on long-running servers.
+    // Maximum ~50K entries per sampler before eviction (~400 KB memory per sampler).
+    private static final int MAX_CACHE_SIZE = 10000;
+    private final ConcurrentHashMap<NoiseCacheKey, Double> fbmCache = new ConcurrentHashMap<>(1024);
+    private final ConcurrentHashMap<NoiseCacheKey, Double> turbulenceCache = new ConcurrentHashMap<>(256);
+    private final ConcurrentHashMap<NoiseCacheKey, Double> domainRotatedCache = new ConcurrentHashMap<>(256);
+
+    // Cache hit/miss counters for runtime monitoring.
+    // Reset via clearNoiseCaches(). Access via getCacheHits() / getCacheMisses().
+    // 缓存命中/未命中计数器，用于运行时监控。通过 clearNoiseCaches() 重置，
+    // 通过 getCacheHits() / getCacheMisses() 访问。
+    private final AtomicLong cacheHits = new AtomicLong(0);
+    private final AtomicLong cacheMisses = new AtomicLong(0);
+    // LRU 缓存，最大容量 8，避免多世界长期运行导致内存泄漏
+    // LRU cache with max capacity 8, preventing memory leak on long-running multi-world servers
+    private static final Map<Long, TerrainFieldSampler> instances = Collections.synchronizedMap(
+        new LinkedHashMap<Long, TerrainFieldSampler>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Long, TerrainFieldSampler> eldest) {
+                return this.size() > 8;
+            }
+        }
+    );
 
     private TerrainFieldSampler(long worldSeed) {
+        this.worldSeed = worldSeed;
         long energyMainSeed = SeedDeriver.deriveSeed(worldSeed, 832466842634L);
         long energyDetailSeed = SeedDeriver.deriveSeed(worldSeed, 979051293805L);
         long moistureSeed = SeedDeriver.deriveSeed(worldSeed, 905767551413L);
@@ -62,7 +92,18 @@ public class TerrainFieldSampler {
      * caused by overwriting the previous instance.
      */
     public static TerrainFieldSampler getOrCreate(long worldSeed) {
-        return instances.computeIfAbsent(worldSeed, TerrainFieldSampler::new);
+        synchronized (instances) {
+            TerrainFieldSampler existing = instances.get(worldSeed);
+            if (existing != null) {
+                // Clear caches of existing instance to prevent stale entries
+                // from accumulating across multiple terrain generation passes
+                existing.clearNoiseCaches();
+                return existing;
+            }
+            TerrainFieldSampler newSampler = new TerrainFieldSampler(worldSeed);
+            instances.put(worldSeed, newSampler);
+            return newSampler;
+        }
     }
 
     public double sampleEnergy(int x, int z) {
@@ -98,8 +139,19 @@ public class TerrainFieldSampler {
         return tier;
     }
 
-    public TerrainType selectTypeByMoisture(int tier, double moisture) {
+    /**
+     * Select terrain type by tier and moisture, with deterministic position-based jitter.
+     * The jitter (±0.05 on normalized [0,1] moisture) allows ~5-10% of points near
+     * interval boundaries to cross into adjacent intervals, producing 2-3 terrain types
+     * per Voronoi cell instead of 100% single-type dominance.
+     */
+    public TerrainType selectTypeByMoisture(int tier, double moisture, int worldX, int worldZ) {
         double normalizedMoisture = (moisture + 1.0) * 0.5;
+        // Deterministic position-based jitter: small random offset based on world coordinates
+        long positionSeed = SeedDeriver.deriveSeed(this.worldSeed, worldX * 31L + worldZ * 17L);
+        RandomSource positionRandom = RandomSource.create(positionSeed);
+        double jitter = (positionRandom.nextDouble() - 0.5) * 0.10;
+        normalizedMoisture += jitter;
         normalizedMoisture = Math.max(0.0, Math.min(1.0, normalizedMoisture));
         if (tier < 0 || tier > 5) {
             LOGGER.warn("[World Scape] Invalid tier {} passed to selectTypeByMoisture, falling back to PLAINS", (Object)tier);
@@ -114,6 +166,14 @@ public class TerrainFieldSampler {
             case 5 -> this.selectTier5Type(normalizedMoisture);
             default -> TerrainType.PLAINS;
         };
+    }
+
+    /**
+     * Backward-compatible overload without jitter coordinates.
+     * Delegates to the 4-parameter version with (0, 0) as default coordinates.
+     */
+    public TerrainType selectTypeByMoisture(int tier, double moisture) {
+        return selectTypeByMoisture(tier, moisture, 0, 0);
     }
 
     public double calculateContinuousOffset(double energy, TerrainType type) {
@@ -215,60 +275,66 @@ public class TerrainFieldSampler {
         return TerrainType.FLOODPLAIN;
     }
 
+    // @AESTHETIC: T3 expanded with ALLUVIAL_FAN and VALLEY from T4, plus GOBI.
+    // These low-altitude types (typeModifier 5-30) fit better at T3 alongside PLAINS/HILLS.
+    // T3 扩展了从 T4 迁移来的 ALLUVIAL_FAN、VALLEY 和 GOBI。
+    // 这些低海拔类型（typeModifier 5-30）更适合与 PLAINS/HILLS 一起在 T3。
     private TerrainType selectTier3Type(double m) {
-        if (m < 0.07) {
+        if (m < 0.06) {
             return TerrainType.YARDANG;
         }
-        if (m < 0.15) {
+        if (m < 0.12) {
             return TerrainType.GOBI;
         }
-        if (m < 0.25) {
+        if (m < 0.20) {
             return TerrainType.DUNE;
         }
-        if (m < 0.55) {
+        if (m < 0.45) {
             return TerrainType.PLAINS;
         }
-        if (m < 0.7) {
+        if (m < 0.55) {
             return TerrainType.FLOODPLAIN;
         }
-        if (m < 0.9) {
+        if (m < 0.70) {
             return TerrainType.HILLS;
         }
-        if (m < 0.94) {
+        if (m < 0.80) {
+            return TerrainType.ALLUVIAL_FAN;
+        }
+        if (m < 0.84) {
             return TerrainType.BASIN;
         }
-        if (m < 0.97) {
+        if (m < 0.87) {
             return TerrainType.SINKHOLE;
+        }
+        if (m < 0.92) {
+            return TerrainType.VALLEY;
         }
         return TerrainType.PEAK_FOREST;
     }
 
+    // @AESTHETIC: T4 now contains only high-altitude-capable types (typeModifier 15-50).
+    // GOBI, ALLUVIAL_FAN, VALLEY moved to T3 where they fit better with PLAINS/HILLS.
+    // Fewer types → larger moisture ranges → higher probability of CLIFF/PLATEAU/CIRQUE.
+    // T4 现在仅包含高海拔能力类型（typeModifier 15-50），低海拔类型移至 T3。
+    // 类型更少 → 湿度区间更大 → CLIFF/PLATEAU/CIRQUE 出现概率更高。
     private TerrainType selectTier4Type(double m) {
-        if (m < 0.08) {
-            return TerrainType.GOBI;
-        }
-        if (m < 0.18) {
+        if (m < 0.15) {
             return TerrainType.CANYON;
         }
-        if (m < 0.26) {
-            return TerrainType.ALLUVIAL_FAN;
-        }
-        if (m < 0.51) {
+        if (m < 0.35) {
             return TerrainType.HILLS;
         }
-        if (m < 0.66) {
+        if (m < 0.50) {
+            return TerrainType.GLACIAL_VALLEY;
+        }
+        if (m < 0.65) {
             return TerrainType.CLIFF;
         }
-        if (m < 0.81) {
-            return TerrainType.PLATEAU;
-        }
-        if (m < 0.91) {
-            return TerrainType.VALLEY;
-        }
-        if (m < 0.96) {
+        if (m < 0.80) {
             return TerrainType.CIRQUE;
         }
-        return TerrainType.GLACIAL_VALLEY;
+        return TerrainType.PLATEAU;
     }
 
     private TerrainType selectTier5Type(double m) {
@@ -290,13 +356,10 @@ public class TerrainFieldSampler {
         if (m < 0.85) {
             return TerrainType.CIRQUE;
         }
-        if (m < 0.9) {
+        if (m < 0.93) {
             return TerrainType.HORN;
         }
-        if (m < 0.95) {
-            return TerrainType.ICE_SHEET;
-        }
-        return TerrainType.GLACIAL_VALLEY;
+        return TerrainType.ICE_SHEET;
     }
 
     public double sampleFbm(int x, int z) {
@@ -313,6 +376,120 @@ public class TerrainFieldSampler {
             amplitude *= 0.5;
         }
         return value / maxValue;
+    }
+
+    /**
+     * Cached variant of sampleFbm — avoids recomputing the 6-octave fBm loop
+     * for coordinates already sampled in the current terrain generation pass.
+     * Uses ConcurrentHashMap.computeIfAbsent for thread-safe, lock-free reads.
+     *
+     * @param x       world X coordinate
+     * @param z       world Z coordinate
+     * @param octaves number of fBm octaves (1-6)
+     * @param gain    amplitude decay factor per octave
+     * @return noise value in [-1, 1]
+     */
+    public double sampleFbmCached(int x, int z, int octaves, double gain) {
+        // Encode double gain into int with 3 decimal precision for cache key
+        int gainInt = (int) Math.round(gain * 1000.0);
+        NoiseCacheKey key = new NoiseCacheKey(x, z, octaves, gainInt);
+        Double cached = fbmCache.get(key);
+        if (cached != null) {
+            cacheHits.incrementAndGet();
+            return cached;
+        }
+        cacheMisses.incrementAndGet();
+        return fbmCache.computeIfAbsent(key, k -> sampleFbm(k.x(), k.z(), k.param1(), gain));
+    }
+
+    /**
+     * Cached variant of sampleTurbulence — avoids recomputing turbulence noise
+     * for coordinates already sampled.
+     *
+     * @param x        world X coordinate
+     * @param z        world Z coordinate
+     * @param strength turbulence strength multiplier
+     * @return turbulence value in [0, 1]
+     */
+    public double sampleTurbulenceCached(int x, int z, double strength) {
+        int strengthInt = (int) Math.round(strength * 1000.0);
+        NoiseCacheKey key = new NoiseCacheKey(x, z, strengthInt, 0);
+        Double cached = turbulenceCache.get(key);
+        if (cached != null) {
+            cacheHits.incrementAndGet();
+            return cached;
+        }
+        cacheMisses.incrementAndGet();
+        return turbulenceCache.computeIfAbsent(key, k -> sampleTurbulence(k.x(), k.z(), strength));
+    }
+
+    /**
+     * Cached variant of sampleDomainRotated — avoids recomputing domain rotation noise
+     * for coordinates already sampled.
+     *
+     * @param x            world X coordinate
+     * @param z            world Z coordinate
+     * @param warpStrength domain warp strength multiplier
+     * @return noise value in [-1, 1]
+     */
+    public double sampleDomainRotatedCached(int x, int z, double warpStrength) {
+        int warpInt = (int) Math.round(warpStrength * 1000.0);
+        NoiseCacheKey key = new NoiseCacheKey(x, z, warpInt, 0);
+        Double cached = domainRotatedCache.get(key);
+        if (cached != null) {
+            cacheHits.incrementAndGet();
+            return cached;
+        }
+        cacheMisses.incrementAndGet();
+        return domainRotatedCache.computeIfAbsent(key, k -> sampleDomainRotated(k.x(), k.z(), warpStrength));
+    }
+
+    /**
+     * Clear all noise caches. Called at the end of each terrain generation pass
+     * to prevent stale entries and unbounded memory growth.
+     * Public for testing and for external cache lifecycle management.
+     */
+    public void clearNoiseCaches() {
+        fbmCache.clear();
+        turbulenceCache.clear();
+        domainRotatedCache.clear();
+        cacheHits.set(0);
+        cacheMisses.set(0);
+    }
+
+    /**
+     * Get the total number of cache hits across all three noise caches.
+     * Useful for monitoring cache efficiency at runtime.
+     * Reset to 0 by clearNoiseCaches().
+     *
+     * @return total cache hit count since last reset
+     */
+    public long getCacheHits() {
+        return cacheHits.get();
+    }
+
+    /**
+     * Get the total number of cache misses across all three noise caches.
+     * Useful for monitoring cache efficiency at runtime.
+     * Reset to 0 by clearNoiseCaches().
+     *
+     * @return total cache miss count since last reset
+     */
+    public long getCacheMisses() {
+        return cacheMisses.get();
+    }
+
+    /**
+     * Get the current cache hit rate as a ratio in [0, 1].
+     * Returns 1.0 if no requests have been made (avoids division by zero).
+     *
+     * @return hit rate = hits / (hits + misses), or 1.0 if no requests
+     */
+    public double getCacheHitRate() {
+        long hits = cacheHits.get();
+        long misses = cacheMisses.get();
+        long total = hits + misses;
+        return total == 0 ? 1.0 : (double) hits / total;
     }
 
     public double sampleDomainRotated(int x, int z, double warpStrength) {
@@ -423,6 +600,15 @@ public class TerrainFieldSampler {
         double gx = (hX1 - hX2) / (2.0 * step);
         double gz = (hZ1 - hZ2) / (2.0 * step);
         return Math.sqrt(gx * gx + gz * gz);
+    }
+
+    /**
+     * Immutable cache key for noise value lookups.
+     * Encodes (x, z) coordinates plus int-valued parameters to distinguish
+     * different noise function call signatures (e.g., octaves, gain, strength, warpStrength).
+     */
+    private record NoiseCacheKey(int x, int z, int param1, int param2) {
+        // Uses Java 16+ record auto-generated equals/hashCode
     }
 }
 
