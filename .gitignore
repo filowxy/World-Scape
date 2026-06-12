@@ -45,6 +45,12 @@ PROJECT_REPORT.md
 # External jars (not source code)
 *.jar
 
+# MCP server tools (not part of the mod source)
+mcp-servers/
+
+# Test data files (not for public repository)
+testdata.jsonl
+
 # Root-level stale duplicates (old build artifacts)
 /META-INF/
 /data/
