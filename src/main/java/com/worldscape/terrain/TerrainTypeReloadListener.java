@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.worldscape.config.ConfigManager;
 import com.worldscape.WorldScape;
 import net.minecraft.resources.ResourceLocation;
+import net.neoforged.fml.loading.FMLPaths;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -325,18 +326,8 @@ public final class TerrainTypeReloadListener {
      * @return the game directory path / 游戏目录路径
      */
     private static Path getGameDirectory() {
-        try {
-            Class<?> minecraftClass = Class.forName("net.minecraft.client.Minecraft");
-            Object minecraftInstance = minecraftClass.getMethod("getInstance").invoke(null);
-            Object gameDir = minecraftClass.getMethod("getGameDirectory").invoke(minecraftInstance);
-            if (gameDir instanceof java.io.File) {
-                return ((java.io.File) gameDir).toPath();
-            }
-        } catch (Exception e) {
-            WorldScape.LOGGER.debug("[World Scape] Could not get client game directory, "
-                    + "using current working directory");
-        }
-
-        return Path.of("").toAbsolutePath();
+        // Use NeoForge's FMLPaths to get the game directory, which works on both client and server.
+        // 使用 NeoForge 的 FMLPaths 获取游戏目录，在客户端和服务端均可正常工作。
+        return FMLPaths.GAMEDIR.get();
     }
 }

@@ -1,9 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.util.RandomSource
- */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.MacroRegionInfo;
@@ -12,15 +6,20 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.levelgen.synth.NormalNoise;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MacroVoronoiSystem {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MacroVoronoiSystem.class);
     public static final int REGION_CELL_SIZE = 2048;
-    private static final int[] ELEVATION_BASE_HEIGHTS = new int[]{-80, -20, 10, 60, 160, 300};
-    private static final double HEIGHT_DIFF_TO_BANDWIDTH_FACTOR = 10.0;
-    private static final int MIN_TRANSITION_WIDTH = 800;
-    private static final int MAX_TRANSITION_WIDTH = 2400;
-    private static final double WATER_TRANSITION_MULTIPLIER = 6.0;
-    private static final int OCEAN_TIER_THRESHOLD = 2;
+    private static final int[] ELEVATION_BASE_HEIGHTS = new int[]{-80, -20, 50, 60, 160, 300};
+    // Removed unused transition-width constants: HEIGHT_DIFF_TO_BANDWIDTH_FACTOR, MIN_TRANSITION_WIDTH,
+    // MAX_TRANSITION_WIDTH, WATER_TRANSITION_MULTIPLIER, OCEAN_TIER_THRESHOLD.
+    // They were dead code; actual transition logic used different hardcoded values or was removed.
+    // 已移除未使用的过渡宽度常量：HEIGHT_DIFF_TO_BANDWIDTH_FACTOR、MIN_TRANSITION_WIDTH、
+    // MAX_TRANSITION_WIDTH、WATER_TRANSITION_MULTIPLIER、OCEAN_TIER_THRESHOLD。
+    // 它们是死代码；实际过渡逻辑使用了不同的硬编码值或已被移除。
     // @AESTHETIC: Spawn ocean constraint radius (in Voronoi cells, ~2048 blocks each).
     // RADIUS=0 limits ocean enforcement to the spawn cell itself, letting dist≥1 cells
     // develop natural tier distribution including mountains.
@@ -35,6 +34,9 @@ public class MacroVoronoiSystem {
     private final long tectonicSeed;
     private final long riftSeed;
     private final long climateSeed;
+    // Spatial coherent noise for tier assignment — replaces random.nextInt(6)
+    // 空间连贯噪声用于层级分配 — 替代 random.nextInt(6)
+    private final NormalNoise tierNoise;
     private static final int MAX_CACHE_SIZE = 10000;
     private final Map<Long, ControlPoint> controlPointCache = Collections.synchronizedMap(new LinkedHashMap<Long, ControlPoint>(1024, 0.75f, true){
 
@@ -67,6 +69,12 @@ public class MacroVoronoiSystem {
         this.tectonicSeed = SeedDeriver.deriveMacroTectonicSeed(worldSeed);
         this.riftSeed = SeedDeriver.deriveMacroRiftSeed(worldSeed);
         this.climateSeed = SeedDeriver.deriveMacroClimateSeed(worldSeed);
+        // Derive a dedicated seed for tier noise to ensure spatial coherence
+        // 推导专用种子用于层级噪声，确保空间连贯性
+        long tierNoiseSeed = SeedDeriver.deriveSeed(worldSeed, 756324891011L);
+        // Multi-octave noise for spatial tier variation: 4 octaves from -3 to 0
+        // 多倍频程噪声实现空间层级变化：从 -3 到 0 共 4 个倍频程
+        this.tierNoise = NormalNoise.create(RandomSource.create(tierNoiseSeed), -3, new double[]{1.0, 0.5, 0.25, 0.125});
     }
 
     public MacroRegionInfo getRegionInfo(int x, int z) {
@@ -129,25 +137,25 @@ public class MacroVoronoiSystem {
             int secondBase = MacroVoronoiSystem.getBaseHeightForTier(secondTier);
             int actualHeightDiff = Math.abs(primaryBase - secondBase);
             int calculatedWidth = (int)((double)actualHeightDiff * 10.0);
-            transitionWidth = Math.max(800, Math.min(2400, calculatedWidth));
+            // Let transitionWidth be naturally determined by height difference,
+            // only enforce the lower bound to prevent razor-thin boundaries.
+            // 让 transitionWidth 由高度差自然决定，仅强制下限以防止极窄边界。
+            transitionWidth = Math.max(800, calculatedWidth);
             boolean bothUnderwater = primaryBase < this.seaLevel && secondBase < this.seaLevel;
             boolean primaryIsOcean = primaryTier < 2;
             boolean secondIsOcean = secondTier < 2;
             boolean bl = secondIsOcean;
             if (bothUnderwater && primaryIsOcean && secondIsOcean) {
                 transitionWidth = (int)((double)transitionWidth * 6.0);
-                transitionWidth = Math.min(2400, transitionWidth);
             }
             double primaryDist = Math.sqrt(minDistSq);
             double secondDist = Math.sqrt(secondMinDistSq);
             // 使用较大的 epsilon (1.0) 避免近距离时 distRatio 数值不稳定
             // Use larger epsilon (1.0) to avoid numerical instability in distRatio at close distances
             double distRatio = primaryDist / (primaryDist + secondDist + 1.0);
-            double halfBand = Math.min(0.45, (double)(transitionWidth / 2048) * 2.0);
-            double minHalfBand = 0.08;
-            if (halfBand < 0.08) {
-                halfBand = minHalfBand;
-            }
+            // Keep only lower bound protection to prevent razor-thin blends
+            // 仅保留下限保护以防止过度锐利的混合
+            double halfBand = Math.max(0.08, (double)(transitionWidth / 2048) * 2.0);
             double edge0 = 0.5 - halfBand;
             double edge1 = 0.5 + halfBand;
             blendWeight = 1.0 - SeedDeriver.smoothstep(edge0, edge1, distRatio);
@@ -176,64 +184,47 @@ public class MacroVoronoiSystem {
     }
 
     private int getRawElevationTier(int cellX, int cellZ) {
-        double r;
-        long seed = SeedDeriver.deriveSeed(this.elevationSeed, (long)cellX * 31L + (long)cellZ * 17L);
-        RandomSource random = RandomSource.create((long)seed);
-        int tier = random.nextInt(6);
+        // Use spatial coherent noise for tier assignment — ensures smooth transitions
+        // between adjacent cells instead of random jumps.
+        // 使用空间连贯噪声进行层级分配 — 确保相邻单元之间平滑过渡，而非随机跳变。
+        double noiseValue = this.tierNoise.getValue(cellX * 0.05, 0.0, cellZ * 0.05);
+        // Map noise value [-1, 1] to tier [0, 5] and clamp
+        // 将噪声值 [-1, 1] 映射到层级 [0, 5] 并夹紧
+        int tier = (int)((noiseValue + 1.0) * 3.0);
+        tier = Math.max(0, Math.min(5, tier));
+
         int distFromSpawn = Math.max(Math.abs(cellX), Math.abs(cellZ));
         if (distFromSpawn <= SPAWN_OCEAN_RADIUS_CELLS) {
+            long seed = SeedDeriver.deriveSeed(this.elevationSeed, (long)cellX * 31L + (long)cellZ * 17L);
+            RandomSource random = RandomSource.create(seed);
             double oceanWeight = SPAWN_MAX_OCEAN_WEIGHT * (1.0 - (double)distFromSpawn / 3.0);
             if (random.nextDouble() < oceanWeight && tier > 1 && tier < 4) {
                 tier = random.nextInt(2);
             }
         }
-        // @AESTHETIC: Tier cap distribution adjusted from 10/25/35/30 to 10/20/30/40.
-        // Old: T4+T5=17.0%, New: T4+T5=22.0% (29% more mountain cells).
-        // T5 cap boosted from 30% to 40% to increase high-mountain terrain diversity.
-        // 将 Tier 上限概率从 10/25/35/30 调整为 10/20/30/40，T4+T5 从 17.0% 提升至 22.0%。
-        // T5 cap 从 30% 提升至 40%，增加高山地形多样性。
-        tier = (r = random.nextDouble()) < 0.10 ? Math.min(tier, 2) : (r < 0.30 ? Math.min(tier, 3) : (r < 0.60 ? Math.min(tier, 4) : Math.min(tier, 5)));
         return tier;
     }
 
     public int getAdjustedElevationTier(int cellX, int cellZ) {
         long key = (long)cellX << 32 | (long)cellZ & 0xFFFFFFFFL;
         return this.adjustedTierCache.computeIfAbsent(key, k -> {
-            int tier = this.getRawElevationTier(cellX, cellZ);
-            int minNeighborTier = tier;
-            int maxNeighborTier = tier;
-            for (int dx = -1; dx <= 1; ++dx) {
-                for (int dz = -1; dz <= 1; ++dz) {
-                    if (dx == 0 && dz == 0) continue;
-                    int neighborTier = this.getRawElevationTier(cellX + dx, cellZ + dz);
-                    minNeighborTier = Math.min(minNeighborTier, neighborTier);
-                    maxNeighborTier = Math.max(maxNeighborTier, neighborTier);
-                }
+            int rawTier = this.getRawElevationTier(cellX, cellZ);
+            // Diagnostic: log cell tier info for the first 30 unique cells
+            // 诊断：记录前 30 个唯一单元的层级信息
+            if (adjustedTierCache.size() < 30) {
+                LOGGER.info("[MACRO_DIAG] cell({},{}): rawTier={}", cellX, cellZ, rawTier);
             }
-            // @AESTHETIC: Symmetric neighbor correction — pull down isolated peaks AND pull up isolated valleys.
-            // Eliminates iteration-order dependency by collecting min/max first, then correcting once.
-            // New threshold 3: allows more natural terrain variation instead of oversmoothing.
-            // 对称邻居修正：同时拉低孤立高峰和拉高孤立低谷，先收集 min/max 再统一修正，消除迭代顺序依赖。
-            // 新阈值 3：允许更自然地形的变化，避免过度平滑。
-            if (tier - minNeighborTier > 3) tier = minNeighborTier + 3;
-            if (maxNeighborTier - tier > 3) tier = Math.max(tier, maxNeighborTier - 3);
-            return tier;
+            return rawTier;
         });
     }
 
     private MacroRegionInfo.TectonicType determineTectonicType(int cellX, int cellZ, int elevationTier) {
         long seed = SeedDeriver.deriveSeed(this.tectonicSeed, (long)cellX * 31L + (long)cellZ * 17L);
         RandomSource random = RandomSource.create((long)seed);
-        if (elevationTier >= 6) {
-            double r = random.nextDouble();
-            if (r < 0.6) {
-                return MacroRegionInfo.TectonicType.OROGENIC_BELT;
-            }
-            if (r < 0.85) {
-                return MacroRegionInfo.TectonicType.SUBDUCTION_ZONE;
-            }
-            return MacroRegionInfo.TectonicType.FAULT_ZONE;
-        }
+        // Removed dead code: elevationTier >= 6 was unreachable (max tier is 5).
+        // If tectonic type expansion is needed in the future, re-add here with higher tier support.
+        // 已移除死代码：elevationTier >= 6 永远不可达（最大 tier 为 5）。
+        // 若未来需要扩展构造类型，在此处重新添加并支持更高 tier。
         if (elevationTier >= 3) {
             double r = random.nextDouble();
             if (r < 0.2) {
@@ -271,13 +262,22 @@ public class MacroVoronoiSystem {
     }
 
     public static double getTierMinimumHeight(int tier) {
+        // Tier minimum heights enforce separation between tiers so that higher
+        // tiers consistently produce higher terrain. Previously tier 3 and tier 4
+        // both returned 28.0, providing no separation — tier 4 terrain (HILLS,
+        // CLIFF, PLATEAU at base height 160) could be pulled down to tier 3
+        // levels (base height 60) during blending, blurring the tier boundary.
+        // Tier 最小高度强制层级间分离，使更高层级一致地产生更高地形。
+        // 之前 tier 3 和 tier 4 都返回 28.0，没有分离 — tier 4 地形
+        //（HILLS、CLIFF、PLATEAU 基准高度 160）在混合时可能被拉低到
+        // tier 3 水平（基准高度 60），模糊了层级边界。
         return switch (tier) {
             case 0 -> -55.0;
             case 1 -> -28.0;
             case 2 -> -5.0;
             case 3 -> 28.0;
-            case 4 -> 28.0;
-            case 5 -> 44.0;
+            case 4 -> 80.0;   // Was 28.0 — now enforces tier 3→4 height separation
+            case 5 -> 120.0;  // Was 44.0 — raised to enforce tier 4→5 separation
             default -> 0.0;
         };
     }

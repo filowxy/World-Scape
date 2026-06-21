@@ -1,13 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.client.KeyMapping
- *  net.neoforged.api.distmarker.Dist
- *  net.neoforged.bus.api.SubscribeEvent
- *  net.neoforged.fml.common.EventBusSubscriber
- *  net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent
- */
 package com.worldscape.voronoi;
 
 import com.worldscape.voronoi.VoronoiInputEvents;

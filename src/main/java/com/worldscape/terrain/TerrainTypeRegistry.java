@@ -1,12 +1,14 @@
 package com.worldscape.terrain;
 
 import com.worldscape.WorldScape;
+import net.minecraft.ResourceLocationException;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -39,6 +41,10 @@ public final class TerrainTypeRegistry {
      * @param type the TerrainType to register / 要注册的 TerrainType
      */
     public static void register(ResourceLocation key, TerrainType type) {
+        // 空值校验：防止 NPE
+        // Null check: prevent NPE
+        Objects.requireNonNull(key, "key must not be null");
+        Objects.requireNonNull(type, "type must not be null");
         TerrainType existing = registry.putIfAbsent(key, type);
         if (existing != null) {
             WorldScape.LOGGER.error(
@@ -69,8 +75,16 @@ public final class TerrainTypeRegistry {
      * @return the registered TerrainType, or null if not found / 已注册的 TerrainType，若未找到则返回 null
      */
     public static TerrainType get(String id) {
-        ResourceLocation key = ResourceLocation.parse(id);
-        return get(key);
+        // 空值/空白值校验：防止 NPE 和无效解析
+        // Null/blank check: prevent NPE and invalid parsing
+        if (id == null || id.isBlank()) return null;
+        try {
+            ResourceLocation key = ResourceLocation.parse(id);
+            return get(key);
+        } catch (ResourceLocationException e) {
+            WorldScape.LOGGER.error("[TerrainTypeRegistry] Invalid resource location id: '{}', error: {}", id, e.getMessage());
+            return null;
+        }
     }
 
     /**

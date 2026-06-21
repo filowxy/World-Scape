@@ -1,25 +1,17 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.neoforged.fml.event.config.ModConfigEvent$Loading
- *  net.neoforged.fml.event.config.ModConfigEvent$Reloading
- *  net.neoforged.neoforge.common.ModConfigSpec
- *  net.neoforged.neoforge.common.ModConfigSpec$BooleanValue
- *  net.neoforged.neoforge.common.ModConfigSpec$Builder
- *  net.neoforged.neoforge.common.ModConfigSpec$DoubleValue
- *  net.neoforged.neoforge.common.ModConfigSpec$IntValue
- */
 package com.worldscape.config;
 
 import java.util.concurrent.atomic.AtomicReference;
+import com.worldscape.terrain.WorldScapeConstants;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConfigManager {
     public static final ModConfigSpec SPEC;
     public static final Config CONFIG;
     private static final AtomicReference<ConfigSnapshot> SNAPSHOT;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConfigManager.class);
 
     public static void onConfigLoad(ModConfigEvent.Loading event) {
         ConfigManager.refreshSnapshot();
@@ -30,8 +22,26 @@ public class ConfigManager {
     }
 
     private static void refreshSnapshot() {
-        ConfigSnapshot snapshot = new ConfigSnapshot((Integer)ConfigManager.CONFIG.seaLevel.get(), (Integer)ConfigManager.CONFIG.cacheMaxSize.get(), (Double)ConfigManager.CONFIG.autoMatchThreshold.get(), (Boolean)ConfigManager.CONFIG.enableTemperatureLink.get(), (Boolean)ConfigManager.CONFIG.silenceNoisiumWarning.get(), (Integer)ConfigManager.CONFIG.controlPointMinDistance.get(), (Integer)ConfigManager.CONFIG.controlPointMaxDistance.get(), (Integer)ConfigManager.CONFIG.elevationDiffThreshold.get(), (Integer)ConfigManager.CONFIG.plainsMacroWavelength.get(), (Double)ConfigManager.CONFIG.plainsMacroAmplitude.get(), (Integer)ConfigManager.CONFIG.plainsMesoWavelength.get(), (Double)ConfigManager.CONFIG.plainsMesoAmplitude.get(), (Integer)ConfigManager.CONFIG.plainsMicroWavelength.get(), (Double)ConfigManager.CONFIG.plainsMicroAmplitude.get(), (Double)ConfigManager.CONFIG.plainsErosionDepth.get(), (Integer)ConfigManager.CONFIG.regionSize.get(), (Integer)ConfigManager.CONFIG.cellSize.get(), (Integer)ConfigManager.CONFIG.searchRadius.get(), (Integer)ConfigManager.CONFIG.reloadCooldown.get(), (String)ConfigManager.CONFIG.terrainTypeConfigDir.get());
+        ConfigSnapshot snapshot = new ConfigSnapshot((Integer)ConfigManager.CONFIG.seaLevel.get(), (Integer)ConfigManager.CONFIG.cacheMaxSize.get(), (Double)ConfigManager.CONFIG.autoMatchThreshold.get(), (Boolean)ConfigManager.CONFIG.enableTemperatureLink.get(), (Boolean)ConfigManager.CONFIG.silenceNoisiumWarning.get(), (Boolean)ConfigManager.CONFIG.enableBiomeOverride.get(), (Integer)ConfigManager.CONFIG.controlPointMinDistance.get(), (Integer)ConfigManager.CONFIG.controlPointMaxDistance.get(), (Integer)ConfigManager.CONFIG.elevationDiffThreshold.get(), (Integer)ConfigManager.CONFIG.plainsMacroWavelength.get(), (Double)ConfigManager.CONFIG.plainsMacroAmplitude.get(), (Integer)ConfigManager.CONFIG.plainsMesoWavelength.get(), (Double)ConfigManager.CONFIG.plainsMesoAmplitude.get(), (Integer)ConfigManager.CONFIG.plainsMicroWavelength.get(), (Double)ConfigManager.CONFIG.plainsMicroAmplitude.get(), (Double)ConfigManager.CONFIG.plainsErosionDepth.get(), (Integer)ConfigManager.CONFIG.regionSize.get(), (Integer)ConfigManager.CONFIG.cellSize.get(), (Integer)ConfigManager.CONFIG.searchRadius.get(), (Integer)ConfigManager.CONFIG.reloadCooldown.get(), (String)ConfigManager.CONFIG.terrainTypeConfigDir.get());
         SNAPSHOT.set(snapshot);
+
+        // Validate cross-field constraints
+        if (snapshot.controlPointMinDistance() >= snapshot.controlPointMaxDistance()) {
+            LOGGER.warn("[World Scape] Config validation: controlPointMinDistance ({}) >= controlPointMaxDistance ({})",
+                    snapshot.controlPointMinDistance(), snapshot.controlPointMaxDistance());
+        }
+        if (snapshot.plainsMacroWavelength() <= snapshot.plainsMesoWavelength()) {
+            LOGGER.warn("[World Scape] Config validation: plainsMacroWavelength ({}) <= plainsMesoWavelength ({})",
+                    snapshot.plainsMacroWavelength(), snapshot.plainsMesoWavelength());
+        }
+        if (snapshot.plainsMesoWavelength() <= snapshot.plainsMicroWavelength()) {
+            LOGGER.warn("[World Scape] Config validation: plainsMesoWavelength ({}) <= plainsMicroWavelength ({})",
+                    snapshot.plainsMesoWavelength(), snapshot.plainsMicroWavelength());
+        }
+        if (snapshot.elevationDiffThreshold() > snapshot.controlPointMaxDistance()) {
+            LOGGER.warn("[World Scape] Config validation: elevationDiffThreshold ({}) > controlPointMaxDistance ({})",
+                    snapshot.elevationDiffThreshold(), snapshot.controlPointMaxDistance());
+        }
     }
 
     public static ConfigSnapshot getSnapshot() {
@@ -61,6 +71,16 @@ public class ConfigManager {
 
     public static boolean shouldSilenceNoisiumWarning() {
         return ConfigManager.getSnapshot().silenceNoisiumWarning();
+    }
+
+    /**
+     * Returns whether World Scape is allowed to override chunk biome data via reflection.
+     * Defaults to false to preserve compatibility with biome mods (TerraBlender, Biomes O' Plenty).
+     * 返回是否允许 World Scape 通过反射覆盖区块生物群系数据。
+     * 默认为 false 以保持与生物群系模组（TerraBlender、Biomes O' Plenty）的兼容性。
+     */
+    public static boolean isBiomeOverrideEnabled() {
+        return ConfigManager.getSnapshot().enableBiomeOverride();
     }
 
     public static int getControlPointMinDistance() {
@@ -136,7 +156,7 @@ public class ConfigManager {
         SPEC = builder.build();
     }
 
-    public record ConfigSnapshot(int seaLevel, int cacheMaxSize, double autoMatchThreshold, boolean enableTemperatureLink, boolean silenceNoisiumWarning, int controlPointMinDistance, int controlPointMaxDistance, int elevationDiffThreshold, int plainsMacroWavelength, double plainsMacroAmplitude, int plainsMesoWavelength, double plainsMesoAmplitude, int plainsMicroWavelength, double plainsMicroAmplitude, double plainsErosionDepth, int regionSize, int cellSize, int searchRadius, int reloadCooldown, String terrainTypeConfigDir) {
+    public record ConfigSnapshot(int seaLevel, int cacheMaxSize, double autoMatchThreshold, boolean enableTemperatureLink, boolean silenceNoisiumWarning, boolean enableBiomeOverride, int controlPointMinDistance, int controlPointMaxDistance, int elevationDiffThreshold, int plainsMacroWavelength, double plainsMacroAmplitude, int plainsMesoWavelength, double plainsMesoAmplitude, int plainsMicroWavelength, double plainsMicroAmplitude, double plainsErosionDepth, int regionSize, int cellSize, int searchRadius, int reloadCooldown, String terrainTypeConfigDir) {
     }
 
     public static class Config {
@@ -145,6 +165,7 @@ public class ConfigManager {
         public final ModConfigSpec.DoubleValue autoMatchThreshold;
         public final ModConfigSpec.BooleanValue enableTemperatureLink;
         public final ModConfigSpec.BooleanValue silenceNoisiumWarning;
+        public final ModConfigSpec.BooleanValue enableBiomeOverride;
         public final ModConfigSpec.IntValue controlPointMinDistance;
         public final ModConfigSpec.IntValue controlPointMaxDistance;
         public final ModConfigSpec.IntValue elevationDiffThreshold;
@@ -163,12 +184,20 @@ public class ConfigManager {
 
         public Config(ModConfigSpec.Builder builder) {
             builder.push("general");
-            this.seaLevel = builder.comment("\u6d77\u5e73\u9762\u9ad8\u5ea6\uff08\u65b9\u5757\uff09").defineInRange("sea_level", 64, 0, 256);
+            this.seaLevel = builder.comment("\u6d77\u5e73\u9762\u9ad8\u5ea6\uff08\u65b9\u5757\uff09").defineInRange("sea_level", WorldScapeConstants.SEA_LEVEL_FALLBACK, 0, 256);
             this.cacheMaxSize = builder.comment("\u6bcf\u4e2a\u7ef4\u5ea6\u7684\u6700\u5927\u7f13\u5b58\u5355\u5143\u6570").defineInRange("cache_max_size", 1024, 256, 8192);
             this.autoMatchThreshold = builder.comment("\u751f\u7269\u7fa4\u7cfb\u4e0e\u5730\u5f62\u5339\u914d\u7684\u9608\u503c\uff080.0-1.0\uff09").defineInRange("auto_match_threshold", 0.3, 0.0, 1.0);
             this.enableTemperatureLink = builder.comment("\u542f\u7528\u4e0e\u6e29\u5ea6\u76f8\u5173\u6a21\u7ec4\u7684\u94fe\u63a5").define("enable_temperature_link", true);
             this.silenceNoisiumWarning = builder.comment("\u9759\u97f3 Noisium \u6a21\u7ec4\u8b66\u544a").define("silence_noisium_warning", false);
-            this.terrainTypeConfigDir = builder.comment("Custom terrain type JSON directory (highest priority). Leave empty to disable.", "自定义地形类型 JSON 目录（最高优先级）。留空则禁用。").define("terrain_type_config_dir", "");
+            this.enableBiomeOverride = builder.comment(
+                "EXPERIMENTAL: When enabled, World Scape overrides ProtoChunk biome data via reflection to match terrain types. " +
+                "This breaks compatibility with biome mods (TerraBlender, Biomes O' Plenty). " +
+                "Keep disabled unless you explicitly want World Scape to assign biomes.",
+                "\u5b9e\u9a8c\u6027\uff1a\u542f\u7528\u540e World Scape \u4f1a\u901a\u8fc7\u53cd\u5c04\u8986\u76d6 ProtoChunk \u7684\u751f\u7269\u7fa4\u7cfb\u6570\u636e\u4ee5\u5339\u914d\u5730\u5f62\u7c7b\u578b\u3002" +
+                "\u8fd9\u4f1a\u7834\u574f\u4e0e\u751f\u7269\u7fa4\u7cfb\u6a21\u7ec4\uff08TerraBlender\u3001Biomes O' Plenty\uff09\u7684\u517c\u5bb9\u6027\u3002" +
+                "\u9664\u975e\u4f60\u660e\u786e\u5e0c\u671b World Scape \u5206\u914d\u751f\u7269\u7fa4\u7cfb\uff0c\u5426\u5219\u8bf7\u4fdd\u6301\u7981\u7528\u3002"
+            ).define("enable_biome_override", false);
+            this.terrainTypeConfigDir = builder.comment("Custom terrain type JSON directory (highest priority). Leave empty to disable.", "\u81ea\u5b9a\u4e49\u5730\u5f62\u7c7b\u578b JSON \u76ee\u5f55\uff08\u6700\u9ad8\u4f18\u5148\u7ea7\uff09\u3002\u7559\u7a7a\u5219\u7981\u7528\u3002").define("terrain_type_config_dir", "");
             builder.pop();
             builder.push("control_points");
             this.controlPointMinDistance = builder.comment("\u63a7\u5236\u70b9\u4e4b\u95f4\u7684\u6700\u5c0f\u8ddd\u79bb\uff08\u65b9\u5757\uff09").defineInRange("control_point_min_distance", 150, 50, 500);

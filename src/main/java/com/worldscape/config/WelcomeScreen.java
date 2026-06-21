@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.ChatFormatting
- *  net.minecraft.client.gui.GuiGraphics
- *  net.minecraft.client.gui.components.Button
- *  net.minecraft.client.gui.components.events.GuiEventListener
- *  net.minecraft.client.gui.screens.Screen
- *  net.minecraft.network.chat.Component
- */
 package com.worldscape.config;
 
 import com.worldscape.compat.IncompatibleModWarningScreen;
@@ -21,7 +10,10 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 
+@OnlyIn(Dist.CLIENT)
 public class WelcomeScreen
 extends Screen {
     private static final int CARD_BG_COLOR = 0x1A1A1A;
@@ -82,7 +74,6 @@ extends Screen {
     }
 
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(graphics, mouseX, mouseY, partialTick);
         int centerX = this.width / 2;
         int centerY = this.height / 2;
         int windowX = Math.max(10, centerX - 300);
@@ -94,6 +85,15 @@ extends Screen {
         contentY = this.drawPresetCard(graphics, windowX + 15, contentY, mouseX, mouseY);
         this.drawWorldOptionsCard(graphics, windowX + 15, contentY, mouseX, mouseY);
         super.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // Draw a simple dark overlay instead of the default blur/dim background.
+        // The default background rendering would blur the underlying screen content,
+        // but since the WelcomeScreen draws its own card-based UI with dark panels,
+        // we only need a subtle dark tint to keep it readable without self-obscuring.
+        graphics.fill(0, 0, this.width, this.height, 0x80000000);
     }
 
     private void drawMainWindow(GuiGraphics graphics, int x, int y) {

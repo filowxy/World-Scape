@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.debug;
 
 import com.worldscape.terrain.MacroRegionInfo;
@@ -127,14 +120,16 @@ public class TerrainDebugTools {
             baseDesc = "\u4e00\u822c\u5730\u5f62";
         }
         String climateDesc = switch (macroInfo.climate) {
-            default -> throw new MatchException(null, null);
+            // Safe default for unknown enum values — prevents runtime crash / 安全默认值，防止运行时崩溃
+            default -> "";
             case MacroRegionInfo.ClimateZone.GLACIAL -> "\uff08\u5bd2\u5e26\u6c14\u5019\uff0c\u51ac\u5b63\u6f2b\u957f\uff09";
             case MacroRegionInfo.ClimateZone.TEMPERATE -> "\uff08\u6e29\u5e26\u6c14\u5019\uff0c\u56db\u5b63\u5206\u660e\uff09";
             case MacroRegionInfo.ClimateZone.ARID -> "\uff08\u5e72\u65f1\u6c14\u5019\uff0c\u964d\u6c34\u7a00\u5c11\uff09";
             case MacroRegionInfo.ClimateZone.TROPICAL -> "\uff08\u70ed\u5e26\u6c14\u5019\uff0c\u9ad8\u6e29\u591a\u96e8\uff09";
         };
         String tectonicDesc = switch (macroInfo.tectonic) {
-            default -> throw new MatchException(null, null);
+            // Safe default for unknown enum values — prevents runtime crash / 安全默认值，防止运行时崩溃
+            default -> "";
             case MacroRegionInfo.TectonicType.OROGENIC_BELT -> " | \u9020\u5c71\u5e26\uff1a\u5730\u58f3\u6d3b\u8dc3\uff0c\u8936\u76b1\u65ad\u5757\u53d1\u80b2";
             case MacroRegionInfo.TectonicType.SUBDUCTION_ZONE -> " | \u4fef\u51b2\u5e26\uff1a\u677f\u5757\u4fef\u51b2\u4f5c\u7528\u663e\u8457";
             case MacroRegionInfo.TectonicType.RIFT_ZONE -> " | \u88c2\u8c37\u5e26\uff1a\u5730\u58f3\u62c9\u5f20\u88c2\u9677";
@@ -221,7 +216,16 @@ public class TerrainDebugTools {
     }
 
     public static void exportMacroVoronoiImage(MacroVoronoiSystem macroSystem, int centerX, int centerZ, int radiusBlocks, int pixelsPerBlock, Path outputPath) {
-        int imageSize = radiusBlocks * 2 * pixelsPerBlock;
+        // Validate parameters to prevent integer overflow and excessive memory allocation
+        // 验证参数以防止整数溢出和过度内存分配
+        if (radiusBlocks <= 0 || pixelsPerBlock <= 0) {
+            throw new IllegalArgumentException("radius and pixelsPerBlock must be positive");
+        }
+        long imageSizeLong = (long)radiusBlocks * 2L * pixelsPerBlock;
+        if (imageSizeLong > 16384) {
+            throw new IllegalArgumentException("Image size too large: " + imageSizeLong);
+        }
+        int imageSize = (int)imageSizeLong;
         BufferedImage image = new BufferedImage(imageSize, imageSize, 1);
         int progressStep = Math.max(1, imageSize / 10);
         for (int px = 0; px < imageSize; ++px) {
@@ -245,7 +249,16 @@ public class TerrainDebugTools {
     }
 
     public static void exportHeightMapImage(RegionController controller, int centerX, int centerZ, int radiusBlocks, int pixelsPerBlock, Path outputPath) {
-        int imageSize = radiusBlocks * 2 * pixelsPerBlock;
+        // Validate parameters to prevent integer overflow and excessive memory allocation
+        // 验证参数以防止整数溢出和过度内存分配
+        if (radiusBlocks <= 0 || pixelsPerBlock <= 0) {
+            throw new IllegalArgumentException("radius and pixelsPerBlock must be positive");
+        }
+        long imageSizeLong = (long)radiusBlocks * 2L * pixelsPerBlock;
+        if (imageSizeLong > 16384) {
+            throw new IllegalArgumentException("Image size too large: " + imageSizeLong);
+        }
+        int imageSize = (int)imageSizeLong;
         BufferedImage image = new BufferedImage(imageSize, imageSize, 1);
         int totalPixels = imageSize * imageSize;
         float[] heights = new float[totalPixels];
@@ -289,7 +302,16 @@ public class TerrainDebugTools {
     }
 
     public static void exportEnhancedTerrainMap(RegionController controller, int centerX, int centerZ, int radiusBlocks, int pixelsPerBlock, Path outputPath) {
-        int imageSize = radiusBlocks * 2 * pixelsPerBlock;
+        // Validate parameters to prevent integer overflow and excessive memory allocation
+        // 验证参数以防止整数溢出和过度内存分配
+        if (radiusBlocks <= 0 || pixelsPerBlock <= 0) {
+            throw new IllegalArgumentException("radius and pixelsPerBlock must be positive");
+        }
+        long imageSizeLong = (long)radiusBlocks * 2L * pixelsPerBlock;
+        if (imageSizeLong > 16384) {
+            throw new IllegalArgumentException("Image size too large: " + imageSizeLong);
+        }
+        int imageSize = (int)imageSizeLong;
         BufferedImage image = new BufferedImage(imageSize, imageSize, 1);
         int totalPixels = imageSize * imageSize;
         float[] heights = new float[totalPixels];
@@ -357,8 +379,17 @@ public class TerrainDebugTools {
     }
 
     public static void exportContourTerrainMap(RegionController controller, int centerX, int centerZ, int radiusBlocks, int pixelsPerBlock, int contourInterval, Path outputPath) {
+        // Validate parameters to prevent integer overflow and excessive memory allocation
+        // 验证参数以防止整数溢出和过度内存分配
+        if (radiusBlocks <= 0 || pixelsPerBlock <= 0) {
+            throw new IllegalArgumentException("radius and pixelsPerBlock must be positive");
+        }
+        long imageSizeLong = (long)radiusBlocks * 2L * pixelsPerBlock;
+        if (imageSizeLong > 16384) {
+            throw new IllegalArgumentException("Image size too large: " + imageSizeLong);
+        }
+        int imageSize = (int)imageSizeLong;
         int pz;
-        int imageSize = radiusBlocks * 2 * pixelsPerBlock;
         BufferedImage image = new BufferedImage(imageSize, imageSize, 1);
         int totalPixels = imageSize * imageSize;
         float[] heights = new float[totalPixels];
@@ -601,7 +632,8 @@ public class TerrainDebugTools {
 
     private static int getColorForRegionInfo(MacroRegionInfo info) {
         return switch (info.tectonic) {
-            default -> throw new MatchException(null, null);
+            // Safe default for unknown enum values — prevents runtime crash / 安全默认值，防止运行时崩溃
+            default -> 0x808080;
             case MacroRegionInfo.TectonicType.OROGENIC_BELT -> 16729344;
             case MacroRegionInfo.TectonicType.SUBDUCTION_ZONE -> 0x8B0000;
             case MacroRegionInfo.TectonicType.RIFT_ZONE -> 52945;

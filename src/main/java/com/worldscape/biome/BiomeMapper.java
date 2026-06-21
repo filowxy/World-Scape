@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.core.Holder
- *  net.minecraft.core.Registry
- *  net.minecraft.resources.ResourceKey
- *  net.minecraft.resources.ResourceLocation
- *  net.minecraft.tags.BiomeTags
- *  net.minecraft.world.level.biome.Biome
- */
 package com.worldscape.biome;
 
 import com.google.gson.Gson;
@@ -29,10 +18,11 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
@@ -44,10 +34,10 @@ import org.slf4j.LoggerFactory;
 
 public class BiomeMapper {
     private static final Logger LOGGER = LoggerFactory.getLogger(BiomeMapper.class);
-    private final Map<ResourceLocation, TerrainType> biomeToTerrain = new HashMap<ResourceLocation, TerrainType>();
-    private final Map<TerrainType, List<ResourceLocation>> terrainToBiomes = new HashMap<TerrainType, List<ResourceLocation>>();
+    private final Map<ResourceLocation, TerrainType> biomeToTerrain = new ConcurrentHashMap<>();
+    private final Map<TerrainType, List<ResourceLocation>> terrainToBiomes = new ConcurrentHashMap<>();
     private final double autoMatchThreshold;
-    private static final Map<String, TerrainType> BIOME_NAME_OVERRIDES = new HashMap<String, TerrainType>();
+    private static final Map<String, TerrainType> BIOME_NAME_OVERRIDES = new ConcurrentHashMap<>();
     private static final Set<String> RIVER_BIOME_NAMES;
     private static final Set<String> OCEAN_BIOME_NAMES;
     private boolean crossValidationDone = false;
@@ -60,7 +50,7 @@ public class BiomeMapper {
         this.biomeToTerrain.clear();
         this.terrainToBiomes.clear();
         for (TerrainType type : TerrainType.values()) {
-            this.terrainToBiomes.put(type, new ArrayList());
+            this.terrainToBiomes.put(type, new CopyOnWriteArrayList<>());
         }
         biomeRegistry.holders().forEach(holder -> {
             Biome biome = (Biome)holder.value();
@@ -69,7 +59,7 @@ public class BiomeMapper {
             if (isOverworld) {
                 TerrainType terrainType = this.mapBiomeToTerrain(biome, biomeId);
                 this.biomeToTerrain.put(biomeId, terrainType);
-                this.terrainToBiomes.computeIfAbsent(terrainType, k -> new ArrayList()).add(biomeId);
+                this.terrainToBiomes.computeIfAbsent(terrainType, k -> new CopyOnWriteArrayList<>()).add(biomeId);
             }
         });
         this.runCrossValidation(biomeRegistry);
@@ -258,7 +248,7 @@ public class BiomeMapper {
             return ResourceLocation.fromNamespaceAndPath((String)"minecraft", (String)"jungle");
         }
         if (climate == MacroRegionInfo.ClimateZone.GLACIAL) {
-            return ResourceLocation.fromNamespaceAndPath((String)"minecraft", (String)"snowy_tundra");
+            return ResourceLocation.fromNamespaceAndPath((String)"minecraft", (String)"snowy_plains");
         }
         return ResourceLocation.fromNamespaceAndPath((String)"minecraft", (String)"plains");
     }
@@ -283,7 +273,7 @@ public class BiomeMapper {
             this.biomeToTerrain.clear();
             this.terrainToBiomes.clear();
             for (TerrainType type : TerrainType.values()) {
-                this.terrainToBiomes.put(type, new ArrayList());
+                this.terrainToBiomes.put(type, new CopyOnWriteArrayList<>());
             }
 
             if (root.has("biome_to_terrain")) {
@@ -293,7 +283,7 @@ public class BiomeMapper {
                     TerrainType terrain = TerrainType.getById(entry.getValue().getAsString());
                     if (terrain != null) {
                         this.biomeToTerrain.put(biomeId, terrain);
-                        this.terrainToBiomes.computeIfAbsent(terrain, k -> new ArrayList()).add(biomeId);
+                        this.terrainToBiomes.computeIfAbsent(terrain, k -> new CopyOnWriteArrayList<>()).add(biomeId);
                     }
                 }
             }
@@ -304,7 +294,7 @@ public class BiomeMapper {
                     TerrainType terrain = TerrainType.getById(entry.getKey());
                     if (terrain == null) continue;
                     JsonArray biomeArray = entry.getValue().getAsJsonArray();
-                    List<ResourceLocation> biomes = new ArrayList<>();
+                    List<ResourceLocation> biomes = new CopyOnWriteArrayList<>();
                     for (JsonElement elem : biomeArray) {
                         biomes.add(ResourceLocation.parse(elem.getAsString()));
                     }
@@ -312,7 +302,9 @@ public class BiomeMapper {
                 }
             }
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
-            e.printStackTrace();
+            // Fixed: was e.printStackTrace() — must use LOGGER per AGENTS.md §3.3
+            // 修复：原为 e.printStackTrace() — 按 AGENTS.md §3.3 必须使用 LOGGER
+            LOGGER.error("[BiomeMapper] Failed to load config from file", e);
         }
     }
 
@@ -344,7 +336,9 @@ public class BiomeMapper {
             Files.writeString(configPath, gson.toJson(root), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         }
         catch (IOException e) {
-            e.printStackTrace();
+            // Fixed: was e.printStackTrace() — must use LOGGER per AGENTS.md §3.3
+            // 修复：原为 e.printStackTrace() — 按 AGENTS.md §3.3 必须使用 LOGGER
+            LOGGER.error("[BiomeMapper] Failed to save config to file", e);
         }
     }
 

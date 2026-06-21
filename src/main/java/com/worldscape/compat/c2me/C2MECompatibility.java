@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.worldscape.WorldScape
- *  net.minecraft.world.level.chunk.ChunkGenerator
- */
 package com.worldscape.compat.c2me;
 
 import com.worldscape.WorldScape;
@@ -14,11 +7,15 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 
 public class C2MECompatibility {
     private static final boolean C2ME_PRESENT;
-    private static boolean initialized;
-    private static CompatibilityMode mode;
+    private static volatile boolean initialized = false;
+    private static volatile CompatibilityMode mode;
     private static final int C2ME_CACHE_SIZE = 4096;
 
-    public static void initialize(CompatibilityMode configMode) {
+    // Thread-safe initialization: volatile fields + synchronized method ensure
+    // visibility and atomicity across multiple threads during first-time init.
+    // 线程安全初始化：volatile 字段 + synchronized 方法确保多线程环境下
+    // 首次初始化时的可见性和原子性。
+    public static synchronized void initialize(CompatibilityMode configMode) {
         if (initialized) {
             return;
         }
@@ -92,15 +89,18 @@ public class C2MECompatibility {
     }
 
     static {
-        initialized = false;
         mode = CompatibilityMode.AUTO;
         boolean present = false;
         try {
             Class.forName("com.ishland.c2me.opts.generation.mixin.MixinThreadedAnvilChunkStorage");
             present = true;
         }
-        catch (ClassNotFoundException classNotFoundException) {
-            // empty catch block
+        catch (ClassNotFoundException e) {
+            // C2ME not found is an expected scenario — log at DEBUG for diagnostics.
+            // Fixed: was empty catch block — per AGENTS.md §3.4 all exceptions MUST be logged.
+            // C2ME 未找到是预期场景 — 以 DEBUG 级别记录用于诊断。
+            // 修复：原为空 catch 块 — 按 AGENTS.md §3.4 所有异常必须记录日志。
+            WorldScape.LOGGER.debug("[C2ME Compat] C2ME not found on classpath, compatibility hooks will be skipped");
         }
         C2ME_PRESENT = present;
     }

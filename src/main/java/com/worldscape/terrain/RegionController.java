@@ -1,12 +1,6 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.terrain;
 
+import com.worldscape.WorldScape;
 import com.worldscape.terrain.ControlPointRegion;
 import com.worldscape.terrain.MacroRegionInfo;
 import com.worldscape.terrain.MacroVoronoiSystem;
@@ -20,11 +14,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/**
+ * Manages terrain blending across macro-regions by caching ControlPointRegion
+ * instances and computing blended terrain heights with associated climate profiles.
+ * Uses ConcurrentHashMap for thread-safe access during parallel chunk generation
+ * (e.g., under C2ME) and performs non-blocking cache eviction when capacity is exceeded.
+ */
 public class RegionController {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RegionController.class);
     private final long worldSeed;
     private final int seaLevel;
     private final MacroVoronoiSystem macroSystem;
@@ -44,6 +41,8 @@ public class RegionController {
         return RegionController.cacheMaxSize;
     }
 
+    // Use WorldScape.LOGGER for unified logging
+
     public RegionController(long worldSeed, int seaLevel) {
         this.worldSeed = worldSeed;
         this.seaLevel = seaLevel;
@@ -57,8 +56,6 @@ public class RegionController {
     }
 
     public TerrainBlendResult getTerrainBlend(int x, int z, BlendCache cache) {
-        // 无缓存路径搜索 3×3 区域（searchRadius=1200），有缓存路径按 influenceRadius 过滤。
-        // 两者功能等价：缓存包含相同的 3×3 区域控制点，且 influenceRadius < searchRadius。
         // Cache-less path searches 3×3 regions (searchRadius=1200); cached path filters by influenceRadius.
         // Both are functionally equivalent: the cache contains the same 3×3 region points,
         // and all influence radii are less than searchRadius.
@@ -73,21 +70,14 @@ public class RegionController {
             }
             if (points.isEmpty()) {
                 double macroBaseHeight = macroInfo.getBaseHeight();
-                TerrainType defaultType = switch (macroInfo.getElevationTier()) {
-                    case 0, 1 -> TerrainType.SEA_PLATEAU;
-                    case 2 -> TerrainType.BEACH;
-                    case 3 -> TerrainType.PLAINS;
-                    case 4 -> TerrainType.HILLS;
-                    case 5 -> TerrainType.HIGH_MOUNTAINS;
-                    default -> TerrainType.PLAINS;
-                };
+                TerrainType defaultType = getDefaultTerrainTypeForTier(macroInfo.getElevationTier());
                 return new TerrainBlendResult(macroBaseHeight, macroInfo, List.of(), 0.0, defaultType, 0.0);
             }
         } else {
             int regionX = Math.floorDiv(x, ControlPointRegion.REGION_SIZE);
             int regionZ = Math.floorDiv(z, ControlPointRegion.REGION_SIZE);
             points = new ArrayList();
-            double searchRadius = 1200.0;
+            double searchRadius = WorldScapeConstants.CONTROL_POINT_SEARCH_RADIUS;
             ControlPointRegion region = this.getOrCreateRegion(regionX, regionZ);
             points.addAll(region.getPointsInRange(x, z, searchRadius));
             for (int dx = -1; dx <= 1; ++dx) {
@@ -101,20 +91,29 @@ public class RegionController {
         return this.calculateBlend(x, z, points, macroInfo);
     }
 
+    private TerrainType getDefaultTerrainTypeForTier(int tier) {
+        return switch (tier) {
+            case 0, 1 -> TerrainType.SEA_PLATEAU;
+            // Tier 2 default is FLOODPLAIN (not BEACH) because BEACH requires
+            // actual ocean proximity, which is validated at control-point level.
+            // FLOODPLAIN is the safe inland equivalent at tier 2.
+            // Tier 2 默认为 FLOODPLAIN（非 BEACH），因为 BEACH 需要实际海洋邻近性，
+            // 该邻近性在控制点级别验证。FLOODPLAIN 是 tier 2 的安全内陆等价物。
+            case 2 -> TerrainType.FLOODPLAIN;
+            case 3 -> TerrainType.PLAINS;
+            case 4 -> TerrainType.HILLS;
+            case 5 -> TerrainType.HIGH_MOUNTAINS;
+            default -> TerrainType.PLAINS;
+        };
+    }
+
     private TerrainBlendResult calculateBlend(int x, int z, List<TerrainControlPoint> points, MacroRegionInfo macroInfo) {
         double finalHeight;
         double blendWeight = macroInfo.getBlendWeight();
         double macroBaseHeight = macroInfo.getBaseHeight();
         if (points.isEmpty()) {
-            LOGGER.debug("[World Scape] calculateBlend({}, {}) no points, using macro base: {}", new Object[]{x, z, macroBaseHeight});
-            TerrainType defaultType = switch (macroInfo.getElevationTier()) {
-                case 0, 1 -> TerrainType.SEA_PLATEAU;
-                case 2 -> TerrainType.BEACH;
-                case 3 -> TerrainType.PLAINS;
-                case 4 -> TerrainType.HILLS;
-                case 5 -> TerrainType.HIGH_MOUNTAINS;
-                default -> TerrainType.PLAINS;
-            };
+            WorldScape.LOGGER.debug("[World Scape] calculateBlend({}, {}) no points, using macro base: {}", x, z, macroBaseHeight);
+            TerrainType defaultType = getDefaultTerrainTypeForTier(macroInfo.getElevationTier());
             return new TerrainBlendResult(macroBaseHeight, macroInfo, List.of(), 0.0, defaultType, 0.0);
         }
         double totalWeight = 0.0;
@@ -129,14 +128,7 @@ public class RegionController {
             totalWeight += weight;
         }
         if (totalWeight == 0.0) {
-            TerrainType defaultType = switch (macroInfo.getElevationTier()) {
-                case 0, 1 -> TerrainType.SEA_PLATEAU;
-                case 2 -> TerrainType.BEACH;
-                case 3 -> TerrainType.PLAINS;
-                case 4 -> TerrainType.HILLS;
-                case 5 -> TerrainType.HIGH_MOUNTAINS;
-                default -> TerrainType.PLAINS;
-            };
+            TerrainType defaultType = getDefaultTerrainTypeForTier(macroInfo.getElevationTier());
             return new TerrainBlendResult(macroBaseHeight, macroInfo, List.of(), 0.0, defaultType, 0.0);
         }
         double microHeight = weightedHeightSum / totalWeight;
@@ -149,16 +141,25 @@ public class RegionController {
         double tierAdjustment = (double)(primaryTier - 4) * WorldScapeConstants.TIER_BASE_HEIGHT * WorldScapeConstants.TIER_ADJUSTMENT_FACTOR;
         // macroInfluence naturally approaches 0 as blendWeight → 1.0,
         // eliminating the need for a hard threshold switch.
+        // Use sqrt() instead of smoothstep() for wider boundary influence —
+        // sqrt(0.2) ≈ 0.447 vs smoothstep(0.2) ≈ 0.104, so macro smoothing
+        // reaches further into the region interior, eliminating cliffs.
         double boundaryProximityRaw = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
         boundaryProximityRaw = Math.max(0.0, Math.min(1.0, boundaryProximityRaw));
-        double boundaryProximity = WorldScapeUtils.smoothstep(0.0, 1.0, boundaryProximityRaw);
-        double macroInfluence = boundaryProximity * WorldScapeConstants.MAX_MACRO_INFLUENCE;
-        if (primaryTier == 0) {
-            macroInfluence *= WorldScapeConstants.OCEAN_TIER0_MACRO_DAMPING;
-        } else if (primaryTier == 1) {
-            macroInfluence *= WorldScapeConstants.OCEAN_TIER1_MACRO_DAMPING;
-        }
+        double boundaryProximity = Math.sqrt(boundaryProximityRaw);
+        // Scale blendWeight-based proximity by tier gap: larger gap → stronger macro pull.
+        // 按层级差距缩放基于 blendWeight 的邻近性：差距越大 → 宏观拉力越强。
+        int tierGap = Math.abs(primaryTier - secondTier);
+        double tierGapFactor = 1.0 + tierGap * WorldScapeConstants.TIER_GAP_FACTOR_SCALE;
+        // Let macroInfluence be naturally determined by boundaryProximity and tierGapFactor,
+        // without artificial MAX_MACRO_INFLUENCE hard cap or oceanic tier damping.
+        // 让 macroInfluence 由 boundaryProximity 和 tierGapFactor 自然决定，
+        // 不使用人为的 MAX_MACRO_INFLUENCE 硬上限或海洋层级阻尼。
+        double macroInfluence = boundaryProximity * tierGapFactor;
         finalHeight = this.lerp(macroBaseHeight + microHeight + tierAdjustment, macroBaseHeight, macroInfluence);
+        // Clamp finalHeight to within world bounds to prevent extreme terrain
+        // 将 finalHeight 限制在世界边界内以防止极端地形
+        finalHeight = Math.max(WorldScapeConstants.MIN_TERRAIN_HEIGHT, Math.min(WorldScapeConstants.TERRAIN_HARD_CLAMP, finalHeight));
         TerrainBlendResult typeResult = this.determineDominantTerrainType(weightedPoints, totalWeight);
         ClimateUtils.ClimateProfile blendedClimate = this.calculateBlendedClimate(weightedPoints, totalWeight, macroInfo.getElevationTier());
         return new TerrainBlendResult(finalHeight, macroInfo, weightedPoints, macroBaseHeight - microHeight, typeResult.dominantType, typeResult.dominantWeight, blendedClimate);
@@ -177,7 +178,7 @@ public class RegionController {
         TerrainType primaryType = ((PointWeight)sorted.get((int)0)).point.getTerrainType();
         double primaryNormWeight = ((PointWeight)sorted.get((int)0)).weight / totalWeight;
         ClimateUtils.ClimateProfile primaryClimate = ClimateUtils.getTerrainClimateProfile(primaryType.name());
-        if (sorted.size() < 2 || primaryNormWeight >= 0.9) {
+        if (sorted.size() < 2 || primaryNormWeight >= WorldScapeConstants.CLIMATE_BLEND_THRESHOLD) {
             return this.applyElevationCorrection(primaryClimate, elevationTier);
         }
         TerrainType secondaryType = ((PointWeight)sorted.get((int)1)).point.getTerrainType();
@@ -195,76 +196,20 @@ public class RegionController {
 
     private ClimateUtils.ClimateProfile getDefaultClimateForTier(int tier) {
         return switch (tier) {
-            case 0, 1 -> new ClimateUtils.ClimateProfile(0.08, 0.95, 0.05, 0.05);
-            case 2 -> new ClimateUtils.ClimateProfile(0.55, 0.75, 0.35, 0.15);
-            default -> new ClimateUtils.ClimateProfile(0.5, 0.5, 0.6, 0.5);
+            case 0, 1 -> new ClimateUtils.ClimateProfile(WorldScapeConstants.DEEP_OCEAN_TEMP, WorldScapeConstants.DEEP_OCEAN_HUMID, WorldScapeConstants.DEEP_OCEAN_SEASON, WorldScapeConstants.DEEP_OCEAN_CONT);
+            case 2 -> new ClimateUtils.ClimateProfile(WorldScapeConstants.COASTAL_TEMPERATE_TEMP, WorldScapeConstants.COASTAL_TEMPERATE_HUMID, WorldScapeConstants.COASTAL_TEMPERATE_SEASON, WorldScapeConstants.COASTAL_TEMPERATE_CONT);
+            default -> new ClimateUtils.ClimateProfile(WorldScapeConstants.PLAINS_TEMPERATURE, WorldScapeConstants.PLAINS_HUMIDITY, WorldScapeConstants.PLAINS_SEASONALITY, WorldScapeConstants.PLAINS_CONTINENTALITY);
         };
     }
 
     private double getBaseHeightForTerrainType(TerrainType type) {
-        if (type == TerrainType.HIGH_MOUNTAINS) {
-            return 110.0;
-        } else if (type == TerrainType.HILLS) {
-            return 28.0;
-        } else if (type == TerrainType.CLIFF) {
-            return 44.0;
-        } else if (type == TerrainType.PLATEAU) {
-            return 83.0;
-        } else if (type == TerrainType.VALLEY) {
-            return 17.0;
-        } else if (type == TerrainType.RIDGE) {
-            return 83.0;
-        } else if (type == TerrainType.PEAK) {
-            return 110.0;
-        } else if (type == TerrainType.CANYON) {
-            return -11.0;
-        } else if (type == TerrainType.ALLUVIAL_FAN) {
-            return 28.0;
-        } else if (type == TerrainType.FLOODPLAIN) {
-            return 17.0;
-        } else if (type == TerrainType.DUNE) {
-            return 14.0;
-        } else if (type == TerrainType.GOBI) {
-            return 22.0;
-        } else if (type == TerrainType.YARDANG) {
-            return 28.0;
-        } else if (type == TerrainType.SALT_FLAT) {
-            return 11.0;
-        } else if (type == TerrainType.ICE_SHEET) {
-            return 55.0;
-        } else if (type == TerrainType.GLACIAL_VALLEY) {
-            return -6.0;
-        } else if (type == TerrainType.CIRQUE) {
-            return 55.0;
-        } else if (type == TerrainType.HORN) {
-            return 110.0;
-        } else if (type == TerrainType.BEACH) {
-            return 11.0;
-        } else if (type == TerrainType.SEA_CLIFF) {
-            return 28.0;
-        } else if (type == TerrainType.FJORD) {
-            return -6.0;
-        } else if (type == TerrainType.DELTA) {
-            return 8.0;
-        } else if (type == TerrainType.PEAK_FOREST) {
-            return 55.0;
-        } else if (type == TerrainType.SINKHOLE) {
-            return -6.0;
-        } else if (type == TerrainType.PLAINS) {
-            return 17.0;
-        } else if (type == TerrainType.BASIN) {
-            return 0.0;
-        } else if (type == TerrainType.DOME) {
-            return 83.0;
-        } else if (type == TerrainType.TRENCH) {
-            return -44.0;
-        } else if (type == TerrainType.SEA_PLATEAU) {
-            return -11.0;
-        }
-        // 未知地形类型使用安全默认值，避免运行时崩溃
-        // Unknown terrain type falls back to safe default to prevent runtime crashes
-        LOGGER.warn("[World Scape] Unknown terrain type {} in getBaseHeightForTerrainType, using default=0.0", type);
-        return 0.0;
+        // Delegates to the single source of truth in TerrainType to avoid duplication.
+        // Previously this method contained a 60-line if-else chain identical to
+        // HeightCalculator.getBaseHeightForTerrainType — consolidated to prevent drift.
+        // 委托给 TerrainType 中的唯一数据源以避免重复。
+        // 之前此方法包含与 HeightCalculator.getBaseHeightForTerrainType 相同的 60 行 if-else 链
+        // — 已合并以防止不一致。
+        return TerrainType.getBaseHeightForType(type);
     }
 
     private double getTierMinimumHeight(int tier) {
@@ -290,11 +235,6 @@ public class RegionController {
     }
 
     /*
-     * C2ME 环境下 fillFromNoise 被并行化，多个线程可能同时创建新区块。
-     * 使用 ConcurrentHashMap.computeIfAbsent（桶级锁，不同 key 不互斥）替代全局 synchronized。
-     * 淘汰由 AtomicBoolean 守护，确保同一时刻只有一个线程执行淘汰，其他线程直接跳过。
-     * evictCache 使用 ConcurrentHashMap.keySet() 的弱一致性迭代器，不阻塞读操作。
-     * 
      * Under C2ME, fillFromNoise is parallelized — multiple threads may create new regions concurrently.
      * Uses ConcurrentHashMap.computeIfAbsent (bin-level locking, different keys do NOT contend)
      * instead of a global synchronized block.
@@ -314,11 +254,11 @@ public class RegionController {
             int centerBlockX = regionX * ControlPointRegion.REGION_SIZE + ControlPointRegion.REGION_SIZE / 2;
             int centerBlockZ = regionZ * ControlPointRegion.REGION_SIZE + ControlPointRegion.REGION_SIZE / 2;
             int macroTier = this.macroSystem.getRegionInfo(centerBlockX, centerBlockZ).getElevationTier();
-            return new ControlPointRegion(regionX, regionZ, this.worldSeed, macroTier);
+            return new ControlPointRegion(regionX, regionZ, this.worldSeed, macroTier, this.macroSystem);
         });
         long regionGenMs = (System.nanoTime() - regionGenStart) / 1_000_000L;
-        if (regionGenMs > 200L) {
-            LOGGER.warn("[World Scape] [BLOCK-CHK] SLOW region generation ({},{}): {}ms", new Object[]{regionX, regionZ, regionGenMs});
+        if (regionGenMs > WorldScapeConstants.REGION_GEN_SLOW_THRESHOLD_MS) {
+            WorldScape.LOGGER.warn("[World Scape] [BLOCK-CHK] SLOW region generation ({},{}): {}ms", regionX, regionZ, regionGenMs);
         }
         // Non-blocking eviction: only one thread runs it; others skip.
         // evictCache() removes entries via ConcurrentHashMap.keySet().remove()
@@ -336,13 +276,13 @@ public class RegionController {
 
     private void evictCache() {
         int removed;
-        int toRemove = 512;
+        int toRemove = WorldScapeConstants.CACHE_EVICTION_BATCH_SIZE;
         Iterator it = ((ConcurrentHashMap.KeySetView)this.terrainRegionCache.keySet()).iterator();
         for (removed = 0; it.hasNext() && removed < toRemove; ++removed) {
             it.next();
             it.remove();
         }
-        LOGGER.debug("[World Scape] Cache evicted {} entries (max={})", (Object)removed, (Object)1024);
+        WorldScape.LOGGER.debug("[World Scape] Cache evicted {} entries (max={})", removed, cacheMaxSize);
     }
 
     public void clearCache() {
@@ -403,9 +343,9 @@ public class RegionController {
 
         private static ClimateUtils.ClimateProfile getDefaultClimateForTier(int tier) {
             return switch (tier) {
-                case 0, 1 -> new ClimateUtils.ClimateProfile(0.08, 0.95, 0.05, 0.05);
-                case 2 -> new ClimateUtils.ClimateProfile(0.55, 0.75, 0.35, 0.15);
-                default -> new ClimateUtils.ClimateProfile(0.5, 0.5, 0.6, 0.5);
+                case 0, 1 -> new ClimateUtils.ClimateProfile(WorldScapeConstants.DEEP_OCEAN_TEMP, WorldScapeConstants.DEEP_OCEAN_HUMID, WorldScapeConstants.DEEP_OCEAN_SEASON, WorldScapeConstants.DEEP_OCEAN_CONT);
+                case 2 -> new ClimateUtils.ClimateProfile(WorldScapeConstants.COASTAL_TEMPERATE_TEMP, WorldScapeConstants.COASTAL_TEMPERATE_HUMID, WorldScapeConstants.COASTAL_TEMPERATE_SEASON, WorldScapeConstants.COASTAL_TEMPERATE_CONT);
+                default -> new ClimateUtils.ClimateProfile(WorldScapeConstants.PLAINS_TEMPERATURE, WorldScapeConstants.PLAINS_HUMIDITY, WorldScapeConstants.PLAINS_SEASONALITY, WorldScapeConstants.PLAINS_CONTINENTALITY);
             };
         }
     }

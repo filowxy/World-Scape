@@ -28,6 +28,9 @@ run/
 bin/
 temp_*/
 tfc_temp/
+
+# Analyzer / debug tools - excluded from GitHub (encoding + debug only)
+src/main/java/com/worldscape/analyzer/
 worldscape_debug/
 compile_output.txt
 compile_full.txt
@@ -55,3 +58,4 @@ testdata.jsonl
 /META-INF/
 /data/
 /config/
+提示词.md

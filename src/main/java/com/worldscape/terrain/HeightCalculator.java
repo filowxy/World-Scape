@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.util.RandomSource
- *  net.minecraft.world.level.levelgen.synth.NormalNoise
- */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.ControlPointManager;
@@ -17,9 +10,16 @@ import com.worldscape.terrain.TerrainType;
 import com.worldscape.terrain.WorldScapeConstants;
 import com.worldscape.util.WorldScapeUtils;
 import java.util.List;
+import java.util.Objects;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
+/**
+ * Calculates terrain height at a given (x, z) coordinate by combining
+ * micro-height from nearby control points, macro-region base height,
+ * and elevation tier adjustments. Supports river detection and blends
+ * heights smoothly at macro-region boundaries using Voronoi-derived weights.
+ */
 public class HeightCalculator {
     private final int seaLevel;
     private final ControlPointManager controlPointManager;
@@ -31,6 +31,9 @@ public class HeightCalculator {
     private static final boolean DEBUG_DISABLE_CACHE = false;
 
     public HeightCalculator(long seed, int seaLevel, MacroVoronoiSystem macroVoronoiSystem) {
+        // 空值校验：防止 NPE
+        // Null check: prevent NPE
+        Objects.requireNonNull(macroVoronoiSystem, "macroVoronoiSystem must not be null");
         this.seaLevel = seaLevel;
         this.controlPointManager = new ControlPointManager(seed, seaLevel);
         this.macroVoronoiSystem = macroVoronoiSystem;
@@ -136,68 +139,13 @@ public class HeightCalculator {
     // for each terrain type, NOT absolute heights. Final height = macroBaseHeight + microHeight
     // (includes baseHeightForType) + tierAdjustment.
     private double getBaseHeightForTerrainType(TerrainType type) {
-        if (type == TerrainType.HIGH_MOUNTAINS) {
-            return 110.0;
-        } else if (type == TerrainType.HILLS) {
-            return 28.0;
-        } else if (type == TerrainType.CLIFF) {
-            return 44.0;
-        } else if (type == TerrainType.PLATEAU) {
-            return 83.0;
-        } else if (type == TerrainType.VALLEY) {
-            return 17.0;
-        } else if (type == TerrainType.RIDGE) {
-            return 83.0;
-        } else if (type == TerrainType.PEAK) {
-            return 110.0;
-        } else if (type == TerrainType.CANYON) {
-            return -11.0;
-        } else if (type == TerrainType.ALLUVIAL_FAN) {
-            return 28.0;
-        } else if (type == TerrainType.FLOODPLAIN) {
-            return 17.0;
-        } else if (type == TerrainType.DUNE) {
-            return 14.0;
-        } else if (type == TerrainType.GOBI) {
-            return 22.0;
-        } else if (type == TerrainType.YARDANG) {
-            return 28.0;
-        } else if (type == TerrainType.SALT_FLAT) {
-            return 11.0;
-        } else if (type == TerrainType.ICE_SHEET) {
-            return 55.0;
-        } else if (type == TerrainType.GLACIAL_VALLEY) {
-            return -6.0;
-        } else if (type == TerrainType.CIRQUE) {
-            return 55.0;
-        } else if (type == TerrainType.HORN) {
-            return 110.0;
-        } else if (type == TerrainType.BEACH) {
-            return 11.0;
-        } else if (type == TerrainType.SEA_CLIFF) {
-            return 28.0;
-        } else if (type == TerrainType.FJORD) {
-            return -6.0;
-        } else if (type == TerrainType.DELTA) {
-            return 8.0;
-        } else if (type == TerrainType.PEAK_FOREST) {
-            return 55.0;
-        } else if (type == TerrainType.SINKHOLE) {
-            return -6.0;
-        } else if (type == TerrainType.PLAINS) {
-            return 17.0;
-        } else if (type == TerrainType.BASIN) {
-            return 0.0;
-        } else if (type == TerrainType.DOME) {
-            return 83.0;
-        } else if (type == TerrainType.TRENCH) {
-            return -44.0;
-        } else if (type == TerrainType.SEA_PLATEAU) {
-            return -11.0;
-        }
-        // 未知地形类型使用安全默认值，避免运行时崩溃
-        // Unknown terrain type falls back to safe default to prevent runtime crashes
-        return 0.0;
+        // Delegates to the single source of truth in TerrainType to avoid duplication.
+        // Previously this method contained a 60-line if-else chain identical to
+        // RegionController.getBaseHeightForTerrainType — consolidated to prevent drift.
+        // 委托给 TerrainType 中的唯一数据源以避免重复。
+        // 之前此方法包含与 RegionController.getBaseHeightForTerrainType 相同的 60 行 if-else 链
+        // — 已合并以防止不一致。
+        return TerrainType.getBaseHeightForType(type);
     }
 
     public double calculateHeight(int x, int z) {

@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.util.RandomSource
- *  net.minecraft.world.level.levelgen.synth.NormalNoise
- */
 package com.worldscape.terrain;
 
 import com.worldscape.util.SeedDeriver;

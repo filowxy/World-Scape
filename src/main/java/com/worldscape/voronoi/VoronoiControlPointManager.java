@@ -1,9 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.worldscape.WorldScape
- */
 package com.worldscape.voronoi;
 
 import com.worldscape.WorldScape;
@@ -60,7 +54,7 @@ public class VoronoiControlPointManager {
         return point;
     }
 
-    public void addPoint(VoronoiControlPoint point) {
+    public synchronized void addPoint(VoronoiControlPoint point) {
         if (point == null || this.pointById.containsKey(point.getId())) {
             return;
         }
@@ -86,7 +80,7 @@ public class VoronoiControlPointManager {
         return true;
     }
 
-    public boolean movePoint(String pointId, int newX, int newZ) {
+    public synchronized boolean movePoint(String pointId, int newX, int newZ) {
         VoronoiControlPoint point = this.pointById.get(pointId);
         if (point == null) {
             return false;

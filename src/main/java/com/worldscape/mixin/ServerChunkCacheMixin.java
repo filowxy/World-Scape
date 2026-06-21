@@ -26,7 +26,7 @@ public abstract class ServerChunkCacheMixin {
                 WorldScape.LOGGER.info("[World Scape] ServerChunkCache constructed for overworld, using generator: {}", (Object)generator.getClass().getSimpleName());
             }
             catch (Exception exception) {
-                // empty catch block
+                WorldScape.LOGGER.debug("[World Scape] Failed to log chunk generator info", exception);
             }
         }
     }

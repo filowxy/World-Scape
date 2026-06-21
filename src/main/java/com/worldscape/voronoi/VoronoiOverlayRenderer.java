@@ -1,20 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.worldscape.WorldScape
- *  net.minecraft.client.DeltaTracker
- *  net.minecraft.client.Minecraft
- *  net.minecraft.client.gui.Font
- *  net.minecraft.client.gui.GuiGraphics
- *  net.minecraft.client.gui.LayeredDraw$Layer
- *  net.minecraft.network.chat.Component
- *  net.minecraft.resources.ResourceLocation
- *  net.neoforged.api.distmarker.Dist
- *  net.neoforged.bus.api.SubscribeEvent
- *  net.neoforged.fml.common.EventBusSubscriber
- *  net.neoforged.neoforge.client.event.RegisterGuiLayersEvent
- */
 package com.worldscape.voronoi;
 
 import com.worldscape.WorldScape;

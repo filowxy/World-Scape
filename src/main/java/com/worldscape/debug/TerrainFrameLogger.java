@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.debug;
 
 import com.worldscape.debug.TerrainDebugSystem;
@@ -13,7 +6,6 @@ import com.worldscape.terrain.MacroRegionInfo;
 import com.worldscape.terrain.RegionController;
 import com.worldscape.terrain.TerrainControlPoint;
 import com.worldscape.terrain.TerrainType;
-import java.lang.invoke.CallSite;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,7 +35,7 @@ public class TerrainFrameLogger {
         double minBlendWeight = 1.0;
         double blendWeightSum = 0.0;
         int blendWeightCount = 0;
-        HashSet<CallSite> uniqueControlPoints = new HashSet<CallSite>();
+        HashSet<String> uniqueControlPoints = new HashSet<String>();
         for (int[] sample : samplePoints) {
             int x = sample[0];
             int z = sample[1];
@@ -65,7 +57,7 @@ public class TerrainFrameLogger {
             ++blendWeightCount;
             for (RegionController.PointWeight pw : blend.contributingPoints) {
                 String cpKey = pw.point.x + "," + pw.point.z;
-                uniqueControlPoints.add((CallSite)((Object)cpKey));
+                uniqueControlPoints.add(cpKey);
             }
         }
         for (int x = 0; x < 16; ++x) {
@@ -142,14 +134,14 @@ public class TerrainFrameLogger {
         }
         double distance = Math.sqrt(point.squaredDistanceTo(worldX, worldZ));
         double influence = point.calculateInfluence(worldX, worldZ);
-        LOGGER.debug("{} CP(x={},z={},type={},offset={},radius={},distToRef={:.1f},influence={:.3f})", new Object[]{LOG_PREFIX, point.x, point.z, point.terrainType.getId(), String.format("%.1f", point.elevationOffset), String.format("%.1f", point.influenceRadius), distance, influence});
+        LOGGER.debug("{} CP(x={},z={},type={},offset={},radius={},distToRef={},influence={})", new Object[]{LOG_PREFIX, point.x, point.z, point.terrainType.getId(), String.format("%.1f", point.elevationOffset), String.format("%.1f", point.influenceRadius), String.format("%.1f", distance), String.format("%.3f", influence)});
     }
 
     public static void logMacroRegionInfo(int x, int z, MacroRegionInfo macroInfo) {
         if (!TerrainDebugSystem.isLoggingEnabled()) {
             return;
         }
-        LOGGER.debug("{} Macro(x={},z={},tier={},baseHeight={:.1f},tectonic={},climate={},blendWeight={:.3f},transWidth={})", new Object[]{LOG_PREFIX, x, z, macroInfo.elevationTier, macroInfo.blendedBaseHeight, macroInfo.tectonic, macroInfo.climate, macroInfo.blendWeight, macroInfo.transitionWidth});
+        LOGGER.debug("{} Macro(x={},z={},tier={},baseHeight={},tectonic={},climate={},blendWeight={},transWidth={})", new Object[]{LOG_PREFIX, x, z, macroInfo.elevationTier, String.format("%.1f", macroInfo.blendedBaseHeight), macroInfo.tectonic, macroInfo.climate, String.format("%.3f", macroInfo.blendWeight), macroInfo.transitionWidth});
     }
 
     public static void logRegionOverview(ControlPointRegion region) {
@@ -168,7 +160,7 @@ public class TerrainFrameLogger {
             sumOffset += point.elevationOffset;
         }
         double avgOffset = points.isEmpty() ? 0.0 : sumOffset / (double)points.size();
-        LOGGER.info("{} Region ({},{}): {} points, offsetRange=[{:.1f}..{:.1f}] avg={:.1f}", new Object[]{LOG_PREFIX, region.getRegionX(), region.getRegionZ(), points.size(), String.format("%.1f", minOffset), String.format("%.1f", maxOffset), avgOffset});
+        LOGGER.info("{} Region ({},{}): {} points, offsetRange=[{}..{}] avg={}", new Object[]{LOG_PREFIX, region.getRegionX(), region.getRegionZ(), points.size(), String.format("%.1f", minOffset), String.format("%.1f", maxOffset), String.format("%.1f", avgOffset)});
         StringBuilder summary = new StringBuilder("  TypeDist=");
         typeCounts.entrySet().stream().sorted(Map.Entry.<TerrainType, Integer>comparingByValue().reversed()).forEach(e -> summary.append(((TerrainType)((Object)((Object)e.getKey()))).getId()).append(":").append(e.getValue()).append(" "));
         LOGGER.debug("{} {}", (Object)LOG_PREFIX, (Object)summary);

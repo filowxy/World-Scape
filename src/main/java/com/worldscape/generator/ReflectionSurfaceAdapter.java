@@ -1,33 +1,8 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.core.Registry
- *  net.minecraft.core.registries.Registries
- *  net.minecraft.server.level.WorldGenRegion
- *  net.minecraft.world.level.LevelHeightAccessor
- *  net.minecraft.world.level.biome.BiomeManager
- *  net.minecraft.world.level.block.Blocks
- *  net.minecraft.world.level.chunk.ChunkAccess
- *  net.minecraft.world.level.chunk.ChunkGenerator
- *  net.minecraft.world.level.levelgen.Aquifer$FluidPicker
- *  net.minecraft.world.level.levelgen.Aquifer$FluidStatus
- *  net.minecraft.world.level.levelgen.DensityFunctions$BeardifierOrMarker
- *  net.minecraft.world.level.levelgen.NoiseChunk
- *  net.minecraft.world.level.levelgen.NoiseGeneratorSettings
- *  net.minecraft.world.level.levelgen.PositionalRandomFactory
- *  net.minecraft.world.level.levelgen.RandomState
- *  net.minecraft.world.level.levelgen.SurfaceRules$RuleSource
- *  net.minecraft.world.level.levelgen.SurfaceSystem
- *  net.minecraft.world.level.levelgen.WorldGenerationContext
- *  net.minecraft.world.level.levelgen.blending.Blender
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.generator;
 
 import com.worldscape.generator.SurfaceAdapter;
 import com.worldscape.terrain.TerrainType;
+import com.worldscape.terrain.WorldScapeConstants;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
@@ -219,7 +194,6 @@ implements SurfaceAdapter {
         for (int x = 0; x < 16; ++x) {
             for (int z = 0; z < 16; ++z) {
                 int terrainHeight = heightMap[x][z];
-                if (terrainHeight <= seaLevel) continue;
                 int worldX = minX + x;
                 int worldZ = minZ + z;
 
@@ -228,7 +202,7 @@ implements SurfaceAdapter {
 
                 // Override surface block based on terrain type (all 29 types)
                 // 根据地形类型覆盖表面方块（全部 29 种类型）
-                net.minecraft.world.level.block.state.BlockState surfaceBlock = this.determineSurfaceBlockByTerrainType(terrainType);
+                net.minecraft.world.level.block.state.BlockState surfaceBlock = FallbackSurfaceAdapter.determineSurfaceBlockByTerrainType(terrainType, terrainHeight, seaLevel);
                 pos.set(worldX, terrainHeight, worldZ);
                 if (!chunk.getBlockState(pos).isAir()) {
                     chunk.setBlockState(pos, surfaceBlock, false);
@@ -236,8 +210,10 @@ implements SurfaceAdapter {
 
                 // Override sub-surface blocks based on terrain type (all 29 types)
                 // 根据地形类型覆盖次表层方块（全部 29 种类型）
-                boolean isUnderwater = false;
-                net.minecraft.world.level.block.state.BlockState subSurfaceBlock = this.determineSubSurfaceBlockByTerrainType(terrainType, isUnderwater);
+                // Determine underwater status from terrain height vs sea level
+                // 根据地形高度与海平面判断是否水下
+                boolean isUnderwater = terrainHeight <= seaLevel;
+                net.minecraft.world.level.block.state.BlockState subSurfaceBlock = FallbackSurfaceAdapter.determineSubSurfaceBlockByTerrainType(terrainType, isUnderwater);
                 for (int dy = 1; dy <= 3; ++dy) {
                     pos.set(worldX, terrainHeight - dy, worldZ);
                     net.minecraft.world.level.block.state.BlockState current = chunk.getBlockState(pos);
@@ -247,102 +223,6 @@ implements SurfaceAdapter {
                 }
             }
         }
-    }
-
-    /**
-     * Determine surface block based on TerrainType, mirroring FallbackSurfaceAdapter logic.
-     * 根据 TerrainType 确定表面方块，与 FallbackSurfaceAdapter 逻辑一致。
-     */
-    private net.minecraft.world.level.block.state.BlockState determineSurfaceBlockByTerrainType(TerrainType terrainType) {
-        // Mountain/rocky types → gravel
-        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.RIDGE
-            || terrainType == TerrainType.PEAK || terrainType == TerrainType.HORN
-            || terrainType == TerrainType.CLIFF || terrainType == TerrainType.CANYON
-            || terrainType == TerrainType.PLATEAU || terrainType == TerrainType.SEA_CLIFF) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-
-        // Desert/arid types → sand
-        if (terrainType == TerrainType.GOBI || terrainType == TerrainType.SALT_FLAT
-            || terrainType == TerrainType.DUNE || terrainType == TerrainType.YARDANG) {
-            return Blocks.SAND.defaultBlockState();
-        }
-
-        // Beach → sand
-        if (terrainType == TerrainType.BEACH) {
-            return Blocks.SAND.defaultBlockState();
-        }
-
-        // Ice/snow types → snow block (always, no height threshold)
-        if (terrainType == TerrainType.ICE_SHEET || terrainType == TerrainType.GLACIAL_VALLEY
-            || terrainType == TerrainType.CIRQUE) {
-            return Blocks.SNOW_BLOCK.defaultBlockState();
-        }
-
-        // Underwater types → gravel
-        if (terrainType == TerrainType.TRENCH || terrainType == TerrainType.SEA_PLATEAU) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-
-        // Delta → sand
-        if (terrainType == TerrainType.DELTA) {
-            return Blocks.SAND.defaultBlockState();
-        }
-
-        // Fjord → gravel
-        if (terrainType == TerrainType.FJORD) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-
-        // Default: PLAINS, HILLS, VALLEY, FLOODPLAIN, ALLUVIAL_FAN, PEAK_FOREST,
-        // BASIN, SINKHOLE, DOME → grass block
-        return Blocks.GRASS_BLOCK.defaultBlockState();
-    }
-
-    /**
-     * Determine sub-surface block based on TerrainType, mirroring FallbackSurfaceAdapter logic.
-     * 根据 TerrainType 确定次表层方块，与 FallbackSurfaceAdapter 逻辑一致。
-     */
-    private net.minecraft.world.level.block.state.BlockState determineSubSurfaceBlockByTerrainType(TerrainType terrainType, boolean isUnderwater) {
-        // Ice/snow types → packed ice (always, no height threshold)
-        if (terrainType == TerrainType.ICE_SHEET || terrainType == TerrainType.GLACIAL_VALLEY
-            || terrainType == TerrainType.CIRQUE) {
-            return Blocks.PACKED_ICE.defaultBlockState();
-        }
-
-        // Mountain/rocky types → gravel
-        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.RIDGE
-            || terrainType == TerrainType.PEAK || terrainType == TerrainType.HORN
-            || terrainType == TerrainType.CLIFF || terrainType == TerrainType.CANYON
-            || terrainType == TerrainType.PLATEAU || terrainType == TerrainType.SEA_CLIFF
-            || terrainType == TerrainType.FJORD) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-
-        // Desert/arid types → sand
-        if (terrainType == TerrainType.GOBI || terrainType == TerrainType.SALT_FLAT
-            || terrainType == TerrainType.DUNE || terrainType == TerrainType.YARDANG) {
-            return Blocks.SAND.defaultBlockState();
-        }
-
-        // Beach/delta → sand
-        if (terrainType == TerrainType.BEACH || terrainType == TerrainType.DELTA) {
-            return Blocks.SAND.defaultBlockState();
-        }
-
-        // Underwater types → gravel
-        if (terrainType == TerrainType.TRENCH || terrainType == TerrainType.SEA_PLATEAU) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-
-        // Default underwater → sand
-        if (isUnderwater) {
-            return Blocks.SAND.defaultBlockState();
-        }
-
-        // Default land: PLAINS, HILLS, VALLEY, FLOODPLAIN, ALLUVIAL_FAN, PEAK_FOREST,
-        // BASIN, SINKHOLE, DOME → dirt
-        return Blocks.DIRT.defaultBlockState();
     }
 
     private void injectNoiseChunk(ChunkAccess chunk, Object noiseChunk, ReflectionCache cache) {
@@ -447,7 +327,12 @@ implements SurfaceAdapter {
                         this.preliminarySurfaceLevelField = NoiseChunk.class.getDeclaredField(fieldName);
                         break;
                     }
-                    catch (NoSuchFieldException noSuchFieldException) {
+                    catch (NoSuchFieldException e) {
+                        // Field name candidate not found — try next candidate.
+                        // Fixed: was empty catch block — per AGENTS.md §3.4 all exceptions MUST be logged.
+                        // 字段名候选未找到 — 尝试下一个候选。
+                        // 修复：原为空 catch 块 — 按 AGENTS.md §3.4 所有异常必须记录日志。
+                        LOGGER.debug("[ReflectionSurfaceAdapter] Field '{}' not found on NoiseChunk, trying next candidate", fieldName);
                     }
                 }
                 if (this.preliminarySurfaceLevelField == null) {

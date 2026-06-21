@@ -1,6 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package com.worldscape.util;
 
 import com.worldscape.util.WorldScapeUtils;
@@ -26,10 +23,16 @@ public class NoiseUtils {
     }
 
     public static double bowlNoise(double distance, double width) {
+        // 除零保护：宽度为零时返回 0.0
+        // Division by zero guard: return 0.0 when width is zero
+        if (width == 0.0) return 0.0;
         return Math.exp(-Math.pow(distance / width, 2.0));
     }
 
     public static double cliffNoise(double distance, double width, double height) {
+        // 除零保护：宽度为零时返回 0.0
+        // Division by zero guard: return 0.0 when width is zero
+        if (width == 0.0) return 0.0;
         double edge = WorldScapeUtils.smoothstep(0.0, width, distance);
         return height * (1.0 - edge);
     }
@@ -40,6 +43,9 @@ public class NoiseUtils {
     }
 
     public static double plateauNoise(double distance, double width, double topHeight, double edgeHeight, double noise) {
+        // 除零保护：宽度为零时返回 0.0
+        // Division by zero guard: return 0.0 when width is zero
+        if (width == 0.0) return 0.0;
         double flatness = Math.exp(-Math.pow(distance / width, 2.0));
         return edgeHeight + (topHeight - edgeHeight) * flatness + noise;
     }

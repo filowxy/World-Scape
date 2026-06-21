@@ -1,12 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.world.level.chunk.ChunkGenerator
- *  net.minecraft.world.level.levelgen.NoiseGeneratorSettings
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.generator;
 
 import com.worldscape.generator.FallbackSurfaceAdapter;
@@ -125,6 +116,7 @@ public class SurfaceAdapterFactory {
             BlockState water = Blocks.WATER.defaultBlockState();
             BlockState snowBlock = Blocks.SNOW_BLOCK.defaultBlockState();
             int surfaceLevel = context.getSeaLevel();
+            boolean loggedNullType = false;
 
             for (int x = 0; x < 16; ++x) {
                 for (int z = 0; z < 16; ++z) {
@@ -153,7 +145,12 @@ public class SurfaceAdapterFactory {
                                 surfaceBlock = FallbackSurfaceAdapter.determineSurfaceBlockByTerrainType(terrainType, terrainHeight, surfaceLevel);
                             } else {
                                 // Simplified fallback: snow at high altitude, grass otherwise
+                                // 简化回退：高海拔用雪，否则用草
                                 surfaceBlock = terrainHeight > surfaceLevel + 50 ? snowBlock : grass;
+                                if (!loggedNullType) {
+                                    LOGGER.warn("[WorldScape] SimplifiedFallbackAdapter: terrainType is null at ({}, {}), using height-based fallback", x, z);
+                                    loggedNullType = true;
+                                }
                             }
                             chunk.setBlockState(pos, surfaceBlock, false);
                             continue;
@@ -177,15 +174,16 @@ public class SurfaceAdapterFactory {
                             }
                             continue;
                         }
-                        // Stone layer with variant mixing
+                        // Stone layer with variant veins — 8x8x8 vein grouping
+                        // 石头层带矿脉变体 —— 8x8x8 矿脉分组
                         if (y > terrainHeight - 32) {
                             chunk.setBlockState(pos, stoneRand.nextInt(4) == 0
-                                ? FallbackSurfaceAdapter.getRandomStoneVariant(stoneRand) : stone, false);
+                                ? FallbackSurfaceAdapter.getVeinStoneVariant(this.worldSeed, worldX, y, worldZ) : stone, false);
                             continue;
                         }
                         if (y > 0) {
                             chunk.setBlockState(pos, stoneRand.nextInt(3) == 0
-                                ? FallbackSurfaceAdapter.getRandomStoneVariant(stoneRand) : stone, false);
+                                ? FallbackSurfaceAdapter.getVeinStoneVariant(this.worldSeed, worldX, y, worldZ) : stone, false);
                             continue;
                         }
                         chunk.setBlockState(pos, Blocks.DEEPSLATE.defaultBlockState(), false);

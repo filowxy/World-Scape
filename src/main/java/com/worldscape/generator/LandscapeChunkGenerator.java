@@ -1,39 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.mojang.datafixers.kinds.App
- *  com.mojang.datafixers.kinds.Applicative
- *  com.mojang.serialization.Codec
- *  com.mojang.serialization.MapCodec
- *  com.mojang.serialization.codecs.RecordCodecBuilder
- *  javax.annotation.ParametersAreNonnullByDefault
- *  net.minecraft.core.BlockPos
- *  net.minecraft.core.BlockPos$MutableBlockPos
- *  net.minecraft.core.Holder
- *  net.minecraft.server.level.WorldGenRegion
- *  net.minecraft.util.RandomSource
- *  net.minecraft.world.level.ChunkPos
- *  net.minecraft.world.level.LevelHeightAccessor
- *  net.minecraft.world.level.NoiseColumn
- *  net.minecraft.world.level.StructureManager
- *  net.minecraft.world.level.biome.Biome
- *  net.minecraft.world.level.biome.BiomeManager
- *  net.minecraft.world.level.biome.BiomeSource
- *  net.minecraft.world.level.block.Blocks
- *  net.minecraft.world.level.block.state.BlockState
- *  net.minecraft.world.level.chunk.ChunkAccess
- *  net.minecraft.world.level.chunk.ChunkGenerator
- *  net.minecraft.world.level.chunk.LevelChunkSection
- *  net.minecraft.world.level.chunk.ProtoChunk
- *  net.minecraft.world.level.levelgen.GenerationStep$Carving
- *  net.minecraft.world.level.levelgen.Heightmap$Types
- *  net.minecraft.world.level.levelgen.NoiseGeneratorSettings
- *  net.minecraft.world.level.levelgen.RandomState
- *  net.minecraft.world.level.levelgen.blending.Blender
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.generator;
 
 import com.mojang.datafixers.kinds.App;
@@ -129,12 +93,16 @@ extends ChunkGenerator {
         voidWarningCount.set(0);
         extremeSlopeCount.set(0);
     }
+    public static void resetBiomeReflection() { biomeReflectionFailCount.set(0); }
     public static void setDiagnosticEnabled(boolean enabled) { diagnosticEnabled = enabled; }
     public static boolean isDiagnosticEnabled() { return diagnosticEnabled; }
-    private static final boolean DIAGNOSE_OCEAN = true;
-    private static final int DIAGNOSE_MAX_CHUNKS = 10;
-    private static final AtomicInteger diagChunkCount = new AtomicInteger(0);
+    // Removed unused ocean-diagnostic constants: DIAGNOSE_OCEAN, DIAGNOSE_MAX_CHUNKS, diagChunkCount.
+    // They were dead code left from earlier diagnostic code.
+    // 已移除未使用的海洋诊断常量：DIAGNOSE_OCEAN、DIAGNOSE_MAX_CHUNKS、diagChunkCount。
+    // 它们是早期诊断代码留下的死代码。
     private volatile boolean biomeReflectionAvailable = true;
+    private static final AtomicInteger biomeReflectionFailCount = new AtomicInteger(0);
+    private static final int BIOME_REFLECTION_MAX_FAILURES = 10;
 
     public LandscapeChunkGenerator(BiomeSource biomeSource, long worldSeed) {
         super(biomeSource);
@@ -237,7 +205,7 @@ extends ChunkGenerator {
         return seaLevel;
     }
 
-    private void world_scape_fillColumn(ProtoChunk protoChunk, int worldX, int worldZ, int minY, int terrainHeight, int seaLevel, TerrainType terrainType, boolean isRiver, double riverDepth, RandomState randomState, RegionController controller, NoiseSet noiseSet, RegionController.TerrainBlendResult cachedBlend, TerrainType cachedType, double cachedContinuousHeight, double cachedErosionIntensity, double cachedAlluvialFactor) {
+    private void fillColumn(ProtoChunk protoChunk, int worldX, int worldZ, int minY, int terrainHeight, int seaLevel, TerrainType terrainType, boolean isRiver, double riverDepth, RandomState randomState, RegionController controller, NoiseSet noiseSet, RegionController.TerrainBlendResult cachedBlend, TerrainType cachedType, double cachedContinuousHeight, double cachedErosionIntensity, double cachedAlluvialFactor) {
         int stoneStartY;
         int y;
         double d;
@@ -282,7 +250,7 @@ extends ChunkGenerator {
         }
     }
 
-    private void world_scape_buildSurfaceFallback(WorldGenRegion region, ChunkAccess chunk, TerrainType[][] typeMap) {
+    private void buildSurfaceFallback(WorldGenRegion region, ChunkAccess chunk, TerrainType[][] typeMap) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         int minX = chunk.getPos().getMinBlockX();
         int minZ = chunk.getPos().getMinBlockZ();
@@ -335,23 +303,28 @@ extends ChunkGenerator {
                 }
                 if (terrainType != null) {
                     // Apply surface block based on TerrainType
-                    BlockState surfaceBlock = this.determineSurfaceBlockByTerrainType(terrainType, surfaceY, this.seaLevel);
+                    BlockState surfaceBlock = FallbackSurfaceAdapter.determineSurfaceBlockByTerrainType(terrainType, surfaceY, this.seaLevel);
                     pos.set(worldX, surfaceY, worldZ);
                     chunk.setBlockState(pos, surfaceBlock, false);
                     // Apply sub-surface blocks (top 4 layers below surface)
                     boolean isUnderwater = surfaceY <= this.seaLevel;
-                    for (int y = surfaceY - 1; y > surfaceY - 4 && y >= stoneStartY; --y) {
+                    for (int y = surfaceY - 1; y > surfaceY - WorldScapeConstants.SUBSURFACE_LAYER_DEPTH && y >= stoneStartY; --y) {
                         pos.set(worldX, y, worldZ);
-                        chunk.setBlockState(pos, this.determineSubSurfaceBlockByTerrainType(terrainType, isUnderwater), false);
+                        chunk.setBlockState(pos, FallbackSurfaceAdapter.determineSubSurfaceBlockByTerrainType(terrainType, isUnderwater), false);
                     }
-                    // Stone variant mixing for deeper layers
-                    long stoneVariantSeed = (long)worldX * 31341L + (long)worldZ * 45231L + this.worldSeed;
-                    Random stoneRand = this.stoneRandThreadLocal.get();
-                    stoneRand.setSeed(stoneVariantSeed);
+                    // Stone variant veins — 8x8x8 vein grouping via seed hashing
+                    // Each vein has ~25% chance of being a variant (hash-based, deterministic).
+                    // 石头变体矿脉 —— 8x8x8 矿脉分组，基于种子哈希，每个矿脉约25%概率为变体。
                     for (int y = surfaceY - 4; y > surfaceY - 32 && y >= stoneStartY; --y) {
-                        if (stoneRand.nextInt(4) == 0) {
+                        // Use vein ID hash for probability check — deterministic, no Random needed
+                        // 使用矿脉ID哈希进行概率检查 —— 确定性，无需Random
+                        int veinX = Math.floorDiv(worldX, WorldScapeConstants.STONE_VEIN_SIZE);
+                        int veinY = Math.floorDiv(y, WorldScapeConstants.STONE_VEIN_SIZE);
+                        int veinZ = Math.floorDiv(worldZ, WorldScapeConstants.STONE_VEIN_SIZE);
+                        long probHash = (long)veinX * 31341L + (long)veinY * 17389L + (long)veinZ * 45231L + this.worldSeed;
+                        if (Math.abs((int)(probHash % 4)) == 0) {
                             pos.set(worldX, y, worldZ);
-                            chunk.setBlockState(pos, this.getRandomStoneVariant(stoneRand), false);
+                            chunk.setBlockState(pos, FallbackSurfaceAdapter.getVeinStoneVariant(this.worldSeed, worldX, y, worldZ), false);
                         }
                     }
                     // Water fill for underwater terrain types
@@ -382,7 +355,7 @@ extends ChunkGenerator {
     public void buildSurface(WorldGenRegion region, StructureManager structureManager, RandomState randomState, ChunkAccess chunk) {
         if (this.settings == null) {
             LOGGER.warn("[World Scape] Settings not injected, using fallback surface build");
-            this.world_scape_buildSurfaceFallback(region, chunk, null);
+            this.buildSurfaceFallback(region, chunk, null);
             return;
         }
         TerrainType[][] typeMap = null;
@@ -390,7 +363,7 @@ extends ChunkGenerator {
             SurfaceAdapter adapter = this.getOrCreateSurfaceAdapter();
             if (!adapter.isAvailable()) {
                 LOGGER.warn("[World Scape] Surface adapter not available, using fallback");
-                this.world_scape_buildSurfaceFallback(region, chunk, null);
+                this.buildSurfaceFallback(region, chunk, null);
                 return;
             }
             int[][] heightMap = new int[16][16];
@@ -434,37 +407,32 @@ extends ChunkGenerator {
             boolean success = adapter.buildSurface(context);
             if (!success) {
                 LOGGER.warn("[World Scape] Surface adapter build failed, using fallback");
-                this.world_scape_buildSurfaceFallback(region, chunk, typeMap);
+                this.buildSurfaceFallback(region, chunk, typeMap);
             } else {
                 LOGGER.debug("[World Scape] Surface built successfully using {}", (Object)adapter.getName());
             }
         }
         catch (Exception e) {
             LOGGER.warn("[World Scape] Surface build error: {}, using fallback", (Object)e.getMessage());
-            this.world_scape_buildSurfaceFallback(region, chunk, typeMap);
+            this.buildSurfaceFallback(region, chunk, typeMap);
         }
     }
 
-    /*
-     * WARNING - Removed try catching itself - possible behaviour change.
-     */
     private SurfaceAdapter getOrCreateSurfaceAdapter() {
         SurfaceAdapter adapter = this.surfaceAdapterRef.get();
         if (adapter == null) {
-            LandscapeChunkGenerator landscapeChunkGenerator;
-            LandscapeChunkGenerator landscapeChunkGenerator2 = landscapeChunkGenerator = this;
-            synchronized (landscapeChunkGenerator2) {
+            SurfaceAdapter created;
+            if (this.settings == null) {
+                LOGGER.warn("[World Scape] Settings not available for surface adapter creation");
+                created = SurfaceAdapterFactory.create(SurfaceAdapterFactory.AdapterType.FALLBACK, (Object)this, null, this.worldSeed);
+            } else {
+                created = SurfaceAdapterFactory.create(SurfaceAdapterFactory.AdapterType.AUTO, (Object)this, (NoiseGeneratorSettings)this.settings.value(), this.worldSeed);
+            }
+            LOGGER.info("[World Scape] Surface adapter created: {}", (Object)created.getName());
+            if (!this.surfaceAdapterRef.compareAndSet(null, created)) {
                 adapter = this.surfaceAdapterRef.get();
-                if (adapter == null) {
-                    if (this.settings == null) {
-                        LOGGER.warn("[World Scape] Settings not available for surface adapter creation");
-                        adapter = SurfaceAdapterFactory.create(SurfaceAdapterFactory.AdapterType.FALLBACK, (Object)this, null, this.worldSeed);
-                    } else {
-                        adapter = SurfaceAdapterFactory.create(SurfaceAdapterFactory.AdapterType.AUTO, (Object)this, (NoiseGeneratorSettings)this.settings.value(), this.worldSeed);
-                    }
-                    LOGGER.info("[World Scape] Surface adapter created: {}", (Object)adapter.getName());
-                    this.surfaceAdapterRef.set(adapter);
-                }
+            } else {
+                adapter = created;
             }
         }
         return adapter;
@@ -542,7 +510,16 @@ extends ChunkGenerator {
         }
         if (chunk instanceof ProtoChunk) {
             ProtoChunk protoChunk = (ProtoChunk)chunk;
-            this.overrideTerrainBiomesInChunk(protoChunk, minX, minZ, blendCache);
+            // Biome override is disabled by default to maintain compatibility with biome mods.
+            // When disabled, World Scape only generates the terrain skeleton and leaves biome
+            // assignment to the vanilla/modded BiomeSource, preserving compatibility with
+            // TerraBlender, Biomes O' Plenty, etc.
+            // 生物群系覆盖默认禁用以保持与生物群系模组的兼容性。
+            // 禁用时，World Scape 只生成地形骨架，生物群系分配交由原版/模组化的 BiomeSource，
+            // 保留与 TerraBlender、Biomes O' Plenty 等的兼容性。
+            if (com.worldscape.config.ConfigManager.isBiomeOverrideEnabled()) {
+                this.overrideTerrainBiomesInChunk(protoChunk, minX, minZ, blendCache);
+            }
             for (int x = 0; x < 16; ++x) {
                 for (int z = 0; z < 16; ++z) {
                     int worldX = minX + x;
@@ -552,7 +529,7 @@ extends ChunkGenerator {
                     TerrainType type = typeMap[x][z];
                     boolean isRiver = riverMap[x][z];
                     double riverDepth = riverDepthMap[x][z];
-                    this.world_scape_fillColumn(protoChunk, worldX, worldZ, this.minY, terrainHeight, this.seaLevel, type, isRiver, riverDepth, randomState, controller, noiseSet, blend, type, cachedContinuousHeights[x][z], cachedErosionIntensities[x][z], cachedAlluvialFactors[x][z]);
+                    this.fillColumn(protoChunk, worldX, worldZ, this.minY, terrainHeight, this.seaLevel, type, isRiver, riverDepth, randomState, controller, noiseSet, blend, type, cachedContinuousHeights[x][z], cachedErosionIntensities[x][z], cachedAlluvialFactors[x][z]);
                 }
             }
         }
@@ -564,21 +541,15 @@ extends ChunkGenerator {
         return CompletableFuture.completedFuture(chunk);
     }
 
-    /*
-     * WARNING - Removed try catching itself - possible behaviour change.
-     */
     private RegionController getRegionController() {
         RegionController controller = this.regionControllerRef.get();
         if (controller == null) {
-            LandscapeChunkGenerator landscapeChunkGenerator;
-            LandscapeChunkGenerator landscapeChunkGenerator2 = landscapeChunkGenerator = this;
-            synchronized (landscapeChunkGenerator2) {
+            int effectiveSeaLevel = this.settings != null ? ((NoiseGeneratorSettings)this.settings.value()).seaLevel() : this.seaLevel;
+            RegionController created = new RegionController(this.worldSeed, effectiveSeaLevel);
+            if (!this.regionControllerRef.compareAndSet(null, created)) {
                 controller = this.regionControllerRef.get();
-                if (controller == null) {
-                    int effectiveSeaLevel = this.settings != null ? ((NoiseGeneratorSettings)this.settings.value()).seaLevel() : this.seaLevel;
-                    controller = new RegionController(this.worldSeed, effectiveSeaLevel);
-                    this.regionControllerRef.set(controller);
-                }
+            } else {
+                controller = created;
             }
         }
         return controller;
@@ -600,39 +571,27 @@ extends ChunkGenerator {
         return new RegionController.BlendCache(regionX, regionZ, allPoints);
     }
 
-    /*
-     * WARNING - Removed try catching itself - possible behaviour change.
-     */
     private NoiseSet getNoiseSet() {
         NoiseSet noiseSet = this.noiseSetRef.get();
         if (noiseSet == null) {
-            LandscapeChunkGenerator landscapeChunkGenerator;
-            LandscapeChunkGenerator landscapeChunkGenerator2 = landscapeChunkGenerator = this;
-            synchronized (landscapeChunkGenerator2) {
+            NoiseSet created = NoiseSet.getOrCreate(this.worldSeed);
+            if (!this.noiseSetRef.compareAndSet(null, created)) {
                 noiseSet = this.noiseSetRef.get();
-                if (noiseSet == null) {
-                    noiseSet = NoiseSet.getOrCreate(this.worldSeed);
-                    this.noiseSetRef.set(noiseSet);
-                }
+            } else {
+                noiseSet = created;
             }
         }
         return noiseSet;
     }
 
-    /*
-     * WARNING - Removed try catching itself - possible behaviour change.
-     */
     private TerrainFieldSampler getFieldSampler() {
         TerrainFieldSampler sampler = this.fieldSamplerRef.get();
         if (sampler == null) {
-            LandscapeChunkGenerator landscapeChunkGenerator;
-            LandscapeChunkGenerator landscapeChunkGenerator2 = landscapeChunkGenerator = this;
-            synchronized (landscapeChunkGenerator2) {
+            TerrainFieldSampler created = TerrainFieldSampler.getOrCreate(this.worldSeed);
+            if (!this.fieldSamplerRef.compareAndSet(null, created)) {
                 sampler = this.fieldSamplerRef.get();
-                if (sampler == null) {
-                    sampler = TerrainFieldSampler.getOrCreate(this.worldSeed);
-                    this.fieldSamplerRef.set(sampler);
-                }
+            } else {
+                sampler = created;
             }
         }
         return sampler;
@@ -656,7 +615,7 @@ extends ChunkGenerator {
                 int centerX = minX + cellX * 4 + 2;
                 int centerZ = minZ + cellZ * 4 + 2;
                 Holder currentBiome = protoChunk.getNoiseBiome(cellX, 0, cellZ);
-                if (currentBiome == null || (allowedBiomes = biomeRules.getAllowedBiomes(terrainType = this.determineTerrainType(centerX, centerZ, blendCache))).isEmpty() || allowedBiomes.contains(currentBiome) || (selectedBiome = biomeRules.selectBiomeBySeed(allowedBiomes, this.worldSeed, cellX, cellZ)) == null || !this.biomeReflectionAvailable) continue;
+                if (currentBiome == null || (allowedBiomes = biomeRules.getAllowedBiomes(terrainType = this.determineTerrainType(centerX, centerZ, blendCache))).isEmpty() || allowedBiomes.contains(currentBiome) || (selectedBiome = biomeRules.selectBiomeBySeed(allowedBiomes, this.worldSeed, cellX, cellZ)) == null || biomeReflectionFailCount.get() >= BIOME_REFLECTION_MAX_FAILURES) continue;
                 boolean overrideSucceeded = false;
                 try {
                     if (biomesField == null) {
@@ -676,29 +635,30 @@ extends ChunkGenerator {
                         }
                     }
                     overrideSucceeded = true;
+                    biomeReflectionFailCount.set(0);
                 }
                 catch (NoSuchFieldException e) {
                     LOGGER.error("[World Scape] Biome field not found in LevelChunkSection, API may have changed in this Minecraft version. Falling back to vanilla biome assignment.", (Throwable)e);
-                    this.biomeReflectionAvailable = false;
+                    biomeReflectionFailCount.incrementAndGet();
                 }
                 catch (IllegalAccessException e) {
                     LOGGER.error("[World Scape] Cannot access biome field, module access restrictions may apply. Consider adding --add-opens java.base/java.lang=ALL-UNNAMED to JVM args.", (Throwable)e);
-                    this.biomeReflectionAvailable = false;
+                    biomeReflectionFailCount.incrementAndGet();
                 }
                 catch (InvocationTargetException e) {
                     LOGGER.error("[World Scape] Biome set method threw exception: {}", (Object)(e.getCause() != null ? e.getCause().getMessage() : "null"), (Object)e);
                 }
                 catch (NoSuchMethodException e) {
                     LOGGER.error("[World Scape] Biome set method not found in PalettedContainer, API may have changed in this Minecraft version.", (Throwable)e);
-                    this.biomeReflectionAvailable = false;
+                    biomeReflectionFailCount.incrementAndGet();
                 }
                 catch (SecurityException e) {
                     LOGGER.error("[World Scape] Security manager blocked reflection access to biome field", (Throwable)e);
-                    this.biomeReflectionAvailable = false;
+                    biomeReflectionFailCount.incrementAndGet();
                 }
                 catch (Exception e) {
                     LOGGER.error("[World Scape] Unexpected error setting biome via reflection: {}", (Object)e.getMessage(), (Object)e);
-                    this.biomeReflectionAvailable = false;
+                    biomeReflectionFailCount.incrementAndGet();
                 }
                 if (!overrideSucceeded) continue;
                 overrideCounts.merge(terrainType, 1, Integer::sum);
@@ -771,17 +731,7 @@ extends ChunkGenerator {
         return TerrainCalculator.calculateFinalHeight(worldX, worldZ, blend, type, noiseSet, this.getFieldSampler());
     }
 
-    private double cachedNoiseSample(NoiseSet noiseSet, int worldX, int worldZ, NoiseSet.NoiseProfile profile, Map<NoiseSet.NoiseProfile, Double> cache) {
-        Double cached = cache.get((Object)profile);
-        if (cached != null) {
-            return cached;
-        }
-        double value = noiseSet.sample(profile, worldX, worldZ);
-        cache.put(profile, value);
-        return value;
-    }
 
-    
 
     public BiomeSource getBiomeSource() {
         return this.biomeSource;
@@ -795,116 +745,8 @@ extends ChunkGenerator {
         return this.settings;
     }
 
-    /**
-     * Determine surface block based on TerrainType, mirroring FallbackSurfaceAdapter logic.
-     * Used in the fallback path when the surface adapter fails.
-     */
-    private BlockState determineSurfaceBlockByTerrainType(TerrainType terrainType, int terrainHeight, int seaLevel) {
-        // Mountain/rocky types → gravel
-        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.RIDGE
-            || terrainType == TerrainType.PEAK || terrainType == TerrainType.HORN
-            || terrainType == TerrainType.CLIFF || terrainType == TerrainType.CANYON
-            || terrainType == TerrainType.PLATEAU || terrainType == TerrainType.SEA_CLIFF) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-        // Desert/arid types → sand
-        if (terrainType == TerrainType.GOBI || terrainType == TerrainType.SALT_FLAT
-            || terrainType == TerrainType.DUNE || terrainType == TerrainType.YARDANG) {
-            return Blocks.SAND.defaultBlockState();
-        }
-        // Beach → sand
-        if (terrainType == TerrainType.BEACH) {
-            return Blocks.SAND.defaultBlockState();
-        }
-        // Ice/snow types → snow block
-        if (terrainType == TerrainType.ICE_SHEET || terrainType == TerrainType.GLACIAL_VALLEY
-            || terrainType == TerrainType.CIRQUE) {
-            return Blocks.SNOW_BLOCK.defaultBlockState();
-        }
-        // Underwater types → gravel
-        if (terrainType == TerrainType.TRENCH || terrainType == TerrainType.SEA_PLATEAU) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-        // Delta → sand
-        if (terrainType == TerrainType.DELTA) {
-            return Blocks.SAND.defaultBlockState();
-        }
-        // Fjord → gravel
-        if (terrainType == TerrainType.FJORD) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-        // Grass/plains/hills types → grass block
-        return Blocks.GRASS_BLOCK.defaultBlockState();
-    }
-
-    /**
-     * Determine sub-surface block based on TerrainType, mirroring FallbackSurfaceAdapter logic.
-     */
-    private BlockState determineSubSurfaceBlockByTerrainType(TerrainType terrainType, boolean isUnderwater) {
-        // Ice/snow types → packed ice
-        if (terrainType == TerrainType.ICE_SHEET || terrainType == TerrainType.GLACIAL_VALLEY
-            || terrainType == TerrainType.CIRQUE) {
-            return Blocks.PACKED_ICE.defaultBlockState();
-        }
-        // Mountain/rocky types → gravel
-        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.RIDGE
-            || terrainType == TerrainType.PEAK || terrainType == TerrainType.HORN
-            || terrainType == TerrainType.CLIFF || terrainType == TerrainType.CANYON
-            || terrainType == TerrainType.PLATEAU || terrainType == TerrainType.SEA_CLIFF
-            || terrainType == TerrainType.FJORD) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-        // Desert/arid types → sand
-        if (terrainType == TerrainType.GOBI || terrainType == TerrainType.SALT_FLAT
-            || terrainType == TerrainType.DUNE || terrainType == TerrainType.YARDANG) {
-            return Blocks.SAND.defaultBlockState();
-        }
-        // Beach/delta → sand
-        if (terrainType == TerrainType.BEACH || terrainType == TerrainType.DELTA) {
-            return Blocks.SAND.defaultBlockState();
-        }
-        // Underwater types → gravel
-        if (terrainType == TerrainType.TRENCH || terrainType == TerrainType.SEA_PLATEAU) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-        // Default underwater → sand
-        if (isUnderwater) {
-            return Blocks.SAND.defaultBlockState();
-        }
-        // Grass/plains/hills types → dirt
-        return Blocks.DIRT.defaultBlockState();
-    }
-
-    /**
-     * Check if the terrain type is an underwater type that requires water fill.
-     */
     private boolean isUnderwaterTerrainType(TerrainType terrainType) {
-        return terrainType == TerrainType.TRENCH
-            || terrainType == TerrainType.SEA_PLATEAU
-            || terrainType == TerrainType.BEACH
-            || terrainType == TerrainType.DELTA
-            || terrainType == TerrainType.SEA_CLIFF
-            || terrainType == TerrainType.FJORD;
-    }
-
-    /**
-     * Random stone variant for aesthetic variety, same as FallbackSurfaceAdapter.
-     */
-    private BlockState getRandomStoneVariant(Random rand) {
-        int roll = rand.nextInt(100);
-        if (roll < 10) {
-            return Blocks.GRANITE.defaultBlockState();
-        }
-        if (roll < 20) {
-            return Blocks.DIORITE.defaultBlockState();
-        }
-        if (roll < 30) {
-            return Blocks.ANDESITE.defaultBlockState();
-        }
-        if (roll < 33) {
-            return Blocks.COBBLESTONE.defaultBlockState();
-        }
-        return Blocks.STONE.defaultBlockState();
+        return TerrainType.isUnderwaterTerrainType(terrainType);
     }
 
     private record RiverCacheData(boolean[][] riverMap, double[][] riverDepthMap, TerrainType[][] typeMap) {

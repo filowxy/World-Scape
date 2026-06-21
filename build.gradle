@@ -1,9 +1,9 @@
 plugins {
-    id 'net.neoforged.moddev' version '2.0.125'
+    id 'net.neoforged.moddev' version "$moddevVersion"
 }
 
 neoForge {
-    version = "21.1.219"
+    version = "$neoForgeVersion"
 
     mods {
         worldscape {
@@ -27,11 +27,11 @@ neoForge {
 
 dependencies {
     // Mixin annotation processor
-    compileOnly 'org.spongepowered:mixin:0.8.7'
-    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+    compileOnly "org.spongepowered:mixin:$mixinVersion"
+    annotationProcessor "org.spongepowered:mixin:$mixinVersion:processor"
 
     // Test dependencies
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.3'
+    testImplementation "org.junit.jupiter:junit-jupiter:$junitVersion"
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

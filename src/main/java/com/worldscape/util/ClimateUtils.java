@@ -1,7 +1,7 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package com.worldscape.util;
+
+import com.worldscape.terrain.WorldScapeConstants;
+import java.util.Objects;
 
 public class ClimateUtils {
     public static double calculateClimateDistance(double temp1, double humidity1, double seasonality1, double continentality1, double temp2, double humidity2, double seasonality2, double continentality2) {
@@ -21,6 +21,9 @@ public class ClimateUtils {
     }
 
     public static ClimateProfile getTerrainClimateProfile(String terrainType, double normalizedLatitude) {
+        // 空值校验：防止 NPE
+        // Null check: prevent NPE
+        Objects.requireNonNull(terrainType, "terrainType must not be null");
         boolean isGlacialTerrain;
         switch (terrainType) {
             case "ICE_SHEET": 
@@ -36,9 +39,9 @@ public class ClimateUtils {
         }
         if (isGlacialTerrain) {
             boolean meetsLatThreshold;
-            boolean bl = meetsLatThreshold = Math.abs(normalizedLatitude) > 0.44;
+            boolean bl = meetsLatThreshold = Math.abs(normalizedLatitude) > WorldScapeConstants.GLACIAL_LATITUDE_THRESHOLD;
             if (!meetsLatThreshold) {
-                return new ClimateProfile(0.2, 0.3, 0.6, 0.7);
+                return new ClimateProfile(WorldScapeConstants.MOUNTAIN_TEMPERATURE, WorldScapeConstants.MOUNTAIN_HUMIDITY, WorldScapeConstants.MOUNTAIN_SEASONALITY, WorldScapeConstants.MOUNTAIN_CONTINENTALITY);
             }
         }
         switch (terrainType) {
@@ -46,10 +49,10 @@ public class ClimateUtils {
             case "GLACIAL_VALLEY": 
             case "CIRQUE": 
             case "HORN": {
-                return new ClimateProfile(0.0, 0.6, 0.1, 0.8);
+                return new ClimateProfile(WorldScapeConstants.ICE_TEMPERATURE, WorldScapeConstants.ICE_HUMIDITY, WorldScapeConstants.ICE_SEASONALITY, WorldScapeConstants.ICE_CONTINENTALITY);
             }
             case "FJORD": {
-                return new ClimateProfile(0.55, 0.75, 0.35, 0.15);
+                return new ClimateProfile(WorldScapeConstants.COASTAL_TEMPERATE_TEMP, WorldScapeConstants.COASTAL_TEMPERATE_HUMID, WorldScapeConstants.COASTAL_TEMPERATE_SEASON, WorldScapeConstants.COASTAL_TEMPERATE_CONT);
             }
             case "HIGH_MOUNTAINS": 
             case "PLATEAU": 
@@ -57,7 +60,7 @@ public class ClimateUtils {
             case "CLIFF": 
             case "PEAK": 
             case "DOME": {
-                return new ClimateProfile(0.2, 0.3, 0.6, 0.7);
+                return new ClimateProfile(WorldScapeConstants.MOUNTAIN_TEMPERATURE, WorldScapeConstants.MOUNTAIN_HUMIDITY, WorldScapeConstants.MOUNTAIN_SEASONALITY, WorldScapeConstants.MOUNTAIN_CONTINENTALITY);
             }
             case "PLAINS": 
             case "HILLS": 
@@ -66,36 +69,36 @@ public class ClimateUtils {
             case "BASIN": 
             case "VALLEY": 
             case "SEA_PLATEAU": {
-                return new ClimateProfile(0.5, 0.5, 0.6, 0.5);
+                return new ClimateProfile(WorldScapeConstants.PLAINS_TEMPERATURE, WorldScapeConstants.PLAINS_HUMIDITY, WorldScapeConstants.PLAINS_SEASONALITY, WorldScapeConstants.PLAINS_CONTINENTALITY);
             }
             case "DUNE": 
             case "GOBI": 
             case "YARDANG": 
             case "SALT_FLAT": {
-                return new ClimateProfile(0.8, 0.0, 0.8, 0.95);
+                return new ClimateProfile(WorldScapeConstants.DESERT_TEMPERATURE, WorldScapeConstants.DESERT_HUMIDITY, WorldScapeConstants.DESERT_SEASONALITY, WorldScapeConstants.DESERT_CONTINENTALITY);
             }
             case "PEAK_FOREST": 
             case "SINKHOLE": {
-                return new ClimateProfile(1.0, 0.8, 0.7, 0.3);
+                return new ClimateProfile(WorldScapeConstants.FOREST_TEMPERATURE, WorldScapeConstants.FOREST_HUMIDITY, WorldScapeConstants.FOREST_SEASONALITY, WorldScapeConstants.FOREST_CONTINENTALITY);
             }
             case "CANYON": 
             case "DELTA": {
-                return new ClimateProfile(0.5, 0.8, 0.55, 0.75);
+                return new ClimateProfile(WorldScapeConstants.CANYON_CLIMATE_TEMPERATURE, WorldScapeConstants.CANYON_CLIMATE_HUMIDITY, WorldScapeConstants.CANYON_SEASONALITY, WorldScapeConstants.CANYON_CONTINENTALITY);
             }
             case "BEACH": 
             case "SEA_CLIFF": {
-                return new ClimateProfile(0.5, 0.7, 0.3, 0.2);
+                return new ClimateProfile(WorldScapeConstants.BEACH_TEMPERATURE, WorldScapeConstants.BEACH_HUMIDITY, WorldScapeConstants.BEACH_SEASONALITY, WorldScapeConstants.BEACH_CONTINENTALITY);
             }
             case "TRENCH": {
-                return new ClimateProfile(0.08, 0.95, 0.05, 0.05);
+                return new ClimateProfile(WorldScapeConstants.DEEP_OCEAN_TEMP, WorldScapeConstants.DEEP_OCEAN_HUMID, WorldScapeConstants.DEEP_OCEAN_SEASON, WorldScapeConstants.DEEP_OCEAN_CONT);
             }
         }
-        return new ClimateProfile(0.5, 0.5, 0.5, 0.5);
+        return new ClimateProfile(WorldScapeConstants.DEFAULT_TEMPERATURE, WorldScapeConstants.DEFAULT_HUMIDITY, WorldScapeConstants.DEFAULT_SEASONALITY, WorldScapeConstants.DEFAULT_CONTINENTALITY);
     }
 
     public static double adjustTemperatureForElevation(double baseTemperature, int elevationTier, double normalizedLatitude) {
-        double elevationCooling = (double)elevationTier * 0.05;
-        double latitudeCooling = Math.abs(normalizedLatitude) * 0.3;
+        double elevationCooling = (double)elevationTier * WorldScapeConstants.ELEVATION_COOLING_PER_TIER;
+        double latitudeCooling = Math.abs(normalizedLatitude) * WorldScapeConstants.LATITUDE_COOLING_FACTOR;
         return Math.max(0.0, baseTemperature - elevationCooling - latitudeCooling);
     }
 
@@ -119,7 +122,7 @@ public class ClimateUtils {
         }
 
         public ClimateProfile(double temperature, double humidity) {
-            this(temperature, humidity, 0.5, 0.5);
+            this(temperature, humidity, WorldScapeConstants.DEFAULT_SEASONALITY, WorldScapeConstants.DEFAULT_CONTINENTALITY);
         }
 
         public double getTemperature() {

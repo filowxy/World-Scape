@@ -10,18 +10,12 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Interpreter engine for terrain type function definitions.
  * <p>
- * 地形类型函数定义的解释器引擎。
- * <p>
  * Evaluates {@link TerrainFunctionSchema.FunctionDef} against
  * {@link TerrainFieldSampler} noise functions to produce a terrain height value.
- * 对 TerrainFunctionSchema.FunctionDef 进行求值，结合 TerrainFieldSampler
- * 噪声函数生成地形高度值。
  * <p>
  * Supports coordinate transforms, multiple noise primitives, combinators,
  * and final expression processing. Includes a built-in recursive-descent
  * math expression parser for the "math" noise primitive.
- * 支持坐标变换、多种噪声原语、组合器、最终表达式处理，内置
- * 递归下降数学表达式解析器用于 "math" 噪声原语。
  *
  * @author World Scape
  */
@@ -31,6 +25,40 @@ public final class TerrainFunctionInterpreter {
     }
 
     private static final ConcurrentHashMap<String, TerrainPrimitiveProvider> customPrimitives = new ConcurrentHashMap<>();
+
+    // ========================================================================
+    // Noise Primitive Name Constants
+    // ========================================================================
+    private static final String FBM = "fbm";
+    private static final String TURBULENCE = "turbulence";
+    private static final String DOMAIN_ROTATED = "domain_rotated";
+    private static final String GAUSSIAN = "gaussian";
+    private static final String SIGMOID = "sigmoid";
+    private static final String TANH_SCALED = "tanh_scaled";
+    private static final String SINE = "sine";
+    private static final String GRADIENT = "gradient";
+    private static final String MATH = "math";
+    private static final String GRADIENT_CONSTRAINED_SINE = "gradient_constrained_sine";
+    private static final String CONTRIBUTING_POINT_DISTANCE = "contributing_point_distance";
+    private static final String FM_SINE = "fm_sine";
+    private static final String ABS = "abs";
+    private static final String NEGATE = "negate";
+    private static final String CONSTANT = "constant";
+
+    // ========================================================================
+    // Coordinate Transform Type Constants
+    // ========================================================================
+    private static final String CT_IDENTITY = "identity";
+    private static final String CT_ENERGY_STRETCHED = "energy_stretched";
+    private static final String CT_SCALE = "scale";
+
+    // ========================================================================
+    // Combinator Type Constants
+    // ========================================================================
+    private static final String COMBINATOR_ADD = "add";
+    private static final String COMBINATOR_BLEND = "blend";
+    private static final String COMBINATOR_PRODUCT = "product";
+    private static final String COMBINATOR_SCALE = "scale";
 
     /**
      * Register a custom noise primitive provider.
@@ -80,19 +108,19 @@ public final class TerrainFunctionInterpreter {
 
     /**
      * Evaluate a terrain function definition at the given world coordinates.
-     * 在给定世界坐标处评估地形函数定义。
      *
-     * @param def    the parsed function definition / 解析后的函数定义
-     * @param worldX world X coordinate / 世界 X 坐标
-     * @param worldZ world Z coordinate / 世界 Z 坐标
-     * @param fs     the terrain field sampler for noise evaluation / 用于噪声评估的地形场采样器
-     * @param blend  the terrain blend result from RegionController / 来自 RegionController 的地形混合结果
-     * @return the computed terrain height / 计算出的地形高度
+     * @param def    the parsed function definition
+     * @param worldX world X coordinate
+     * @param worldZ world Z coordinate
+     * @param fs     the terrain field sampler for noise evaluation
+     * @param blend  the terrain blend result from RegionController
+     * @return the computed terrain height
      */
     public static double evaluate(TerrainFunctionSchema.FunctionDef def, int worldX, int worldZ,
                                    TerrainFieldSampler fs, RegionController.TerrainBlendResult blend) {
         if (def == null || fs == null || blend == null) {
-            WorldScape.LOGGER.error("[World Scape] evaluate() called with null parameters");
+            WorldScape.LOGGER.warn("[World Scape] evaluate() called with null parameters: def={}, fs={}, blend={}",
+                def, fs, blend);
             return 0.0;
         }
 
@@ -136,25 +164,24 @@ public final class TerrainFunctionInterpreter {
 
     /**
      * Apply coordinate-space transform to produce (tx, tz).
-     * 应用坐标空间变换生成 (tx, tz)。
      *
-     * @param ct     the coordinate transform definition (nullable) / 坐标变换定义（可为 null）
-     * @param worldX original world X / 原始世界 X
-     * @param worldZ original world Z / 原始世界 Z
-     * @param fs     terrain field sampler / 地形场采样器
+     * @param ct     the coordinate transform definition (nullable)
+     * @param worldX original world X
+     * @param worldZ original world Z
+     * @param fs     terrain field sampler
      * @return double[2] {tx, tz}
      */
     private static double[] applyCoordinateTransform(TerrainFunctionSchema.CoordinateTransform ct,
                                                       int worldX, int worldZ, TerrainFieldSampler fs) {
-        if (ct == null || ct.type == null || "identity".equals(ct.type)) {
+        if (ct == null || ct.type == null || CT_IDENTITY.equals(ct.type)) {
             return new double[]{worldX, worldZ};
         }
 
         switch (ct.type) {
-            case "energy_stretched":
+            case CT_ENERGY_STRETCHED:
                 return fs.getEnergyStretchedCoords(worldX, worldZ);
 
-            case "scale": {
+            case CT_SCALE: {
                 double factor = getDoubleParam(ct.params, "factor", 1.0);
                 double scale = getDoubleParam(ct.params, "scale", factor);
                 return new double[]{worldX * scale, worldZ * scale};
@@ -169,17 +196,16 @@ public final class TerrainFunctionInterpreter {
 
     /**
      * Evaluate a single noise primitive.
-     * 评估单个噪声原语。
      *
-     * @param primitive   the noise primitive definition / 噪声原语定义
-     * @param ix         integer world X (transformed) / 整数世界 X（已变换）
-     * @param iz         integer world Z (transformed) / 整数世界 Z（已变换）
-     * @param tx         double world X (transformed, for sine/math) / double 世界 X（已变换，用于 sine/math）
-     * @param tz         double world Z (transformed, for sine/math) / double 世界 Z（已变换，用于 sine/math）
-     * @param fs         terrain field sampler / 地形场采样器
-     * @param blend      terrain blend result / 地形混合结果
-     * @param idToOutput map of already-evaluated primitive ids to their outputs / 已评估原语 ID 到输出的映射
-     * @return the primitive's output value / 原语的输出值
+     * @param primitive   the noise primitive definition
+     * @param ix         integer world X (transformed)
+     * @param iz         integer world Z (transformed)
+     * @param tx         double world X (transformed, for sine/math)
+     * @param tz         double world Z (transformed, for sine/math)
+     * @param fs         terrain field sampler
+     * @param blend      terrain blend result
+     * @param idToOutput map of already-evaluated primitive ids to their outputs
+     * @return the primitive's output value
      */
     private static double evaluatePrimitive(TerrainFunctionSchema.NoisePrimitive primitive,
                                              int ix, int iz, double tx, double tz,
@@ -196,25 +222,24 @@ public final class TerrainFunctionInterpreter {
         }
 
         switch (primitive.name) {
-            case "fbm": {
+            case FBM: {
                 int octaves = getIntParam(params, "octaves", 6);
                 double gain = getDoubleParam(params, "gain", 0.5);
                 return fs.sampleFbmCached(ix, iz, octaves, gain) * amp;
             }
 
-            case "turbulence": {
+            case TURBULENCE: {
                 double strength = getDoubleParam(params, "strength", 1.0);
                 return fs.sampleTurbulenceCached(ix, iz, strength) * amp;
             }
 
-            case "domain_rotated": {
+            case DOMAIN_ROTATED: {
                 double warpStrength = getDoubleParam(params, "warp_strength", 1.0);
                 return fs.sampleDomainRotatedCached(ix, iz, warpStrength) * amp;
             }
 
-            case "gaussian": {
+            case GAUSSIAN: {
                 double sigma = getDoubleParam(params, "sigma", 100.0);
-                // 支持高斯中心偏移：offset_x/offset_z 可以引用其他原语的输出值
                 // Support gaussian center offset: offset_x/offset_z can reference other primitives' output values
                 double offsetX = 0.0;
                 double offsetZ = 0.0;
@@ -229,13 +254,13 @@ public final class TerrainFunctionInterpreter {
                 return TerrainFieldSampler.gaussian(tx - offsetX, tz - offsetZ, sigma) * amp;
             }
 
-            case "sigmoid": {
+            case SIGMOID: {
                 double inputScale = getDoubleParam(params, "input_scale", 1.0);
                 double input = getDoubleParam(params, "input", fs.sampleEnergy(ix, iz));
                 return TerrainFieldSampler.sigmoid(input * inputScale) * amp;
             }
 
-            case "tanh_scaled": {
+            case TANH_SCALED: {
                 String inputSource = getStringParam(params, "input_source", null);
                 double inputValue;
                 if (inputSource != null && idToOutput.containsKey(inputSource)) {
@@ -247,18 +272,18 @@ public final class TerrainFunctionInterpreter {
                 return TerrainFieldSampler.tanhScaled(inputValue, steepness) * amp;
             }
 
-            case "sine": {
+            case SINE: {
                 double freqX = getDoubleParam(params, "freq_x", 0.01);
                 double freqZ = getDoubleParam(params, "freq_z", 0.01);
                 double phaseOffset = getDoubleParam(params, "phase_offset", 0.0);
                 return Math.sin(tx * freqX + tz * freqZ + phaseOffset) * amp;
             }
 
-            case "gradient": {
+            case GRADIENT: {
                 return fs.calculateGradient(ix, iz) * amp;
             }
 
-            case "math": {
+            case MATH: {
                 String expression = getStringParam(params, "expression", "0");
                 Map<String, Object> bindingsRaw = getMapParam(params, "bindings");
                 Map<String, Double> mathBindings = new HashMap<>(idToOutput);
@@ -275,7 +300,7 @@ public final class TerrainFunctionInterpreter {
                 return evaluateMathExpression(expression, tx, tz, mathBindings, fs, ix, iz) * amp;
             }
 
-            case "gradient_constrained_sine": {
+            case GRADIENT_CONSTRAINED_SINE: {
                 double freqX = getDoubleParam(params, "freq_x", 0.01);
                 double freqZ = getDoubleParam(params, "freq_z", 0.01);
                 double primaryAmp = getDoubleParam(params, "primary_amp", 35.0);
@@ -302,7 +327,7 @@ public final class TerrainFunctionInterpreter {
                 return rSineRaw * rSineWeight * amp;
             }
 
-            case "contributing_point_distance": {
+            case CONTRIBUTING_POINT_DISTANCE: {
                 double centerX = 0.0;
                 double centerZ = 0.0;
                 if (blend != null && blend.contributingPoints != null) {
@@ -327,8 +352,7 @@ public final class TerrainFunctionInterpreter {
                 return afDist * amp;
             }
 
-            case "fm_sine": {
-                // 调频正弦波：频率被另一个噪声信号调制，用于风蚀脊等纹理
+            case FM_SINE: {
                 // Frequency-modulated sine: frequency is modulated by another noise signal, used for wind-eroded ridge textures
                 double freqX = getDoubleParam(params, "freq_x", 0.01);
                 double freqZ = getDoubleParam(params, "freq_z", 0.01);
@@ -343,8 +367,7 @@ public final class TerrainFunctionInterpreter {
                 return Math.sin(modulatedPhase) * amp;
             }
 
-            case "abs": {
-                // 绝对值：取另一个原语输出的绝对值，用于峡谷深度等
+            case ABS: {
                 // Absolute value: takes the absolute value of another primitive's output, used for canyon depth etc.
                 String inputRef = getStringParam(params, "input", null);
                 double inputValue = 0.0;
@@ -354,8 +377,7 @@ public final class TerrainFunctionInterpreter {
                 return Math.abs(inputValue) * amp;
             }
 
-            case "negate": {
-                // 取反：取另一个原语输出的负值，用于海沟轴等
+            case NEGATE: {
                 // Negation: takes the negative of another primitive's output, used for trench axis etc.
                 String inputRef = getStringParam(params, "input", null);
                 double inputValue = 0.0;
@@ -365,27 +387,24 @@ public final class TerrainFunctionInterpreter {
                 return -inputValue * amp;
             }
 
-            case "constant": {
-                // 常量：返回固定值乘以振幅，用于基础偏移等
+            case CONSTANT: {
                 // Constant: returns a fixed value multiplied by amplitude, used for base offsets etc.
                 double value = getDoubleParam(params, "value", 1.0);
                 return value * amp;
             }
 
             default:
-                WorldScape.LOGGER.error("[World Scape] Unknown noise primitive name: '{}'", primitive.name);
-                return 0.0;
+                throw new IllegalArgumentException("Unknown noise primitive: " + primitive.name);
         }
     }
 
     /**
      * Apply a combinator to combine primitive outputs.
-     * 应用组合器合并原语输出。
      *
-     * @param combinator   the combinator definition / 组合器定义
-     * @param idToOutput   map of primitive id to output / 原语 ID 到输出的映射
-     * @param lastOutput   the output of the last primitive (fallback) / 最后一个原语的输出（后备）
-     * @return the combined value / 组合后的值
+     * @param combinator   the combinator definition
+     * @param idToOutput   map of primitive id to output
+     * @param lastOutput   the output of the last primitive (fallback)
+     * @return the combined value
      */
     private static double applyCombinator(TerrainFunctionSchema.Combinator combinator,
                                            Map<String, Double> idToOutput, double lastOutput) {
@@ -394,7 +413,7 @@ public final class TerrainFunctionInterpreter {
         }
 
         switch (combinator.type) {
-            case "add": {
+            case COMBINATOR_ADD: {
                 if (combinator.terms == null || combinator.terms.isEmpty()) {
                     WorldScape.LOGGER.warn("[World Scape] 'add' combinator has no terms, returning last output");
                     return lastOutput;
@@ -411,7 +430,7 @@ public final class TerrainFunctionInterpreter {
                 return sum;
             }
 
-            case "blend": {
+            case COMBINATOR_BLEND: {
                 String aRef = combinator.a;
                 String bRef = combinator.b;
                 Double valA = aRef != null ? idToOutput.get(aRef) : null;
@@ -425,7 +444,7 @@ public final class TerrainFunctionInterpreter {
                 return valA * w + valB * (1.0 - w);
             }
 
-            case "product": {
+            case COMBINATOR_PRODUCT: {
                 String aRef = combinator.a;
                 String bRef = combinator.b;
                 Double valA = aRef != null ? idToOutput.get(aRef) : null;
@@ -438,7 +457,7 @@ public final class TerrainFunctionInterpreter {
                 return valA * valB;
             }
 
-            case "scale": {
+            case COMBINATOR_SCALE: {
                 String source = combinator.source;
                 Double val = source != null ? idToOutput.get(source) : null;
                 if (val == null) {
@@ -455,26 +474,24 @@ public final class TerrainFunctionInterpreter {
     }
 
     // ========================================================================
-    // Math Expression Parser / 数学表达式解析器
+    // Math Expression Parser
     // ========================================================================
 
     /**
      * Recursive-descent math expression evaluator.
-     * 递归下降数学表达式求值器。
      * <p>
      * Supports: sin(x), cos(x), abs(x), sqrt(x), tanh(x), exp(x), log(x),
      * max(a,b), min(a,b), clamp(x,lo,hi), and +, -, *, /, ^ operators, numeric
      * literals, and named variable references from the bindings map.
-     * 支持的函数和运算符如上所述，以及数值字面量和来自 bindings 映射的变量引用。
      *
-     * @param expression  the math expression string / 数学表达式字符串
-     * @param tx          transformed X coordinate / 变换后的 X 坐标
-     * @param tz          transformed Z coordinate / 变换后的 Z 坐标
-     * @param bindings    map of named variable values / 命名变量值的映射
-     * @param fs          terrain field sampler for fallback / 备用的地形场采样器
-     * @param ix          integer X for fallback / 备用的整数 X
-     * @param iz          integer Z for fallback / 备用的整数 Z
-     * @return the evaluated result / 求值结果
+     * @param expression  the math expression string
+     * @param tx          transformed X coordinate
+     * @param tz          transformed Z coordinate
+     * @param bindings    map of named variable values
+     * @param fs          terrain field sampler for fallback
+     * @param ix          integer X for fallback
+     * @param iz          integer Z for fallback
+     * @return the evaluated result
      */
     private static double evaluateMathExpression(String expression, double tx, double tz,
                                                   Map<String, Double> bindings,
@@ -487,24 +504,22 @@ public final class TerrainFunctionInterpreter {
             double result = parser.parseExpression();
             return Double.isFinite(result) ? result : 0.0;
         } catch (Exception e) {
-            WorldScape.LOGGER.error("[World Scape] Failed to parse math expression '{}': {}", expression, e.getMessage());
-            return 0.0;
+            throw new IllegalArgumentException("Failed to parse math expression: " + expression, e);
         }
     }
 
     /**
      * Simple recursive-descent parser for math expressions.
-     * 用于数学表达式的简单递归下降解析器。
      * <p>
      * Grammar:
      * <pre>
-     *   expression  → term (('+' | '-') term)*
-     *   term        → unary (('*' | '/') unary)*
-     *   unary       → ('-' | '+')? power
-     *   power       → atom ('^' unary)?
-     *   atom        → number | function_call | identifier | '(' expression ')'
-     *   function_call → name '(' arglist ')'
-     *   arglist     → expression (',' expression)*
+     *   expression  -> term (('+' | '-') term)*
+     *   term        -> unary (('*' | '/') unary)*
+     *   unary       -> ('-' | '+')? power
+     *   power       -> atom ('^' unary)?
+     *   atom        -> number | function_call | identifier | '(' expression ')'
+     *   function_call -> name '(' arglist ')'
+     *   arglist     -> expression (',' expression)*
      * </pre>
      */
     private static class MathParser {
@@ -775,17 +790,16 @@ public final class TerrainFunctionInterpreter {
     }
 
     // ========================================================================
-    // Parameter Extraction Helpers / 参数提取辅助方法
+    // Parameter Extraction Helpers
     // ========================================================================
 
     /**
      * Extract a double parameter from the params map.
-     * 从 params 映射中提取 double 参数。
      *
-     * @param params     the parameter map / 参数映射
-     * @param key        the parameter key / 参数键
-     * @param defaultVal the default value if not found / 未找到时的默认值
-     * @return the extracted double value / 提取的 double 值
+     * @param params     the parameter map
+     * @param key        the parameter key
+     * @param defaultVal the default value if not found
+     * @return the extracted double value
      */
     private static double getDoubleParam(Map<String, Object> params, String key, double defaultVal) {
         if (params == null) {
@@ -800,12 +814,11 @@ public final class TerrainFunctionInterpreter {
 
     /**
      * Extract an integer parameter from the params map.
-     * 从 params 映射中提取整数参数。
      *
-     * @param params     the parameter map / 参数映射
-     * @param key        the parameter key / 参数键
-     * @param defaultVal the default value if not found / 未找到时的默认值
-     * @return the extracted int value / 提取的 int 值
+     * @param params     the parameter map
+     * @param key        the parameter key
+     * @param defaultVal the default value if not found
+     * @return the extracted int value
      */
     private static int getIntParam(Map<String, Object> params, String key, int defaultVal) {
         if (params == null) {
@@ -820,12 +833,11 @@ public final class TerrainFunctionInterpreter {
 
     /**
      * Extract a string parameter from the params map.
-     * 从 params 映射中提取字符串参数。
      *
-     * @param params     the parameter map / 参数映射
-     * @param key        the parameter key / 参数键
-     * @param defaultVal the default value if not found / 未找到时的默认值
-     * @return the extracted string value / 提取的字符串值
+     * @param params     the parameter map
+     * @param key        the parameter key
+     * @param defaultVal the default value if not found
+     * @return the extracted string value
      */
     private static String getStringParam(Map<String, Object> params, String key, String defaultVal) {
         if (params == null) {

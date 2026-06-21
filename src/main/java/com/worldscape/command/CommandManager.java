@@ -1,40 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.mojang.brigadier.arguments.ArgumentType
- *  com.mojang.brigadier.arguments.BoolArgumentType
- *  com.mojang.brigadier.arguments.IntegerArgumentType
- *  com.mojang.brigadier.builder.LiteralArgumentBuilder
- *  com.mojang.brigadier.builder.RequiredArgumentBuilder
- *  com.mojang.brigadier.context.CommandContext
- *  com.worldscape.WorldScape
- *  net.minecraft.commands.CommandSourceStack
- *  net.minecraft.commands.Commands
- *  net.minecraft.commands.arguments.ResourceLocationArgument
- *  net.minecraft.core.BlockPos
- *  net.minecraft.core.BlockPos$MutableBlockPos
- *  net.minecraft.network.chat.ClickEvent
- *  net.minecraft.network.chat.ClickEvent$Action
- *  net.minecraft.network.chat.Component
- *  net.minecraft.network.chat.HoverEvent
- *  net.minecraft.network.chat.HoverEvent$Action
- *  net.minecraft.network.chat.MutableComponent
- *  net.minecraft.network.chat.Style
- *  net.minecraft.network.chat.TextColor
- *  net.minecraft.resources.ResourceKey
- *  net.minecraft.resources.ResourceLocation
- *  net.minecraft.server.level.ServerLevel
- *  net.minecraft.server.level.ServerPlayer
- *  net.minecraft.tags.FluidTags
- *  net.minecraft.world.level.Level
- *  net.minecraft.world.level.block.Blocks
- *  net.minecraft.world.level.block.state.BlockState
- *  net.neoforged.bus.api.IEventBus
- *  net.neoforged.bus.api.SubscribeEvent
- *  net.neoforged.fml.common.EventBusSubscriber
- *  net.neoforged.neoforge.event.RegisterCommandsEvent
- */
 package com.worldscape.command;
 
 import com.mojang.brigadier.arguments.ArgumentType;
@@ -83,7 +46,6 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -146,7 +108,11 @@ public class CommandManager {
         }))).executes(context -> CommandManager.exportTerrainStats((CommandSourceStack)context.getSource(), 500, 16)))).then(((LiteralArgumentBuilder)Commands.literal((String)"scan_surface").then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)4, (int)128)).executes(context -> {
             int radius = IntegerArgumentType.getInteger((CommandContext)context, (String)"radius");
             return CommandManager.scanSurfaceBlocks((CommandSourceStack)context.getSource(), radius);
-        }))).executes(context -> CommandManager.scanSurfaceBlocks((CommandSourceStack)context.getSource(), 8)))).then(Commands.literal((String)"toggle_logging").then(Commands.argument((String)"enabled", (ArgumentType)BoolArgumentType.bool()).executes(context -> CommandManager.toggleLogging((CommandSourceStack)context.getSource(), BoolArgumentType.getBool((CommandContext)context, (String)"enabled")))))).then(Commands.literal((String)"toggle_pillars").then(Commands.argument((String)"enabled", (ArgumentType)BoolArgumentType.bool()).executes(context -> CommandManager.togglePillars((CommandSourceStack)context.getSource(), BoolArgumentType.getBool((CommandContext)context, (String)"enabled")))))).then(Commands.literal((String)"set_sample_rate").then(Commands.argument((String)"rate", (ArgumentType)IntegerArgumentType.integer((int)0, (int)500)).executes(context -> CommandManager.setSampleRate((CommandSourceStack)context.getSource(), IntegerArgumentType.getInteger((CommandContext)context, (String)"rate")))))).then(Commands.literal((String)"clear_pillars").executes(context -> CommandManager.clearPillars((CommandSourceStack)context.getSource())))).then(((LiteralArgumentBuilder)Commands.literal((String)"clear_fluids").then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)4, (int)128)).executes(context -> {
+        }))).executes(context -> CommandManager.scanSurfaceBlocks((CommandSourceStack)context.getSource(), 8)))).then(Commands.literal((String)"toggle_logging").then(Commands.argument((String)"enabled", (ArgumentType)BoolArgumentType.bool()).executes(context -> CommandManager.toggleLogging((CommandSourceStack)context.getSource(), BoolArgumentType.getBool((CommandContext)context, (String)"enabled")))))).then(Commands.literal((String)"toggle_pillars").then(Commands.argument((String)"enabled", (ArgumentType)BoolArgumentType.bool()).executes(context -> CommandManager.togglePillars((CommandSourceStack)context.getSource(), BoolArgumentType.getBool((CommandContext)context, (String)"enabled")))))).then(Commands.literal((String)"set_sample_rate").then(Commands.argument((String)"rate", (ArgumentType)IntegerArgumentType.integer((int)0, (int)500)).executes(context -> CommandManager.setSampleRate((CommandSourceStack)context.getSource(), IntegerArgumentType.getInteger((CommandContext)context, (String)"rate")))))).then(Commands.literal((String)"clear_pillars").executes(context -> CommandManager.clearPillars((CommandSourceStack)context.getSource())))).then(Commands.literal((String)"reset_biome_reflection").executes(context -> {
+            LandscapeChunkGenerator.resetBiomeReflection();
+            ((CommandSourceStack)context.getSource()).sendSuccess(() -> Component.literal((String)"Biome reflection failure counter has been reset."), false);
+            return 1;
+        })).then(((LiteralArgumentBuilder)Commands.literal((String)"clear_fluids").then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)4, (int)128)).executes(context -> {
             int radius = IntegerArgumentType.getInteger((CommandContext)context, (String)"radius");
             return CommandManager.clearFluidsNearPlayer((CommandSourceStack)context.getSource(), radius);
         }))).executes(context -> CommandManager.clearFluidsNearPlayer((CommandSourceStack)context.getSource(), 16)))).then(Commands.literal((String)"region_overview").executes(context -> CommandManager.showRegionOverview((CommandSourceStack)context.getSource()))))).then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"voronoi").executes(context -> CommandManager.voronoiStatus((CommandSourceStack)context.getSource()))).then(Commands.literal((String)"toggle").executes(context -> CommandManager.voronoiToggle((CommandSourceStack)context.getSource())))).then(((LiteralArgumentBuilder)Commands.literal((String)"populate").then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)100, (int)5000)).executes(context -> CommandManager.voronoiPopulate((CommandSourceStack)context.getSource(), IntegerArgumentType.getInteger((CommandContext)context, (String)"radius"))))).executes(context -> CommandManager.voronoiPopulate((CommandSourceStack)context.getSource(), 2048)))).then(Commands.literal((String)"save").executes(context -> CommandManager.voronoiSave((CommandSourceStack)context.getSource())))).then(Commands.literal((String)"load").executes(context -> CommandManager.voronoiLoad((CommandSourceStack)context.getSource())))).then(Commands.literal((String)"clear").executes(context -> CommandManager.voronoiClear((CommandSourceStack)context.getSource())))).then(Commands.literal((String)"center").executes(context -> CommandManager.voronoiCenter((CommandSourceStack)context.getSource())))));
@@ -540,8 +506,10 @@ public class CommandManager {
         BlockPos.MutableBlockPos scanPos = new BlockPos.MutableBlockPos();
         int fluidsCleared = 0;
         int snowCleared = 0;
-        int totalBlocks = (maxBlockX - minBlockX + 1) * (maxBlockZ - minBlockZ + 1);
-        int progressStep = Math.max(1, totalBlocks / 10);
+        // Use long to prevent integer overflow on large radii
+        // 使用 long 防止大半径时整数溢出
+        long totalBlocks = (long)(maxBlockX - minBlockX + 1) * (long)(maxBlockZ - minBlockZ + 1);
+        int progressStep = (int)Math.max(1L, totalBlocks / 10);
         source.sendSuccess(() -> Component.literal((String)("Clearing fluids in " + radius * 2 + "x" + radius * 2 + " area...")), false);
         int blockIndex = 0;
         for (int x = minBlockX; x <= maxBlockX; ++x) {
@@ -703,9 +671,6 @@ public class CommandManager {
         WorldScapeVoronoiSystem.getCamera().panTo(px, pz);
         source.sendSuccess(() -> Component.literal((String)String.format("\u00a7aCamera centered at player position (%d, %d)", px, pz)), false);
         return 1;
-    }
-
-    public static void register(IEventBus modEventBus) {
     }
 
     private static Component lambda$exportTerrainStats$59(Component linkComponent) {

@@ -1,9 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.util.Mth
- */
 package com.worldscape.voronoi;
 
 import com.worldscape.voronoi.VoronoiViewMode;

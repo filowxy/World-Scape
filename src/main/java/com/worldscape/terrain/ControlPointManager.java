@@ -1,6 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package com.worldscape.terrain;
 
 import com.worldscape.terrain.ControlPointRegion;
@@ -12,6 +9,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Manages ControlPointRegion instances with a synchronized LRU cache,
+ * providing nearby control points within a search radius for terrain height
+ * calculation. Used primarily by HeightCalculator to retrieve control points
+ * in a 3x3 region grid around a given coordinate.
+ */
 public class ControlPointManager {
     private static final int MAX_CACHE_SIZE = 1024;
     private final long seed;
@@ -40,7 +43,7 @@ public class ControlPointManager {
             int centerBlockX = regionX * ControlPointRegion.REGION_SIZE + ControlPointRegion.REGION_SIZE / 2;
             int centerBlockZ = regionZ * ControlPointRegion.REGION_SIZE + ControlPointRegion.REGION_SIZE / 2;
             int macroTier = this.macroVoronoiSystem.getRegionInfo(centerBlockX, centerBlockZ).getElevationTier();
-            return new ControlPointRegion(regionX, regionZ, this.seed, macroTier);
+            return new ControlPointRegion(regionX, regionZ, this.seed, macroTier, this.macroVoronoiSystem);
         });
     }
 

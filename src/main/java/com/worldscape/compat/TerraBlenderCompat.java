@@ -1,16 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.core.Holder
- *  net.minecraft.core.Registry
- *  net.minecraft.resources.ResourceKey
- *  net.minecraft.resources.ResourceLocation
- *  net.minecraft.tags.BiomeTags
- *  net.minecraft.world.level.biome.Biome
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.compat;
 
 import com.worldscape.terrain.TerrainType;

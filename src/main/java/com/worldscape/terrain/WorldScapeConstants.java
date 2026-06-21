@@ -1,16 +1,19 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package com.worldscape.terrain;
 
 public final class WorldScapeConstants {
     public static final int CHUNK_SIZE = 16;
-    public static final int REGION_SIZE = 256;
-    public static final int REGION_HALF_SIZE = 128;
-    public static final int CHUNK_CENTER_OFFSET = 8;
+    // Removed: REGION_SIZE=256, REGION_HALF_SIZE=128, CHUNK_CENTER_OFFSET=8
+    // These were dead code and conflicted with ControlPointRegion.REGION_SIZE=512.
+    // The actual region size used by the terrain system is 512 (defined in ControlPointRegion).
+    // 已移除：REGION_SIZE=256、REGION_HALF_SIZE=128、CHUNK_CENTER_OFFSET=8
+    // 这些是死代码，且与 ControlPointRegion.REGION_SIZE=512 冲突。
+    // 地形系统实际使用的区域大小为 512（定义在 ControlPointRegion 中）。
     public static final int SEA_LEVEL_FALLBACK = 63;
     public static final int MIN_TERRAIN_HEIGHT = -64;
     public static final int MAX_TERRAIN_HEIGHT = 400;
+    // Hard upper clamp for terrain height calculations: MAX_TERRAIN_HEIGHT - 20
+    // 地形高度硬上限：MAX_TERRAIN_HEIGHT - 20
+    public static final int TERRAIN_HARD_CLAMP = MAX_TERRAIN_HEIGHT - 20;
     public static final int OVERWORLD_MIN_Y = -64;
     public static final int OVERWORLD_HEIGHT = 384;
     public static final int DEEPSLATE_TOP_Y = 0;
@@ -47,6 +50,9 @@ public final class WorldScapeConstants {
     public static final double RIVER_MAX_DEPTH = 20.0;
     public static final int HILLS_TIER_THRESHOLD = 3;
     public static final double EROSION_NOISE_THRESHOLD = 0.45;
+    // Range for erosion noise normalization: 1.0 - EROSION_NOISE_THRESHOLD
+    // 侵蚀噪声归一化范围：1.0 - EROSION_NOISE_THRESHOLD
+    public static final double EROSION_NOISE_RANGE = 0.55;
     public static final double EROSION_INTENSITY_FACTOR = 0.8;
     public static final double EROSION_CUT_MULTIPLIER = 30.0;
     // @AESTHETIC: Terrain-type-dependent erosion intensity multipliers
@@ -152,7 +158,26 @@ public final class WorldScapeConstants {
     public static final int DIORITE_THRESHOLD = 20;
     public static final int ANDESITE_THRESHOLD = 30;
     public static final int COBBLESTONE_THRESHOLD = 33;
-    public static final int SNOW_ALTITUDE_OFFSET = 50;
+    // Stone vein size: 8x8x8 blocks per vein group for natural-looking mineral deposits.
+    // 矿脉大小：每组8x8x8方块，形成自然的矿物脉状分布。
+    public static final int STONE_VEIN_SIZE = 8;
+    // Export radius in chunks for world save data export (16 chunks ~ 256 blocks).
+    // 世界存档数据导出的区块半径（16 区块 ≈ 256 格）。
+    public static final int EXPORT_RADIUS_CHUNKS = 16;
+    // Export output directory name (relative to game directory).
+    // 导出输出目录名（相对于游戏目录）。
+    public static final String EXPORT_DIR_NAME = "worldscape_exports";
+    // Number of sub-surface layers to export below surfaceY.
+    // 地表以下导出的次表层数量。
+    public static final int EXPORT_SUBSURFACE_DEPTH = 10;
+    // Removed unused SNOW_ALTITUDE_OFFSET -- replaced by ALPINE_SNOW_OFFSET below.
+    // 已移除未使用的 SNOW_ALTITUDE_OFFSET -- 由下方的 ALPINE_SNOW_OFFSET 替代。
+    // Alpine snow line: altitude above sea level where mountain terrain types show snow.
+    // 高山雪线：山地地形类型显示雪块的海拔阈值（高于海平面的高度）。
+    public static final int ALPINE_SNOW_OFFSET = 80;
+    // Bare rock altitude: altitude above sea level where mountain terrain shows bare stone.
+    // 裸岩海拔：山地地形显示石头表面的海拔阈值（高于海平面的高度）。
+    public static final int ROCK_ALTITUDE_OFFSET = 40;
     public static final int LOCATE_MAX_SEARCH_RADIUS = 20000;
     public static final int LOCATE_SEARCH_STEP = 64;
     public static final int COORDINATE_LINK_COLOR = 65280;
@@ -165,6 +190,28 @@ public final class WorldScapeConstants {
     public static final double ELEVATION_TIER_NORMALIZATION = 5.0;
     public static final double MICRO_WEIGHT_BASE = 0.5;
     public static final double ELEVATION_OFFSET_NORMALIZATION = 200.0;
+    // Fallback FBM parameters for terrain height calculation when functionDef is null
+    // 当 functionDef 为 null 时用于地形高度计算的 FBM 参数
+    public static final int FBM_FALLBACK_OCTAVES = 4;
+    public static final double FBM_FALLBACK_GAIN = 0.2;
+    public static final double FBM_FALLBACK_AMPLITUDE = 15.0;
+    // Tier thresholds for erosion and river depth multipliers
+    // 用于侵蚀和河流深度乘数的等级阈值
+    public static final int MOUNTAIN_TIER_THRESHOLD = 5;
+    public static final int LOWLAND_TIER_THRESHOLD = 2;
+    public static final int RIVER_TIER_THRESHOLD = 4;
+    // Search radius for control points in 3×3 region search
+    // 3×3 区域搜索中控制点的搜索半径
+    public static final double CONTROL_POINT_SEARCH_RADIUS = 1200.0;
+    // Scale factor for tier gap influence on macro smoothing
+    // 等级差距对宏观平滑影响的缩放因子
+    public static final double TIER_GAP_FACTOR_SCALE = 0.08;
+    // Threshold for warning about slow region generation (milliseconds)
+    // 区域生成缓慢警告阈值（毫秒）
+    public static final long REGION_GEN_SLOW_THRESHOLD_MS = 200L;
+    // Number of entries to evict per cache eviction cycle
+    // 每次缓存淘汰周期要删除的条目数
+    public static final int CACHE_EVICTION_BATCH_SIZE = 512;
     public static final int NEAREST_POINT_SEARCH_RADIUS = 50;
     public static final int VORONOI_MAX_POINTS = 5000;
     public static final int VORONOI_AUTO_SAVE_INTERVAL = 600;

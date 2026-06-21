@@ -1,6 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package com.worldscape.util;
 
 import java.util.Random;
@@ -25,6 +22,9 @@ public class WorldScapeUtils {
     }
 
     public static double smoothstep(double edge0, double edge1, double x) {
+        // 除零保护：当 edge0 == edge1 时返回阶跃函数
+        // Division by zero guard: return step function when edge0 == edge1
+        if (edge0 == edge1) return x >= edge0 ? 1.0 : 0.0;
         double t = WorldScapeUtils.clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
         return t * t * (3.0 - 2.0 * t);
     }

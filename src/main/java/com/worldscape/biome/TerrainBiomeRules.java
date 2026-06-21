@@ -1,20 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.google.gson.JsonElement
- *  com.google.gson.JsonObject
- *  com.google.gson.JsonParser
- *  com.mojang.logging.LogUtils
- *  net.minecraft.core.Holder
- *  net.minecraft.core.Registry
- *  net.minecraft.core.registries.Registries
- *  net.minecraft.resources.ResourceKey
- *  net.minecraft.resources.ResourceLocation
- *  net.minecraft.tags.TagKey
- *  net.minecraft.world.level.biome.Biome
- *  org.slf4j.Logger
- */
 package com.worldscape.biome;
 
 import com.google.gson.JsonElement;
@@ -22,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
 import com.worldscape.terrain.TerrainType;
+import com.worldscape.terrain.WorldScapeConstants;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -57,7 +41,8 @@ public class TerrainBiomeRules {
     private final Map<TerrainType, Set<Holder<Biome>>> excludedBiomesCache = new HashMap<TerrainType, Set<Holder<Biome>>>();
     private boolean defaultUseWhitelist = false;
     private boolean autoScan = true;
-    private double confidenceThreshold = 0.3;
+    private volatile boolean rulesLoaded = false;
+    private double confidenceThreshold = WorldScapeConstants.DEFAULT_CONFIDENCE_THRESHOLD;
     private static TerrainBiomeRules INSTANCE;
 
     public static synchronized TerrainBiomeRules getInstance() {
@@ -100,12 +85,11 @@ public class TerrainBiomeRules {
         this.addRule(TerrainType.HIGH_MOUNTAINS, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_badlands", "#neoforge:is_swamp"));
         this.addRule(TerrainType.PLATEAU, true, List.of(), List.of("#minecraft:is_mountain", "#minecraft:is_hill"));
         this.addRule(TerrainType.CANYON, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_forest"));
-        this.addRule(TerrainType.GLACIAL_VALLEY, true, List.of(), List.of("#minecraft:is_taiga", "minecraft:snowy_taiga"));
-        // 冰盖：白名单模式，仅允许雪原、雪地针叶林、冻洋
-        // Ice sheet: whitelist mode, only allow snowy plains, snowy taiga, frozen ocean
-        // 注意：minecraft:snowy_tundra 在 1.18+ 已重命名为 minecraft:snowy_plains
-        // Note: minecraft:snowy_tundra was renamed to minecraft:snowy_plains in 1.18+
-        this.addRule(TerrainType.ICE_SHEET, true, List.of(), List.of("minecraft:snowy_plains", "minecraft:snowy_taiga", "minecraft:frozen_ocean"));
+        this.addRule(TerrainType.GLACIAL_VALLEY, true, List.of("minecraft:snowy_taiga"), List.of("#minecraft:is_taiga"));
+        // 冰盖：白名单模式，仅允许雪原、雪地针叶林（排除冻洋，避免高海拔冰盖分配海洋群系导致地下出现冰层）
+        // Ice sheet: whitelist mode, only allow snowy plains, snowy taiga
+        // (exclude frozen_ocean to prevent ocean biome assignment at high altitude causing underground ice)
+        this.addRule(TerrainType.ICE_SHEET, true, List.of("minecraft:snowy_plains", "minecraft:snowy_taiga"), List.of());
         this.addRule(TerrainType.DELTA, true, List.of(), List.of("#minecraft:is_river", "#minecraft:is_ocean"));
         this.addRule(TerrainType.FLOODPLAIN, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_mountain"));
         // 戈壁：排除海洋、河流、森林、沼泽、丛林
@@ -116,12 +100,12 @@ public class TerrainBiomeRules {
         this.addRule(TerrainType.YARDANG, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_forest"));
         this.addRule(TerrainType.SALT_FLAT, true, List.of(), List.of("#minecraft:is_badlands", "#minecraft:is_savanna"));
         this.addRule(TerrainType.SEA_CLIFF, true, List.of(), List.of("#minecraft:is_beach", "#minecraft:is_ocean"));
-        this.addRule(TerrainType.FJORD, true, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "minecraft:frozen_ocean"));
+        this.addRule(TerrainType.FJORD, true, List.of("minecraft:frozen_ocean"), List.of("#minecraft:is_ocean", "#minecraft:is_river"));
         this.addRule(TerrainType.PEAK_FOREST, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_river", "#minecraft:is_badlands"));
         this.addRule(TerrainType.SINKHOLE, false, List.of(), List.of("#minecraft:is_ocean"));
         this.addRule(TerrainType.BASIN, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_mountain"));
         this.addRule(TerrainType.DOME, true, List.of(), List.of("#minecraft:is_mountain", "#minecraft:is_hill"));
-        this.addRule(TerrainType.TRENCH, true, List.of(), List.of("#minecraft:is_ocean", "minecraft:deep_ocean"));
+        this.addRule(TerrainType.TRENCH, true, List.of("minecraft:deep_ocean"), List.of("#minecraft:is_ocean"));
         this.addRule(TerrainType.VALLEY, false, List.of(), List.of("#minecraft:is_ocean", "#minecraft:is_badlands"));
         this.addRule(TerrainType.RIDGE, true, List.of(), List.of("#minecraft:is_mountain"));
         this.addRule(TerrainType.PEAK, true, List.of(), List.of("#minecraft:is_mountain"));
@@ -130,9 +114,10 @@ public class TerrainBiomeRules {
         // Cirque: whitelist mode, only allow snowy plains, snowy taiga
         // 注意：minecraft:snowy_tundra 在 1.18+ 已重命名为 minecraft:snowy_plains
         // Note: minecraft:snowy_tundra was renamed to minecraft:snowy_plains in 1.18+
-        this.addRule(TerrainType.CIRQUE, true, List.of(), List.of("minecraft:snowy_plains", "minecraft:snowy_taiga"));
-        this.addRule(TerrainType.HORN, true, List.of(), List.of("#minecraft:is_mountain", "minecraft:snowy_taiga"));
+        this.addRule(TerrainType.CIRQUE, true, List.of("minecraft:snowy_plains", "minecraft:snowy_taiga"), List.of());
+        this.addRule(TerrainType.HORN, true, List.of("minecraft:snowy_taiga"), List.of("#minecraft:is_mountain"));
         this.addRule(TerrainType.CLIFF, true, List.of(), List.of("#minecraft:is_mountain"));
+        this.rulesLoaded = true;
     }
 
     private void addRule(TerrainType terrain, boolean useWhitelist, List<String> biomeIds, List<String> tagPaths) {
@@ -231,7 +216,7 @@ public class TerrainBiomeRules {
         sb.append("  \"global\": {\n");
         sb.append("    \"default_use_whitelist\": false,\n");
         sb.append("    \"auto_scan\": true,\n");
-        sb.append("    \"confidence_threshold\": 0.3\n");
+        sb.append("    \"confidence_threshold\": ").append(WorldScapeConstants.DEFAULT_CONFIDENCE_THRESHOLD).append("\n");
         sb.append("  }\n");
         sb.append("}\n");
         Files.writeString(configPath, (CharSequence)sb.toString(), new OpenOption[0]);
@@ -306,13 +291,18 @@ public class TerrainBiomeRules {
         if (this.biomeRegistry == null) {
             return Collections.emptyList();
         }
+        if (!this.rulesLoaded) {
+            return Collections.emptyList();
+        }
         List<Holder<Biome>> cachedAllowed = this.allowedBiomesCache.get((Object)terrain);
         if (cachedAllowed != null && !cachedAllowed.isEmpty()) {
             return cachedAllowed;
         }
-        ArrayList<Holder<Biome>> allBiomes = new ArrayList<Holder<Biome>>();
-        this.biomeRegistry.holders().forEach(allBiomes::add);
-        return allBiomes;
+        // Fallback: return a safe default (plains) instead of all biomes
+        ResourceKey<Biome> plainsKey = ResourceKey.create(Registries.BIOME, ResourceLocation.parse("minecraft:plains"));
+        return this.biomeRegistry.getHolder(plainsKey)
+            .map(holder -> List.<Holder<Biome>>of(holder))
+            .orElse(Collections.emptyList());
     }
 
     public boolean isBiomeAllowed(TerrainType terrain, Holder<Biome> biome) {

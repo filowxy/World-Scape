@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.core.BlockPos
- *  net.minecraft.world.level.Level
- *  net.minecraft.world.level.block.Blocks
- *  net.minecraft.world.level.block.state.BlockState
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.debug;
 
 import com.worldscape.debug.TerrainDebugSystem;
@@ -84,9 +73,11 @@ public class DebugPillarManager {
         if (!TerrainDebugSystem.isPillarsEnabled()) {
             return;
         }
-        BlockPos basePos = new BlockPos(point.x, -64, point.z);
+        // Use level.getMinBuildHeight() for dimension compatibility (e.g., custom dimensions with different min Y)
+        // 使用 level.getMinBuildHeight() 以兼容不同维度的最小建筑高度（如自定义维度）
+        BlockPos basePos = new BlockPos(point.x, level.getMinBuildHeight(), point.z);
         BlockState pillarBlock = pillarType == PillarType.TYPE ? DebugPillarManager.getBlockForTerrainType(point.terrainType) : DebugPillarManager.getBlockForElevationTier(DebugPillarManager.getTierForTerrainType(point.terrainType));
-        int pillarHeight = DebugPillarManager.calculatePillarHeight(point.elevationOffset);
+        int pillarHeight = DebugPillarManager.calculatePillarHeight(level, point.elevationOffset);
         DebugPillarManager.placePillar(level, basePos, pillarHeight, pillarBlock);
         LOGGER.debug("[World Scape] [DebugPillar] Placed pillar at ({},{}) type={} height={} block={}", new Object[]{point.x, point.z, point.terrainType.getId(), pillarHeight, pillarBlock.getBlock().getName().getString()});
     }
@@ -97,7 +88,8 @@ public class DebugPillarManager {
         }
         int pillarX = (int)Math.round(cpX);
         int pillarZ = (int)Math.round(cpZ);
-        BlockPos basePos = new BlockPos(pillarX, -64, pillarZ);
+        // Use level.getMinBuildHeight() for dimension compatibility / 使用 level.getMinBuildHeight() 以兼容不同维度
+        BlockPos basePos = new BlockPos(pillarX, level.getMinBuildHeight(), pillarZ);
         BlockState markerBlock = switch (tectonic) {
             default -> throw new MatchException(null, null);
             case MacroRegionInfo.TectonicType.OROGENIC_BELT -> Blocks.RED_CONCRETE_POWDER.defaultBlockState();
@@ -107,13 +99,15 @@ public class DebugPillarManager {
             case MacroRegionInfo.TectonicType.CRATON -> Blocks.GREEN_CONCRETE_POWDER.defaultBlockState();
         };
         int pillarHeight = 10 + tier * 20;
-        pillarHeight = Math.min(pillarHeight, 256);
+        // Clamp to max build height for dimension compatibility / 夹紧到最大建筑高度以兼容不同维度
+        pillarHeight = Math.min(pillarHeight, level.getMaxBuildHeight());
         DebugPillarManager.placePillar(level, basePos, pillarHeight, markerBlock);
         LOGGER.debug("[World Scape] [DebugPillar] Macro marker at ({},{}) cell=({},{}), tier={}, tectonic={}", new Object[]{pillarX, pillarZ, cellX, cellZ, tier, tectonic});
     }
 
     private static void placePillar(Level level, BlockPos basePos, int height, BlockState blockState) {
         int startY = basePos.getY();
+        // Clamp endY to max build height for dimension compatibility / 夹紧到最大建筑高度以兼容不同维度
         int endY = Math.min(startY + height, level.getMaxBuildHeight());
         for (int y = startY; y < endY; ++y) {
             BlockPos pos = basePos.atY(y);
@@ -125,9 +119,9 @@ public class DebugPillarManager {
         PLACED_BLOCKS.put(topPos.asLong(), topPos);
     }
 
-    private static int calculatePillarHeight(double offset) {
+    private static int calculatePillarHeight(Level level, double offset) {
         int height = (int)(50.0 + offset * 0.6);
-        return Math.max(10, Math.min(height, 256));
+        return Math.max(10, height);
     }
 
     private static int getTierForTerrainType(TerrainType type) {

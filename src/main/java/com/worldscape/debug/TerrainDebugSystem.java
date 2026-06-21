@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.debug;
 
 import com.worldscape.config.WelcomeScreenConfig;
@@ -21,7 +14,8 @@ public class TerrainDebugSystem {
     private static volatile int lastLoggedChunkX = Integer.MIN_VALUE;
     private static volatile int lastLoggedChunkZ = Integer.MIN_VALUE;
     public static final int MAX_PILLAR_HEIGHT = 256;
-    public static final int PILLAR_BASE_Y = -64;
+    // PILLAR_BASE_Y removed — now dynamically retrieved from level.getMinBuildHeight()
+    // PILLAR_BASE_Y 已移除 — 现在从 level.getMinBuildHeight() 动态获取
     private static volatile boolean initialized = false;
 
     /*
@@ -72,7 +66,9 @@ public class TerrainDebugSystem {
         if (!debugLoggingEnabled || !TerrainDebugSystem.isDebugMode() || chunkSampleRate <= 0) {
             return false;
         }
-        int hash = Math.abs(chunkX * 31 + chunkZ * 17);
+        // Use long to avoid integer overflow: chunkX * 31 + chunkZ * 17 can overflow int32
+        // 使用 long 避免整数溢出：chunkX * 31 + chunkZ * 17 可能溢出 int32
+        long hash = Math.abs((long)chunkX * 31L + (long)chunkZ * 17L);
         return hash % chunkSampleRate == 0;
     }
 

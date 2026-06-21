@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.client.Minecraft
- *  net.minecraft.client.gui.screens.Screen
- *  net.neoforged.bus.api.SubscribeEvent
- *  net.neoforged.neoforge.client.event.ClientTickEvent$Post
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.config;
 
 import com.worldscape.config.WelcomeScreen;
@@ -21,11 +10,15 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.FileAttribute;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ScreenEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@EventBusSubscriber(modid = "worldscape", value = Dist.CLIENT)
 public class WelcomeScreenConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger(WelcomeScreenConfig.class);
     static final String MOD_VERSION = "1.3.1-beta";
@@ -183,14 +176,12 @@ public class WelcomeScreenConfig {
     }
 
     @SubscribeEvent
-    public static void onClientTick(ClientTickEvent.Post event) {
-        if (!Minecraft.getInstance().isSameThread()) {
-            LOGGER.warn("[World Scape] onClientTick called from non-client thread, skipping");
-            return;
-        }
-        if (WelcomeScreenConfig.shouldShowWelcomeScreen() && Minecraft.getInstance().player != null) {
-            Minecraft.getInstance().setScreen((Screen)new WelcomeScreen());
-            WelcomeScreenConfig.markWelcomeScreenShown();
+    public static void onScreenOpen(ScreenEvent.Opening event) {
+        // Show the welcome screen when the title screen first opens, instead of when entering a world.
+        // This ensures the player sees configuration options before creating their first world.
+        if (event.getScreen() instanceof TitleScreen && shouldShowWelcomeScreen()) {
+            event.setNewScreen(new WelcomeScreen());
+            markWelcomeScreenShown();
         }
     }
 

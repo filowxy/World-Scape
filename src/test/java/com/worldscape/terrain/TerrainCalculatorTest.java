@@ -103,12 +103,15 @@ class TerrainCalculatorTest {
             TerrainCalculator.determineTerrainType(blendT1),
             "Tier 1 should map to SEA_PLATEAU");
 
-        // Tier 2 → BEACH
+        // Tier 2 → FLOODPLAIN (BEACH requires ocean proximity validation, so
+        // the blind fallback uses FLOODPLAIN as the safe inland default)
+        // Tier 2 → FLOODPLAIN（BEACH 需要海洋邻近性验证，
+        // 因此盲目回退使用 FLOODPLAIN 作为安全的内陆默认值）
         RegionController.TerrainBlendResult blendT2 = createBlend(30.0, 2,
             TerrainType.PLAINS, 0.1);
-        assertEquals(TerrainType.BEACH,
+        assertEquals(TerrainType.FLOODPLAIN,
             TerrainCalculator.determineTerrainType(blendT2),
-            "Tier 2 should map to BEACH");
+            "Tier 2 should map to FLOODPLAIN (safe inland default, BEACH requires ocean validation)");
 
         // Tier 3 → PLAINS
         RegionController.TerrainBlendResult blendT3 = createBlend(40.0, 3,

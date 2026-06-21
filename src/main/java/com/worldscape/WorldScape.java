@@ -1,7 +1,8 @@
 package com.worldscape;
 
-import com.worldscape.command.CommandManager;
+import com.worldscape.config.ConfigManager;
 import com.worldscape.debug.TerrainDebugSystem;
+import com.worldscape.export.WorldSaveDataExporter;
 import com.worldscape.generator.LandscapeChunkGenerator;
 import com.worldscape.terrain.TerrainTypeReloadListener;
 import com.worldscape.voronoi.WorldScapeVoronoiSystem;
@@ -9,7 +10,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -29,19 +33,24 @@ public class WorldScape {
             modEventBus.addListener((RegisterEvent event) -> event.register(Registries.CHUNK_GENERATOR, helper -> {
                 helper.register(ResourceLocation.fromNamespaceAndPath((String)MOD_ID, (String)"landscape"), LandscapeChunkGenerator.CODEC);
                 LOGGER.info("[World Scape] Registered LandscapeChunkGenerator");
-                LOGGER.info("[World Scape] landscape load correctly");
+                LOGGER.info("[World Scape] Landscape loaded successfully");
             }));
         }
         catch (Exception e) {
             LOGGER.error("[World Scape] landscape load fail: {}", (Object)e.getMessage());
+            throw new RuntimeException("[World Scape] Fatal: Failed to register LandscapeChunkGenerator", e);
         }
-        CommandManager.register(modEventBus);
         modEventBus.addListener(this::onCommonSetup);
         modEventBus.addListener(this::onClientSetup);
 
-        TerrainTypeReloadListener.loadAll();
+        // Register config spec so NeoForge generates the config file and fires load/reload events
+        ModList.get().getModContainerById(MOD_ID).ifPresent(container ->
+            container.registerConfig(ModConfig.Type.COMMON, ConfigManager.SPEC));
 
         NeoForge.EVENT_BUS.addListener(this::onServerStarting);
+        // Register world save data exporter for terrain diagnostics (private tool, not for release).
+        // 注册世界存档数据导出器用于地形诊断（私有工具，不公开发布）。
+        NeoForge.EVENT_BUS.addListener(WorldSaveDataExporter::onWorldSave);
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {

@@ -1,6 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package com.worldscape.voronoi;
 
 import com.worldscape.terrain.ControlPointRegion;
@@ -11,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class VoronoiSpatialIndex {
@@ -31,7 +29,7 @@ public class VoronoiSpatialIndex {
             return;
         }
         long cellKey = this.getCellKey(point.getX(), point.getZ());
-        this.grid.computeIfAbsent(cellKey, k -> new ArrayList()).add(point);
+        this.grid.computeIfAbsent(cellKey, k -> new CopyOnWriteArrayList()).add(point);
         this.pointCount.incrementAndGet();
         this.invalidateQueryCache(point.getX(), point.getZ());
     }

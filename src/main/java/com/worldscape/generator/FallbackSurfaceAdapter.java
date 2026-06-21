@@ -1,20 +1,7 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.core.BlockPos
- *  net.minecraft.server.level.WorldGenRegion
- *  net.minecraft.world.level.biome.Biome
- *  net.minecraft.world.level.block.Blocks
- *  net.minecraft.world.level.block.state.BlockState
- *  net.minecraft.world.level.chunk.ChunkAccess
- *  net.minecraft.world.level.chunk.ChunkGenerator
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.generator;
 
 import com.worldscape.generator.SurfaceAdapter;
+import com.worldscape.WorldScape;
 import com.worldscape.terrain.TerrainType;
 import com.worldscape.terrain.WorldScapeConstants;
 import java.util.HashMap;
@@ -136,7 +123,6 @@ implements SurfaceAdapter {
                     }
                 }
 
-                boolean isHighAltitude = terrainHeight > surfaceLevel + 30;
                 boolean isMountain = biomeId.contains("mountain") || biomeId.contains("highland") || biomeId.contains("summit") || biomeId.contains("peak");
                 boolean isSnowy = biomeId.contains("snowy") || biomeId.contains("ice") || biomeId.contains("frozen");
                 boolean isDesert = biomeId.contains("desert") || biomeId.contains("badlands");
@@ -167,13 +153,16 @@ implements SurfaceAdapter {
                         if (terrainType != null) {
                             surfaceBlock = determineSurfaceBlockByTerrainType(terrainType, terrainHeight, surfaceLevel);
                         } else {
-                            surfaceBlock = this.determineSurfaceBlock(biomeId, isHighAltitude, isMountain, isSnowy, isDesert, isBeach, isStony, terrainHeight, surfaceLevel);
+                            // Fallback: biome-based surface block determination removed, use GRASS_BLOCK as safest default
+                            // 回退：基于 biome 的表面方块判断已移除，使用 GRASS_BLOCK 作为最安全的默认值
+                            surfaceBlock = Blocks.GRASS_BLOCK.defaultBlockState();
+                            LOGGER.warn("{} TerrainType is null at ({}, {}), using GRASS_BLOCK as fallback surface block", MOD_ID, worldX, worldZ);
                         }
                         chunk.setBlockState(pos, surfaceBlock, false);
                         continue;
                     }
                     // @AESTHETIC: Sub-surface layering based on TerrainType / 基于 TerrainType 的次表层分层
-                    if (y > terrainHeight - 4) {
+                    if (y > terrainHeight - WorldScapeConstants.SUBSURFACE_LAYER_DEPTH) {
                         if (terrainHeight <= surfaceLevel) {
                             // 水下次表层 / Underwater sub-surface
                             if (terrainType != null) {
@@ -209,11 +198,12 @@ implements SurfaceAdapter {
                         chunk.setBlockState(pos, dirt, false);
                         continue;
                     }
-                    // @AESTHETIC: Extended stone variant mixing — deeper range with higher variant probability
-                    // 扩展石头变体混合 —— 更深范围，更高变体概率，深层使用深板岩
+                    // @AESTHETIC: Extended stone variant veins — 8x8x8 vein grouping via seed hashing,
+                    // producing natural mineral deposits instead of per-block random patches.
+                    // 扩展石头变体矿脉 —— 8x8x8 矿脉分组，基于种子哈希生成自然矿脉，而非逐方块随机斑点。
                     if (y > terrainHeight - 32) {
                         if (stoneRand.nextInt(4) == 0) {
-                            chunk.setBlockState(pos, getRandomStoneVariant(stoneRand), false);
+                            chunk.setBlockState(pos, getVeinStoneVariant(worldSeed, worldX, y, worldZ), false);
                             continue;
                         }
                         chunk.setBlockState(pos, stone, false);
@@ -221,7 +211,7 @@ implements SurfaceAdapter {
                     }
                     if (y > 0) {
                         if (stoneRand.nextInt(3) == 0) {
-                            chunk.setBlockState(pos, getRandomStoneVariant(stoneRand), false);
+                            chunk.setBlockState(pos, getVeinStoneVariant(worldSeed, worldX, y, worldZ), false);
                             continue;
                         }
                         chunk.setBlockState(pos, stone, false);
@@ -250,35 +240,49 @@ implements SurfaceAdapter {
         return Blocks.STONE.defaultBlockState();
     }
 
-    private BlockState determineSurfaceBlock(String biomeId, boolean isHighAltitude, boolean isMountain, boolean isSnowy, boolean isDesert, boolean isBeach, boolean isStony, int terrainHeight, int seaLevel) {
-        if (isSnowy || isHighAltitude && terrainHeight > seaLevel + 50) {
-            return Blocks.SNOW_BLOCK.defaultBlockState();
+    /**
+     * Noise-driven stone variant using vein grouping (8x8x8 blocks per vein).
+     * Groups blocks into veins via seed-derived hashing — no new noise fields required.
+     * Produces natural-looking mineral deposits instead of per-block random patches.
+     * 基于种子的矿脉生成（8x8x8 块为一组），无需新噪声场即可产生自然的矿物脉状分布。
+     */
+    static BlockState getVeinStoneVariant(long worldSeed, int worldX, int worldY, int worldZ) {
+        int veinX = Math.floorDiv(worldX, WorldScapeConstants.STONE_VEIN_SIZE);
+        int veinY = Math.floorDiv(worldY, WorldScapeConstants.STONE_VEIN_SIZE);
+        int veinZ = Math.floorDiv(worldZ, WorldScapeConstants.STONE_VEIN_SIZE);
+        long hash = (long)veinX * WorldScapeConstants.STONE_HASH_X
+                  + (long)veinY * 17389L
+                  + (long)veinZ * WorldScapeConstants.STONE_HASH_Z
+                  + worldSeed;
+        int roll = Math.abs((int)(hash % WorldScapeConstants.STONE_VARIANT_ROLL_RANGE));
+        if (roll < WorldScapeConstants.GRANITE_THRESHOLD) {
+            return Blocks.GRANITE.defaultBlockState();
         }
-        if (isDesert || biomeId.contains("mesa")) {
-            return Blocks.SAND.defaultBlockState();
+        if (roll < WorldScapeConstants.DIORITE_THRESHOLD) {
+            return Blocks.DIORITE.defaultBlockState();
         }
-        if (biomeId.contains("savanna")) {
-            return Blocks.GRASS_BLOCK.defaultBlockState();
+        if (roll < WorldScapeConstants.ANDESITE_THRESHOLD) {
+            return Blocks.ANDESITE.defaultBlockState();
         }
-        if (biomeId.contains("forest") || biomeId.contains("plains") || biomeId.contains("sunflower") || biomeId.contains("birch") || biomeId.contains("dark_oak") || biomeId.contains("flower") || biomeId.contains("meadow") || biomeId.contains("grove") || biomeId.contains("taiga")) {
-            return Blocks.GRASS_BLOCK.defaultBlockState();
+        if (roll < WorldScapeConstants.COBBLESTONE_THRESHOLD) {
+            return Blocks.COBBLESTONE.defaultBlockState();
         }
-        if (isBeach) {
-            return Blocks.SAND.defaultBlockState();
-        }
-        if (isStony || isMountain || biomeId.contains("stone") || biomeId.contains("gravel")) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-        if (biomeId.contains("swamp") || biomeId.contains("mangrove") || biomeId.contains("jungle") || biomeId.contains("bayou")) {
-            return Blocks.GRASS_BLOCK.defaultBlockState();
-        }
-        if (biomeId.contains("deep_ocean") || biomeId.contains("deep_cold") || biomeId.contains("deep_frozen") || biomeId.contains("deep_lukewarm") || biomeId.contains("deep_warm")) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-        if (biomeId.contains("ocean") || biomeId.contains("warm_ocean") || biomeId.contains("cold_ocean") || biomeId.contains("lukewarm") || biomeId.contains("frozen_ocean")) {
-            return Blocks.SAND.defaultBlockState();
-        }
-        return Blocks.GRASS_BLOCK.defaultBlockState();
+        return Blocks.STONE.defaultBlockState();
+    }
+
+    /**
+     * Check if a terrain type is an alpine (high-elevation mountain) type that
+     * should show altitude-dependent surface blocks (snow at peak, bare rock mid-mountain).
+     * 检查地形类型是否为高山类型，应显示海拔相关的表面方块（山顶雪、山腰裸岩）。
+     */
+    static boolean isAlpineTerrainType(TerrainType terrainType) {
+        return terrainType == TerrainType.HIGH_MOUNTAINS
+            || terrainType == TerrainType.PEAK
+            || terrainType == TerrainType.HORN
+            || terrainType == TerrainType.RIDGE
+            || terrainType == TerrainType.PLATEAU
+            || terrainType == TerrainType.CLIFF
+            || terrainType == TerrainType.DOME;
     }
 
     /**
@@ -290,12 +294,23 @@ implements SurfaceAdapter {
      * @param seaLevel     海平面 / sea level
      * @return 表面方块状态 / surface block state
      */
-    static BlockState determineSurfaceBlockByTerrainType(TerrainType terrainType, int terrainHeight, int seaLevel) {
-        // 高山/岩石类型 → 砂砾 / Mountain/rocky types → gravel
-        if (terrainType == TerrainType.HIGH_MOUNTAINS || terrainType == TerrainType.RIDGE
-            || terrainType == TerrainType.PEAK || terrainType == TerrainType.HORN
-            || terrainType == TerrainType.CLIFF || terrainType == TerrainType.CANYON
-            || terrainType == TerrainType.PLATEAU || terrainType == TerrainType.SEA_CLIFF) {
+    public static BlockState determineSurfaceBlockByTerrainType(TerrainType terrainType, int terrainHeight, int seaLevel) {
+
+        // Altitude-based surface for all alpine mountain types.
+        // 所有高山类型的海拔相关表面。
+        if (isAlpineTerrainType(terrainType)) {
+            int relativeHeight = terrainHeight - seaLevel;
+            if (relativeHeight > WorldScapeConstants.ALPINE_SNOW_OFFSET) {
+                return Blocks.SNOW_BLOCK.defaultBlockState();
+            }
+            if (relativeHeight > WorldScapeConstants.ROCK_ALTITUDE_OFFSET) {
+                return Blocks.STONE.defaultBlockState();
+            }
+            // Moderate altitude: grass_block for vegetated mountains, gravel for rocky
+            // 中海拔：植被山地用草方块，岩石山地用砂砾
+            if (terrainType == TerrainType.PLATEAU || terrainType == TerrainType.DOME) {
+                return Blocks.GRASS_BLOCK.defaultBlockState();
+            }
             return Blocks.GRAVEL.defaultBlockState();
         }
 
@@ -331,8 +346,13 @@ implements SurfaceAdapter {
             return Blocks.GRAVEL.defaultBlockState();
         }
 
+        // Canyon / sea cliff → gravel at low altitude, stone at higher
+        // 峡谷/海崖 → 低海拔砂砾，高海拔石头
+        if (terrainType == TerrainType.CANYON || terrainType == TerrainType.SEA_CLIFF) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+
         // 草地/平原/丘陵等类型 → 草方块 / Grass/plains/hills types → grass block
-        // PLAINS, HILLS, VALLEY, FLOODPLAIN, ALLUVIAL_FAN, PEAK_FOREST, BASIN, SINKHOLE, DOME
         return Blocks.GRASS_BLOCK.defaultBlockState();
     }
 
@@ -393,12 +413,7 @@ implements SurfaceAdapter {
      * @return 是否为水下类型 / whether it's an underwater type
      */
     static boolean isUnderwaterTerrainType(TerrainType terrainType) {
-        return terrainType == TerrainType.TRENCH
-            || terrainType == TerrainType.SEA_PLATEAU
-            || terrainType == TerrainType.BEACH
-            || terrainType == TerrainType.DELTA
-            || terrainType == TerrainType.SEA_CLIFF
-            || terrainType == TerrainType.FJORD;
+        return TerrainType.isUnderwaterTerrainType(terrainType);
     }
 }
 

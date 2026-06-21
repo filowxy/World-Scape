@@ -1,11 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.neoforged.fml.ModList
- *  org.slf4j.Logger
- *  org.slf4j.LoggerFactory
- */
 package com.worldscape.compat;
 
 import java.util.ArrayList;
@@ -39,7 +31,7 @@ public class ModCompatibilityChecker {
         }
     }
 
-    public static void checkCompatibility() {
+    public static synchronized void checkCompatibility() {
         String modId;
         if (checked) {
             return;

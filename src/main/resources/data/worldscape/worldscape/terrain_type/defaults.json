@@ -128,11 +128,10 @@
       "id": "worldscape:dune",
       "min_height": 28,
       "max_height": 55,
-      "tier_whitelist": [3, 4],
+      "tier_whitelist": [2, 3],
       "height_cap": null,
       "coordinate_transform": null,
-      "functions": [
-        { "id": "du_primary_sine", "name": "sine", "params": { "freq_x": 0.02, "freq_z": 0.005 }, "amplitude": 25.0 },
+      "functions": [         { "id": "du_primary_sine", "name": "sine", "params": { "freq_x": 0.02, "freq_z": 0.005 }, "amplitude": 25.0 },
         { "id": "du_secondary_sine", "name": "sine", "params": { "freq_x": 0.005, "freq_z": 0.015 }, "amplitude": 8.0 },
         { "id": "du_ridge", "name": "math", "params": { "expression": "sqrt(p*p + 4) - 2 + s", "p": "du_primary_sine", "s": "du_secondary_sine" }, "amplitude": 1.0 },
         { "id": "du_fbm", "name": "fbm", "params": { "octaves": 2, "gain": 0.1 }, "amplitude": 5.0 }
@@ -146,7 +145,7 @@
       "id": "worldscape:yardang",
       "min_height": 44,
       "max_height": 99,
-      "tier_whitelist": [4],
+      "tier_whitelist": [3],
       "height_cap": null,
       "coordinate_transform": null,
       "functions": [
@@ -164,7 +163,7 @@
       "id": "worldscape:gobi",
       "min_height": 33,
       "max_height": 66,
-      "tier_whitelist": [4],
+      "tier_whitelist": [3],
       "height_cap": null,
       "coordinate_transform": null,
       "functions": [
@@ -176,11 +175,11 @@
       "climate": { "temperature": 0.8, "humidity": 0.0, "seasonality": 0.8, "continentality": 0.95 }
     },
     {
-      "_comment": "Tier 2 - Salt Flat | 盐滩",
+      "_comment": "Tier 2-3 - Salt Flat | 盐滩 (coast + arid inland basins)",
       "id": "worldscape:salt_flat",
       "min_height": 22,
       "max_height": 33,
-      "tier_whitelist": [2],
+      "tier_whitelist": [2, 3],
       "height_cap": null,
       "coordinate_transform": null,
       "functions": [
@@ -209,11 +208,11 @@
       "climate": { "temperature": 0.5, "humidity": 0.8, "seasonality": 0.55, "continentality": 0.75 }
     },
     {
-      "_comment": "Tier 4 - Valley | 山谷 | subtractive: base - depth + fbm | 减法：base - depth + fbm",
+      "_comment": "Tier 3 - Valley | 山谷 | subtractive: base - depth + fbm | 减法：base - depth + fbm",
       "id": "worldscape:valley",
       "min_height": 28,
       "max_height": 83,
-      "tier_whitelist": [4],
+      "tier_whitelist": [3],
       "height_cap": null,
       "coordinate_transform": null,
       "functions": [
@@ -242,11 +241,11 @@
       "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
     },
     {
-      "_comment": "Tier 1-2 - Delta | gradient + branching channel sine + domain_rotated + fbm",
+      "_comment": "Tier 2 - Delta | gradient + branching channel sine + domain_rotated + fbm",
       "id": "worldscape:delta",
-      "min_height": 22,
-      "max_height": 39,
-      "tier_whitelist": [1, 2],
+      "min_height": 40,
+      "max_height": 67,
+      "tier_whitelist": [2],
       "height_cap": null,
       "coordinate_transform": null,
       "functions": [
@@ -260,15 +259,14 @@
       "climate": { "temperature": 0.5, "humidity": 0.6, "seasonality": 0.4, "continentality": 0.3 }
     },
     {
-      "_comment": "Tier 4 - Alluvial Fan | 冲积扇 | contributing_point_distance + tanh math + fbm",
+      "_comment": "Tier 3 - Alluvial Fan | 冲积扇 | contributing_point_distance + tanh math + fbm",
       "id": "worldscape:alluvial_fan",
       "min_height": 44,
       "max_height": 110,
-      "tier_whitelist": [4],
+      "tier_whitelist": [3],
       "height_cap": null,
       "coordinate_transform": null,
-      "functions": [
-        { "id": "af_cp_dist", "name": "contributing_point_distance", "params": { "distance_period": 200.0 }, "amplitude": 1.0 },
+      "functions": [         { "id": "af_cp_dist", "name": "contributing_point_distance", "params": { "distance_period": 200.0 }, "amplitude": 1.0 },
         { "id": "af_slope", "name": "math", "params": { "expression": "tanh(d / 100.0 * 0.886) * 25.0", "d": "af_cp_dist" }, "amplitude": 1.0 },
         { "id": "af_fbm", "name": "fbm", "params": { "octaves": 3, "gain": 0.3 }, "amplitude": 5.0 }
       ],
@@ -311,11 +309,11 @@
       "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
     },
     {
-      "_comment": "Tier 4-5 - Glacial Valley | 冰川谷 | subtractive: base - depth + fbm | 减法：base - depth + fbm",
+      "_comment": "Tier 4 - Glacial Valley | 冰川谷 | subtractive: base - depth + fbm | 减法：base - depth + fbm",
       "id": "worldscape:glacial_valley",
       "min_height": 28,
       "max_height": 110,
-      "tier_whitelist": [4, 5],
+      "tier_whitelist": [4],
       "height_cap": null,
       "coordinate_transform": null,
       "functions": [
@@ -381,8 +379,8 @@
     {
       "_comment": "Tier 2 - Beach | 海滩 | sigmoid(fbm * 3) * 5",
       "id": "worldscape:beach",
-      "min_height": 28,
-      "max_height": 39,
+      "min_height": 45,
+      "max_height": 72,
       "tier_whitelist": [2],
       "height_cap": null,
       "coordinate_transform": null,
@@ -463,7 +461,7 @@
       "climate": { "temperature": 0.55, "humidity": 0.75, "seasonality": 0.35, "continentality": 0.15 }
     },
     {
-      "_comment": "Tier 3-4 - Hills | 丘陵 | fbm + turbulence",
+      "_comment": "Tier 3-4 - Hills | 丘陵 | fbm + turbulence + beat frequency",
       "id": "worldscape:hills",
       "min_height": 55,
       "max_height": 110,
@@ -472,9 +470,11 @@
       "coordinate_transform": null,
       "functions": [
         { "id": "hi_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.65 }, "amplitude": 40.0 },
-        { "id": "hi_turb", "name": "turbulence", "params": { "strength": 0.3 }, "amplitude": 30.0 }
+        { "id": "hi_turb", "name": "turbulence", "params": { "strength": 0.3 }, "amplitude": 30.0 },
+        { "id": "hi_beat1", "name": "sine", "params": { "freq_x": 0.01, "freq_z": 0.007 }, "amplitude": 25.0 },
+        { "id": "hi_beat2", "name": "sine", "params": { "freq_x": 0.013, "freq_z": 0.009 }, "amplitude": 20.0 }
       ],
-      "combinator": { "type": "add", "terms": ["hi_fbm", "hi_turb"] },
+      "combinator": { "type": "add", "terms": ["hi_fbm", "hi_turb", "hi_beat1", "hi_beat2"] },
       "final": "base + combined",
       "climate": { "temperature": 0.5, "humidity": 0.5, "seasonality": 0.5, "continentality": 0.5 }
     },

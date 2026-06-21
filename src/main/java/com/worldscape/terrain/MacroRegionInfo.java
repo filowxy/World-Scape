@@ -1,7 +1,6 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package com.worldscape.terrain;
+
+import java.util.Objects;
 
 public class MacroRegionInfo {
     public final int elevationTier;
@@ -15,6 +14,10 @@ public class MacroRegionInfo {
     public final int primaryCellZ;
 
     public MacroRegionInfo(int elevationTier, int secondElevationTier, double blendedBaseHeight, TectonicType tectonic, ClimateZone climate, double blendWeight, int transitionWidth, int primaryCellX, int primaryCellZ) {
+        // 空值校验：防止 NPE
+        // Null check: prevent NPE
+        Objects.requireNonNull(tectonic, "tectonic must not be null");
+        Objects.requireNonNull(climate, "climate must not be null");
         this.elevationTier = elevationTier;
         this.secondElevationTier = secondElevationTier;
         this.blendedBaseHeight = blendedBaseHeight;

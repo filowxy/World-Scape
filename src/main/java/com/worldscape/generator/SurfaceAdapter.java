@@ -1,6 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package com.worldscape.generator;
 
 import com.worldscape.terrain.TerrainType;

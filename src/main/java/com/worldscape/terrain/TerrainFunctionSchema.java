@@ -126,8 +126,10 @@ public final class TerrainFunctionSchema {
             }
             String id = root.get("id").getAsString();
 
-            int minHeight = root.has("min_height") ? root.get("min_height").getAsInt() : -64;
-            int maxHeight = root.has("max_height") ? root.get("max_height").getAsInt() : 512;
+            int minHeight = root.has("min_height") && !root.get("min_height").isJsonNull()
+                    ? root.get("min_height").getAsInt() : -64;
+            int maxHeight = root.has("max_height") && !root.get("max_height").isJsonNull()
+                    ? root.get("max_height").getAsInt() : 512;
 
             int[] tierWhitelist = null;
             if (root.has("tier_whitelist") && root.get("tier_whitelist").isJsonArray()) {
@@ -138,7 +140,7 @@ public final class TerrainFunctionSchema {
                 }
             }
 
-            double heightCap = root.has("height_cap")
+            double heightCap = root.has("height_cap") && !root.get("height_cap").isJsonNull()
                     ? root.get("height_cap").getAsDouble()
                     : Double.MAX_VALUE;
 
