@@ -4,11 +4,9 @@ import com.worldscape.generator.SurfaceAdapter;
 import com.worldscape.WorldScape;
 import com.worldscape.terrain.TerrainType;
 import com.worldscape.terrain.WorldScapeConstants;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
-import java.lang.reflect.Method;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
@@ -26,7 +24,6 @@ implements SurfaceAdapter {
     private final ChunkGenerator generator;
     private final long worldSeed;
     private final int seaLevel;
-    private final Map<Biome, String> biomeIdCache = new HashMap<>();
 
     public FallbackSurfaceAdapter(ChunkGenerator generator, long worldSeed, int seaLevel) {
         this.generator = generator;
@@ -97,29 +94,15 @@ implements SurfaceAdapter {
 
                 if (useBiomeFallback) {
                     try {
-                        biome = (Biome)region.getBiome(new BlockPos(worldX, terrainHeight, worldZ)).value();
+                        Holder<Biome> biomeHolder = region.getBiome(new BlockPos(worldX, terrainHeight, worldZ));
+                        biome = biomeHolder.value();
+                        // ponytail: Holder.unwrapKey() is O(1) standard API, no reflection needed
+                        biomeId = biomeHolder.unwrapKey()
+                            .map(key -> key.location().toString())
+                            .orElse("minecraft:plains");
                     }
                     catch (Exception e) {
                         LOGGER.debug("{} Failed to get biome at ({}, {}, {}), using default", new Object[]{MOD_ID, worldX, terrainHeight, worldZ});
-                    }
-                    if (biome != null) {
-                        // @PERF: Cache biomeId to avoid repeated reflection per column
-                        // 缓存 biomeId 避免每列重复反射
-                        biomeId = this.biomeIdCache.computeIfAbsent(biome, b -> {
-                            try {
-                                Method getKeyMethod = Biome.class.getMethod("getKey", new Class[0]);
-                                Object key = getKeyMethod.invoke(b, new Object[0]);
-                                if (key != null) {
-                                    Method toStringMethod = key.getClass().getMethod("toString", new Class[0]);
-                                    return toStringMethod.invoke(key, new Object[0]).toString();
-                                }
-                            }
-                            catch (Exception e) {
-                                // 反射获取 biome ID 失败，使用默认值 / Failed to get biome ID via reflection, using default
-                                LOGGER.debug("{} Failed to get biome ID via reflection: {}", (Object)MOD_ID, (Object)e.getClass().getSimpleName());
-                            }
-                            return "minecraft:plains";
-                        });
                     }
                 }
 

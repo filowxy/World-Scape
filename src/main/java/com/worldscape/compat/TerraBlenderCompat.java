@@ -176,6 +176,7 @@ public class TerraBlenderCompat {
         }
         catch (Exception e) {
             ResourceLocation biomeId = ((ResourceKey)biome.unwrapKey().orElseThrow()).location();
+            LOGGER.debug("[TerraBlender Compat] biome.is(IS_OVERWORLD) failed, falling back to string-based check for biome: {}", biomeId);
             String path = biomeId.getPath().toLowerCase();
             return !path.contains("nether") && !path.contains("end") && !path.contains("warped") && !path.contains("crimson") && !path.contains("the_end");
         }

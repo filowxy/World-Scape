@@ -45,7 +45,6 @@ public class TerrainFieldSampler {
     // Reset via clearNoiseCaches(). Access via getCacheHits() / getCacheMisses().
     // 缓存命中/未命中计数器，用于运行时监控。通过 clearNoiseCaches() 重置，
     // 通过 getCacheHits() / getCacheMisses() 访问。
-    private final AtomicLong cacheHits = new AtomicLong(0);
     private final AtomicLong cacheMisses = new AtomicLong(0);
     // LRU 缓存，最大容量 8，避免多世界长期运行导致内存泄漏
     // LRU cache with max capacity 8, preventing memory leak on long-running multi-world servers
@@ -531,19 +530,7 @@ public class TerrainFieldSampler {
         fbmCache.clear();
         turbulenceCache.clear();
         domainRotatedCache.clear();
-        cacheHits.set(0);
         cacheMisses.set(0);
-    }
-
-    /**
-     * Get the total number of cache hits across all three noise caches.
-     * Useful for monitoring cache efficiency at runtime.
-     * Reset to 0 by clearNoiseCaches().
-     *
-     * @return total cache hit count since last reset
-     */
-    public long getCacheHits() {
-        return cacheHits.get();
     }
 
     /**
@@ -555,19 +542,6 @@ public class TerrainFieldSampler {
      */
     public long getCacheMisses() {
         return cacheMisses.get();
-    }
-
-    /**
-     * Get the current cache hit rate as a ratio in [0, 1].
-     * Returns 1.0 if no requests have been made (avoids division by zero).
-     *
-     * @return hit rate = hits / (hits + misses), or 1.0 if no requests
-     */
-    public double getCacheHitRate() {
-        long hits = cacheHits.get();
-        long misses = cacheMisses.get();
-        long total = hits + misses;
-        return total == 0 ? 1.0 : (double) hits / total;
     }
 
     public double sampleDomainRotated(int x, int z, double warpStrength) {

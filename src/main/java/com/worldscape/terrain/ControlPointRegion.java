@@ -352,7 +352,6 @@ public class ControlPointRegion {
         int levelDiff = Math.abs(level1 - level2);
         int baseDiff = 100 + levelDiff * 100;
         boolean hasExtreme = this.isExtremeTerrain(t1) || this.isExtremeTerrain(t2);
-        boolean bl = hasExtreme;
         if (hasExtreme && levelDiff >= 3) {
             baseDiff += 100;
         }
@@ -374,7 +373,6 @@ public class ControlPointRegion {
         boolean isHighMountain = t1 == TerrainType.HIGH_MOUNTAINS || t2 == TerrainType.HIGH_MOUNTAINS;
         boolean isHorn = t1 == TerrainType.HORN || t2 == TerrainType.HORN;
         boolean isLowlandErosion = t1 == TerrainType.CANYON || t2 == TerrainType.CANYON || t1 == TerrainType.TRENCH || t2 == TerrainType.TRENCH || t1 == TerrainType.GLACIAL_VALLEY || t2 == TerrainType.GLACIAL_VALLEY || t1 == TerrainType.SINKHOLE || t2 == TerrainType.SINKHOLE;
-        boolean bl = isLowlandErosion;
         if ((isHighMountain || isHorn) && isLowlandErosion) {
             return true;
         }

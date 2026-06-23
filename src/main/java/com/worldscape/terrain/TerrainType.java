@@ -4,7 +4,6 @@ import com.worldscape.terrain.TerrainContext;
 import com.worldscape.terrain.TerrainFunctionSchema;
 import com.worldscape.terrain.TerrainTypeRegistry;
 import net.minecraft.resources.ResourceLocation;
-import java.util.List;
 
 /**
  * Represents a terrain type in the world generation system.

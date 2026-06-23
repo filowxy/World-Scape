@@ -41,8 +41,6 @@ public class SeedDeriver {
     public static final long SALT_DOMAIN_ANGLE = 263913260792395L;
     public static final long SALT_DOMAIN_OFFSET_X = 263917842090844L;
     public static final long SALT_DOMAIN_OFFSET_Z = 263922423389293L;
-    public static final double DOMAIN_ANGLE_SCALE = 1.220703125E-4;
-    public static final double DOMAIN_OFFSET_SCALE = 2.44140625E-4;
     public static final long SALT_WIND_DIRECTION = 263927004687742L;
     public static final long SALT_WIND_PERPDIR = 263931585986191L;
 

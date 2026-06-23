@@ -84,19 +84,13 @@ public class HeightCalculator {
         if (blendWeight > WorldScapeConstants.BLEND_WEIGHT_THRESHOLD) {
             finalHeight = macroBaseHeight + microHeight + tierAdjustment;
         } else {
+            // ponytail: align with RegionController.calculateBlend — sqrt + tierGapFactor,
+            // no hard MAX_MACRO_INFLUENCE cap, no oceanic tier damping.
+            // RegionController uses this formula; HeightCalculator had stale smoothstep+cap version.
             double boundaryProximityRaw = 1.0 - Math.abs(blendWeight - 0.5) * 2.0;
             boundaryProximityRaw = Math.max(0.0, Math.min(1.0, boundaryProximityRaw));
-            double boundaryProximity = WorldScapeUtils.smoothstep(0.0, 1.0, boundaryProximityRaw);
-            double macroInfluence = boundaryProximity * WorldScapeConstants.MAX_MACRO_INFLUENCE;
-            if (elevationTier == 0) {
-                macroInfluence *= WorldScapeConstants.OCEAN_TIER0_MACRO_DAMPING;
-            } else if (elevationTier == 1) {
-                macroInfluence *= WorldScapeConstants.OCEAN_TIER1_MACRO_DAMPING;
-            }
-            // 边界处从 (macroBaseHeight + microHeight + tierAdjustment) 插值到 macroBaseHeight
-            // 与 RegionController.calculateBlend 的边界公式一致
-            // At boundary, lerp from (macroBaseHeight + microHeight + tierAdjustment) to macroBaseHeight,
-            // consistent with RegionController.calculateBlend's boundary formula
+            double boundaryProximity = Math.sqrt(boundaryProximityRaw);
+            double macroInfluence = boundaryProximity;
             finalHeight = WorldScapeUtils.lerp(macroBaseHeight + microHeight + tierAdjustment, macroBaseHeight, macroInfluence);
         }
         double smoothNoise = this.n3Noise.getValue((double)x / 16.0, (double)z / 16.0, 0.0) * 6.0;
@@ -150,11 +144,6 @@ public class HeightCalculator {
 
     public double calculateHeight(int x, int z) {
         return this.calculateHeight(x, z, null);
-    }
-
-    private double smoothStep(double x) {
-        x = WorldScapeUtils.clamp(x, 0.0, 1.0);
-        return x * x * (3.0 - 2.0 * x);
     }
 
     // 已移除 applyTerrainIntensity：该方法将高度向海平面插值，与 macroBaseHeight 叠加后

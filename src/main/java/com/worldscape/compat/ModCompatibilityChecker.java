@@ -194,9 +194,7 @@ public class ModCompatibilityChecker {
         CONFLICT_MODS.put("valhelsia_structures", "Adds structures dependent on vanilla terrain height \u2014 may generate incorrectly on WS steep terrain");
         CONFLICT_MODS.put("quark", "Comprehensive mod with worldgen features \u2014 MixinChunkGenerator injection may fail on WS custom ChunkGenerator");
         CONFLICT_MODS.put("charm", "Comprehensive mod \u2014 some worldgen features may conflict with WS biome override");
-        CONFLICT_MODS.put("litematica", "Schematic mod \u2014 does NOT modify world generation; previously misclassified as INCOMPATIBLE");
-        CONFLICT_MODS.put("structure_gel", "Structure API library \u2014 does NOT modify world generation; previously misclassified as INCOMPATIBLE");
-        VERIFIED_COMPATIBLE = List.of("ferritecore", "starlight", "phosphor", "noisium", "geophilic", "jei", "rei", "emi", "journeymap", "xaerominimap", "xaeroworldmap", "create", "alexsmobs", "naturalist", "supplementaries", "farmersdelight", "apotheosis", "waystones", "crafttweaker", "kubejs");
+        VERIFIED_COMPATIBLE = List.of("ferritecore", "starlight", "phosphor", "noisium", "geophilic", "jei", "rei", "emi", "journeymap", "xaerominimap", "xaeroworldmap", "create", "alexsmobs", "naturalist", "supplementaries", "farmersdelight", "apotheosis", "waystones", "crafttweaker", "kubejs", "litematica", "structure_gel");
         detectedIncompatibleMods = new ArrayList<String>();
         detectedConflictMods = new ArrayList<String>();
         checked = false;

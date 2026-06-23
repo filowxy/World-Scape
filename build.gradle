@@ -35,17 +35,6 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.register('runSeedAnalyzer', JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.worldscape.analyzer.SeedAnalyzer'
-    def seedArgs = project.findProperty('seedArgs')
-    if (seedArgs != null) {
-        args seedArgs.split(' ')
-    } else {
-        args '--help'
-    }
-}
-
 test {
     useJUnitPlatform()
 

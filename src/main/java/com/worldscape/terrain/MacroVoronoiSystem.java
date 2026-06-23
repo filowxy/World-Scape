@@ -144,7 +144,6 @@ public class MacroVoronoiSystem {
             boolean bothUnderwater = primaryBase < this.seaLevel && secondBase < this.seaLevel;
             boolean primaryIsOcean = primaryTier < 2;
             boolean secondIsOcean = secondTier < 2;
-            boolean bl = secondIsOcean;
             if (bothUnderwater && primaryIsOcean && secondIsOcean) {
                 transitionWidth = (int)((double)transitionWidth * 6.0);
             }

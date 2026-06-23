@@ -160,7 +160,7 @@ public final class TerrainCalculator {
         if (alluvialNoise < WorldScapeConstants.ALLUVIAL_THRESHOLD) {
             return 0.0;
         }
-        double factor = (alluvialNoise - WorldScapeConstants.ALLUVIAL_THRESHOLD) / (1.0 - WorldScapeConstants.EROSION_NOISE_THRESHOLD);
+        double factor = (alluvialNoise - WorldScapeConstants.ALLUVIAL_THRESHOLD) / WorldScapeConstants.EROSION_NOISE_RANGE;
         double distanceFactor = Math.max(0.0, 1.0 - (baseHeight - (double)seaLevel) / WorldScapeConstants.ALLUVIAL_DISTANCE_RANGE);
         return factor * distanceFactor * WorldScapeConstants.ALLUVIAL_FACTOR;
     }
@@ -203,16 +203,6 @@ public final class TerrainCalculator {
     // This is geologically realistic: the Grand Canyon was carved by the Colorado River
     // through the Colorado Plateau (a tier-4-class feature), demonstrating that
     // fluvial incision outpaces surface erosion in intermediate-elevation terrain.
-    // Contrast with getErosionMultiplierForTier() which requires tier ≥ 5 — broad
-    // surface erosion demands sustained precipitation, steep slopes, and relief that
-    // only true mountain tiers provide.
-    @Deprecated
-    public static double getRiverDepthMultiplierForTier(int elevationTier) {
-        if (elevationTier >= WorldScapeConstants.RIVER_TIER_THRESHOLD) return WorldScapeConstants.RIVER_DEPTH_MULTIPLIER_MOUNTAIN;
-        if (elevationTier <= WorldScapeConstants.LOWLAND_TIER_THRESHOLD) return WorldScapeConstants.RIVER_DEPTH_MULTIPLIER_PLAIN;
-        return 1.0;
-    }
-
     // @AESTHETIC: Continuous elevation-based river depth multiplier.
     // Uses smoothstep interpolation from sea level to high elevation, replacing hard
     // tier switching. The smoothstep ensures C¹ continuity — river depth transitions
