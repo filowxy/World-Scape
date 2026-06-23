@@ -1,6 +1,5 @@
 package com.worldscape.terrain;
 
-import com.worldscape.terrain.TerrainContext;
 import com.worldscape.terrain.TerrainFunctionSchema;
 import com.worldscape.terrain.TerrainTypeRegistry;
 import net.minecraft.resources.ResourceLocation;
@@ -107,18 +106,6 @@ public final class TerrainType {
      */
     public int getMaxHeight() {
         return this.maxHeight;
-    }
-
-    /**
-     * @deprecated 仅由旧路径 HeightCalculator.calculateMicroHeight 使用，已替换为 getBaseHeightForTerrainType。
-     * 新代码应使用 TerrainCalculator.calcHeightForType 或 TerrainFunctionInterpreter.evaluate。
-     *
-     * Only used by the legacy HeightCalculator.calculateMicroHeight path, replaced by getBaseHeightForTerrainType.
-     * New code should use TerrainCalculator.calcHeightForType or TerrainFunctionInterpreter.evaluate.
-     */
-    @Deprecated
-    public double calculateHeight(TerrainContext context) {
-        return 0.0;
     }
 
     /**
