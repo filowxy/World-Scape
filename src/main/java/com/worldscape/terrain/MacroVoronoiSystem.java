@@ -1,6 +1,7 @@
 package com.worldscape.terrain;
 
 import com.google.gson.JsonArray;
+import com.worldscape.WorldScape;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -413,6 +414,23 @@ public class MacroVoronoiSystem {
                 }
                 TIER_MIN_HEIGHTS[tier] = min;
                 TIER_MAX_HEIGHTS[tier] = max;
+            }
+            // Startup verification: print each tier's actual range and its overlap with the previous tier.
+            // This makes JSON manual edits visible and lets us confirm the ranges match the documented design.
+            // 启动验证：打印每个 tier 的实际范围及与上一层的重叠量，便于发现 JSON 手动修改导致的不一致。
+            for (int tier = 0; tier < TIER_MIN_HEIGHTS.length; ++tier) {
+                int min = TIER_MIN_HEIGHTS[tier];
+                int max = TIER_MAX_HEIGHTS[tier];
+                String overlapText;
+                if (tier == 0) {
+                    overlapText = "N/A";
+                } else {
+                    int prevMin = TIER_MIN_HEIGHTS[tier - 1];
+                    int prevMax = TIER_MAX_HEIGHTS[tier - 1];
+                    int overlap = Math.min(max, prevMax) - Math.max(min, prevMin);
+                    overlapText = String.valueOf(Math.max(0, overlap));
+                }
+                WorldScape.LOGGER.info("[World Scape] [TIER_HEIGHTS] tier={} range=[{},{}] overlapWithPreviousTier={}", tier, min, max, overlapText);
             }
             LOGGER.info("[World Scape] Loaded tier height ranges from {}", (Object)configPath);
         } catch (IOException e) {

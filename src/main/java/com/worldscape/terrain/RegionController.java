@@ -13,6 +13,7 @@ import com.worldscape.util.WorldScapeUtils;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -161,6 +162,14 @@ public class RegionController {
         // Clamp finalHeight to within world bounds to prevent extreme terrain
         // 将 finalHeight 限制在世界边界内以防止极端地形
         finalHeight = Math.max(WorldScapeConstants.MIN_TERRAIN_HEIGHT, Math.min(WorldScapeConstants.TERRAIN_HARD_CLAMP, finalHeight));
+        // Diagnostic log for large tier gaps near Voronoi boundaries: helps detect remaining cliff artifacts.
+        // 在 Voronoi 边界附近的大层级差距处添加诊断日志，帮助检测残留的悬崖伪影。
+        if (tierGap >= 2 && boundaryProximity > 0.5) {
+            double microDelta = microHeight + tierAdjustment;
+            WorldScape.LOGGER.debug(String.format(Locale.ROOT,
+                    "[World Scape] [BLEND_DIAG] (%d,%d): tierGap=%d, boundaryProximity=%.3f, macroBase=%.2f, microDelta=%.2f, macroInfluence=%.3f, finalHeight=%.2f",
+                    x, z, tierGap, boundaryProximity, macroBaseHeight, microDelta, macroInfluence, finalHeight));
+        }
         TerrainBlendResult typeResult = this.determineDominantTerrainType(weightedPoints, totalWeight);
         ClimateProfile blendedClimate = this.calculateBlendedClimate(weightedPoints, totalWeight, macroInfo.getElevationTier());
         return new TerrainBlendResult(finalHeight, macroInfo, weightedPoints, macroBaseHeight - microHeight, typeResult.dominantType, typeResult.dominantWeight, blendedClimate);

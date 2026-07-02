@@ -14,6 +14,8 @@
       "max_height": 512,
       "tier_whitelist": [5],
       "height_cap": 250.0,
+      "offset_min": 80.0,
+      "offset_max": 150.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "hm_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.5 }, "amplitude": 200.0 },
@@ -31,6 +33,8 @@
       "max_height": 275,
       "tier_whitelist": [5],
       "height_cap": null,
+      "offset_min": 40.0,
+      "offset_max": 80.0,
       "coordinate_transform": { "type": "energy_stretched", "params": { "along": 1.5, "across": 0.7 } },
       "functions": [
         { "id": "r_sine", "name": "gradient_constrained_sine", "params": { "freq_x": 0.007, "freq_z": 0.004, "primary_amp": 35.0, "secondary_amp": 18.0, "sec_freq_x": 0.025, "sec_freq_z": 0.018, "gradient_sensitivity": 0.6, "gradient_half_factor": 0.5 }, "amplitude": 1.0 },
@@ -49,6 +53,8 @@
       "max_height": 330,
       "tier_whitelist": [5],
       "height_cap": 510.0,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "p_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.4 }, "amplitude": 120.0 },
@@ -66,6 +72,8 @@
       "max_height": 330,
       "tier_whitelist": [5],
       "height_cap": 510.0,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "h_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.3 }, "amplitude": 100.0 },
@@ -82,6 +90,8 @@
       "max_height": 220,
       "tier_whitelist": [4, 5],
       "height_cap": null,
+      "offset_min": 0.0,
+      "offset_max": 0.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "c_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.5 }, "amplitude": 80.0 },
@@ -98,6 +108,8 @@
       "max_height": 275,
       "tier_whitelist": [4, 5],
       "height_cap": null,
+      "offset_min": 30.0,
+      "offset_max": 60.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "pl_fbm", "name": "fbm", "params": { "octaves": 3, "gain": 0.3 }, "amplitude": 100.0 }
@@ -113,6 +125,8 @@
       "max_height": 193,
       "tier_whitelist": [4],
       "height_cap": null,
+      "offset_min": 15.0,
+      "offset_max": 35.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "d_offset_x", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 50.0 },
@@ -130,6 +144,8 @@
       "max_height": 55,
       "tier_whitelist": [2, 3],
       "height_cap": null,
+      "offset_min": 0.0,
+      "offset_max": 15.0,
       "coordinate_transform": null,
       "functions": [         { "id": "du_primary_sine", "name": "sine", "params": { "freq_x": 0.02, "freq_z": 0.005 }, "amplitude": 25.0 },
         { "id": "du_secondary_sine", "name": "sine", "params": { "freq_x": 0.005, "freq_z": 0.015 }, "amplitude": 8.0 },
@@ -147,6 +163,8 @@
       "max_height": 99,
       "tier_whitelist": [3],
       "height_cap": null,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "ya_freq_mod", "name": "fbm", "params": { "octaves": 2, "gain": 0.3 }, "amplitude": 1.0 },
@@ -165,6 +183,8 @@
       "max_height": 66,
       "tier_whitelist": [3],
       "height_cap": null,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "go_fbm", "name": "fbm", "params": { "octaves": 4, "gain": 0.7 }, "amplitude": 15.0 },
@@ -181,6 +201,8 @@
       "max_height": 33,
       "tier_whitelist": [2, 3],
       "height_cap": null,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "sf_fbm", "name": "fbm", "params": { "octaves": 2, "gain": 0.1 }, "amplitude": 3.0 },
@@ -197,6 +219,8 @@
       "max_height": 83,
       "tier_whitelist": [4],
       "height_cap": null,
+      "offset_min": -80.0,
+      "offset_max": -30.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "ca_grad", "name": "fbm", "params": { "octaves": 3, "gain": 0.4 }, "amplitude": 1.0 },
@@ -214,6 +238,8 @@
       "max_height": 83,
       "tier_whitelist": [3],
       "height_cap": null,
+      "offset_min": -25.0,
+      "offset_max": -5.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "v_grad", "name": "gradient", "params": {}, "amplitude": 1.0 },
@@ -231,6 +257,8 @@
       "max_height": 44,
       "tier_whitelist": [2, 3],
       "height_cap": null,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "fp_fbm", "name": "fbm", "params": { "octaves": 3, "gain": 0.15 }, "amplitude": 5.0 },
@@ -247,6 +275,8 @@
       "max_height": 67,
       "tier_whitelist": [2],
       "height_cap": null,
+      "offset_min": -5.0,
+      "offset_max": 5.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "dt_grad", "name": "gradient", "params": {}, "amplitude": 8.0 },
@@ -265,6 +295,8 @@
       "max_height": 110,
       "tier_whitelist": [3],
       "height_cap": null,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [         { "id": "af_cp_dist", "name": "contributing_point_distance", "params": { "distance_period": 200.0 }, "amplitude": 1.0 },
         { "id": "af_slope", "name": "math", "params": { "expression": "tanh(d / 100.0 * 0.886) * 25.0", "d": "af_cp_dist" }, "amplitude": 1.0 },
@@ -281,6 +313,8 @@
       "max_height": 66,
       "tier_whitelist": [3],
       "height_cap": null,
+      "offset_min": -30.0,
+      "offset_max": -10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "b_offset_x", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 80.0 },
@@ -298,6 +332,8 @@
       "max_height": 110,
       "tier_whitelist": [2],
       "height_cap": null,
+      "offset_min": -40.0,
+      "offset_max": -10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "fj_cliff_edge", "name": "fbm", "params": { "octaves": 3, "gain": 0.3 }, "amplitude": 1.0 },
@@ -315,6 +351,8 @@
       "max_height": 110,
       "tier_whitelist": [4],
       "height_cap": null,
+      "offset_min": -40.0,
+      "offset_max": -10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "gv_grad", "name": "gradient", "params": {}, "amplitude": 1.0 },
@@ -332,6 +370,8 @@
       "max_height": 193,
       "tier_whitelist": [4, 5],
       "height_cap": null,
+      "offset_min": -30.0,
+      "offset_max": -5.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "ci_offset_x", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 40.0 },
@@ -350,6 +390,8 @@
       "max_height": 165,
       "tier_whitelist": [5],
       "height_cap": null,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "is_fbm", "name": "fbm", "params": { "octaves": 3, "gain": 0.2 }, "amplitude": 8.0 },
@@ -367,6 +409,8 @@
       "max_height": 110,
       "tier_whitelist": [2],
       "height_cap": null,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "sc_edge", "name": "fbm", "params": { "octaves": 4, "gain": 0.4 }, "amplitude": 1.0 },
@@ -383,6 +427,8 @@
       "max_height": 72,
       "tier_whitelist": [2],
       "height_cap": null,
+      "offset_min": -2.0,
+      "offset_max": 6.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "be_dist", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 1.0 },
@@ -399,6 +445,8 @@
       "max_height": 55,
       "tier_whitelist": [3],
       "height_cap": null,
+      "offset_min": -30.0,
+      "offset_max": -10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "sk_offset_x", "name": "fbm", "params": { "octaves": 2, "gain": 0.2 }, "amplitude": 30.0 },
@@ -416,6 +464,8 @@
       "max_height": 193,
       "tier_whitelist": [3],
       "height_cap": null,
+      "offset_min": -10.0,
+      "offset_max": 10.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "pf_turb", "name": "turbulence", "params": { "strength": 0.7 }, "amplitude": 80.0 },
@@ -432,6 +482,8 @@
       "max_height": 0,
       "tier_whitelist": [0],
       "height_cap": null,
+      "offset_min": -100.0,
+      "offset_max": -60.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "tr_axis", "name": "fbm", "params": { "octaves": 3, "gain": 0.3 }, "amplitude": 1.0 },
@@ -450,6 +502,8 @@
       "max_height": 17,
       "tier_whitelist": [0, 1],
       "height_cap": null,
+      "offset_min": -30.0,
+      "offset_max": -10.0,
       "coordinate_transform": null,
       "_note_texture": "The texture fbm in the Java code uses worldX*4, worldZ*4 coordinates. This is approximated here with regular fbm(2, 0.3)*2.0. | Java代码中的纹理fbm使用 worldX*4, worldZ*4 坐标，此处用普通 fbm(2, 0.3)*2.0 近似。",
       "functions": [
@@ -467,6 +521,8 @@
       "max_height": 110,
       "tier_whitelist": [3, 4],
       "height_cap": null,
+      "offset_min": 10.0,
+      "offset_max": 30.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "hi_fbm", "name": "fbm", "params": { "octaves": 6, "gain": 0.65 }, "amplitude": 40.0 },
@@ -485,6 +541,8 @@
       "max_height": 55,
       "tier_whitelist": [3],
       "height_cap": null,
+      "offset_min": -5.0,
+      "offset_max": 5.0,
       "coordinate_transform": null,
       "functions": [
         { "id": "pl_fbm", "name": "fbm", "params": { "octaves": 4, "gain": 0.2 }, "amplitude": 15.0 },

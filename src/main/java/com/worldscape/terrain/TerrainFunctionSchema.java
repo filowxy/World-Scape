@@ -144,6 +144,14 @@ public final class TerrainFunctionSchema {
                     ? root.get("height_cap").getAsDouble()
                     : Double.MAX_VALUE;
 
+            // Optional elevation offset clamp range for control points. Defaults match the
+            // legacy TerrainControlPoint fallback of [-10, 10], preserving backward compatibility.
+            // 控制点海拔偏移钳制范围（可选）。默认值与旧的 TerrainControlPoint 回退 [-10, 10] 一致，保持向后兼容。
+            double minOffset = root.has("offset_min") && !root.get("offset_min").isJsonNull()
+                    ? root.get("offset_min").getAsDouble() : -10.0;
+            double maxOffset = root.has("offset_max") && !root.get("offset_max").isJsonNull()
+                    ? root.get("offset_max").getAsDouble() : 10.0;
+
             CoordinateTransform coordinateTransform = null;
             if (root.has("coordinate_transform") && !root.get("coordinate_transform").isJsonNull()) {
                 coordinateTransform = parseCoordinateTransform(root.getAsJsonObject("coordinate_transform"));
@@ -178,7 +186,7 @@ public final class TerrainFunctionSchema {
             }
 
             return new FunctionDef(id, minHeight, maxHeight, tierWhitelist, heightCap,
-                    coordinateTransform, functions, combinator, finalExpr, climate);
+                    coordinateTransform, functions, combinator, finalExpr, climate, minOffset, maxOffset);
         } catch (Exception e) {
             WorldScape.LOGGER.error("[World Scape] Failed to parse terrain function definition: {}", location, e);
             return null;

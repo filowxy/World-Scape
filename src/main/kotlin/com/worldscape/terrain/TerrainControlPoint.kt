@@ -15,7 +15,25 @@ class TerrainControlPoint(
     }
 
     private fun clampOffset(type: TerrainType, rawOffset: Double): Double {
-        val (minOffset, maxOffset) = when (type) {
+        // Prefer JSON-defined offset range; fall back to legacy hardcoded mapping if no function def is loaded.
+        // 优先使用 JSON 定义的偏移范围；未加载函数定义时回退到旧硬编码映射。
+        val functionDef = type.getFunctionDef()
+        val (minOffset, maxOffset) = if (functionDef != null) {
+            functionDef.minOffset to functionDef.maxOffset
+        } else {
+            getLegacyOffsetRange(type)
+        }
+        return rawOffset.coerceIn(minOffset, maxOffset)
+    }
+
+    /**
+     * Legacy hardcoded elevation offset ranges used when no JSON function definition is loaded.
+     * Kept as a safe fallback to preserve behavior for any future path that constructs a
+     * TerrainControlPoint before defaults.json is available.
+     * 未加载 JSON 函数定义时使用的旧硬编码海拔偏移范围。保留为安全回退，以应对在 defaults.json 可用前构造 TerrainControlPoint 的未来路径。
+     */
+    private fun getLegacyOffsetRange(type: TerrainType): Pair<Double, Double> {
+        return when (type) {
             TerrainType.PLAINS -> -5.0 to 5.0
             TerrainType.HILLS -> 10.0 to 30.0
             TerrainType.RIDGE -> 40.0 to 80.0
@@ -37,7 +55,6 @@ class TerrainControlPoint(
             TerrainType.DELTA -> -5.0 to 5.0
             else -> -10.0 to 10.0
         }
-        return rawOffset.coerceIn(minOffset, maxOffset)
     }
 
     fun calculateInfluence(targetX: Int, targetZ: Int): Double {
