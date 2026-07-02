@@ -1,5 +1,13 @@
 plugins {
     id 'net.neoforged.moddev' version "$moddevVersion"
+    id 'org.jetbrains.kotlin.jvm' version "$kotlinVersion"
+}
+
+repositories {
+    maven {
+        name = 'Kotlin for Forge'
+        url = 'https://thedarkcolour.github.io/KotlinForForge/'
+    }
 }
 
 neoForge {
@@ -26,6 +34,9 @@ neoForge {
 }
 
 dependencies {
+    // Kotlin for Forge — language provider for Kotlin-based mod code
+    implementation "thedarkcolour:kotlinforforge-neoforge:$kffVersion"
+
     // Mixin annotation processor
     compileOnly "org.spongepowered:mixin:$mixinVersion"
     annotationProcessor "org.spongepowered:mixin:$mixinVersion:processor"
@@ -42,4 +53,13 @@ test {
     // ModDev 2.0 injects Minecraft via the main sourceSet runtimeClasspath
     // but does not automatically extend the test classpath with it.
     classpath = sourceSets.main.runtimeClasspath + sourceSets.test.runtimeClasspath
+}
+
+// Kotlin-Java interop: ensure Java compiler sees Kotlin output
+// Kotlin-Java 互操作：确保 Java 编译器能访问 Kotlin 编译产物
+afterEvaluate {
+    tasks.named('compileJava').configure {
+        dependsOn compileKotlin
+        classpath += files(tasks.named('compileKotlin').get().outputs.files)
+    }
 }

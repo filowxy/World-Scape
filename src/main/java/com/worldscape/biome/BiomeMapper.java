@@ -10,6 +10,7 @@ import com.google.gson.JsonSyntaxException;
 import com.worldscape.terrain.MacroRegionInfo;
 import com.worldscape.terrain.TerrainType;
 import com.worldscape.util.ClimateUtils;
+import com.worldscape.util.ClimateProfile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -17,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -138,29 +140,86 @@ public class BiomeMapper {
         if (biomeId.getNamespace().equals("minecraft") && (override = BIOME_NAME_OVERRIDES.get(path)) != null) {
             return override;
         }
+        // 使用连续降水量替代二值化的 hasPrecipitation()，保留湿度粒度，
+        // 使丛林/沼泽/森林/雪原等原本湿度同为 1.0 的生物群系能够被区分。
+        // 注：Biome 未直接暴露 getDownfall()，通过 ClimateSettings.downfall() 获取；
+        // TemperatureModifier 仅影响温度不影响降水量，故 downfall 值与基础一致。
         double temperature = biome.getBaseTemperature();
-        double humidity = biome.hasPrecipitation() ? 1.0 : 0.0;
+        double humidity = biome.getModifiedClimateSettings().downfall();
+        ClimateProfile biomeProfile = new ClimateProfile(temperature, humidity);
+        // 统一标签规则与气候匹配：先以 TerrainBiomeRules 的标签规则约束候选地形集，
+        // 再在候选集上做气候距离匹配。规则未加载或无候选时回退到全部地形类型。
+        List<TerrainType> candidates = this.getCandidateTerrainTypes(biomeId);
         double minDistance = Double.MAX_VALUE;
         TerrainType bestMatch = TerrainType.PLAINS;
-        for (TerrainType type : TerrainType.values()) {
-            double distance = this.calculateClimateDistance(type, temperature, humidity);
+        for (TerrainType type : candidates) {
+            // 使用 4 维 distanceTo 计算气候距离（温度、湿度、季节性、大陆性）。
+            // 优先使用 JSON 定义的气候；缺失时回退到硬编码气候档案。
+            // Compute 4-dimensional climate distance (temperature, humidity, seasonality, continentality).
+            // Prefer JSON-defined climate; fall back to hardcoded climate profile if absent.
+            ClimateProfile terrainProfile = ClimateUtils.fromFunctionDefClimate(
+                    type.getFunctionDef() != null ? type.getFunctionDef().climate : null,
+                    type.name());
+            double distance = terrainProfile.distanceTo(biomeProfile);
             if (!(distance < minDistance)) continue;
             minDistance = distance;
             bestMatch = type;
         }
         if (minDistance >= this.autoMatchThreshold) {
-            if (temperature > 0.5) {
-                return TerrainType.PLAINS;
-            }
-            return TerrainType.RIDGE;
+            // 地理上合理的回退，替代原先将寒冷生物群系统一映射为 RIDGE（tier 5 山脊）的不合理逻辑。
+            return this.getClimateFallbackTerrain(temperature, humidity);
         }
         return bestMatch;
     }
 
-    private double calculateClimateDistance(TerrainType terrain, double temperature, double humidity) {
-        ClimateUtils.ClimateProfile terrainProfile = ClimateUtils.getTerrainClimateProfile(terrain.name());
-        ClimateUtils.ClimateProfile biomeProfile = new ClimateUtils.ClimateProfile(temperature, humidity);
-        return terrainProfile.distanceTo(biomeProfile);
+    /**
+     * 获取该生物群系的候选地形类型集合。
+     * 当 TerrainBiomeRules 已初始化时，返回所有在标签规则下允许该生物群系的地形类型，
+     * 使气候匹配在标签约束的候选集上进行，统一两套并行映射系统。
+     * 当规则未初始化或该生物群系未被任何地形规则允许时，回退到全部地形类型。
+     */
+    private List<TerrainType> getCandidateTerrainTypes(ResourceLocation biomeId) {
+        if (!TerrainBiomeRules.getInstance().isInitialized()) {
+            return Arrays.asList(TerrainType.values());
+        }
+        List<TerrainType> allowed = new ArrayList<>();
+        for (TerrainType type : TerrainType.values()) {
+            if (this.isBiomeAllowedForTerrain(type, biomeId)) {
+                allowed.add(type);
+            }
+        }
+        return allowed.isEmpty() ? Arrays.asList(TerrainType.values()) : allowed;
+    }
+
+    /**
+     * 通过 TerrainBiomeRules 的标签白名单/黑名单判断生物群系是否被该地形类型允许。
+     * 按 ResourceLocation 比较，避免 Holder 引用相等的不确定性（与 runCrossValidation 一致）。
+     */
+    private boolean isBiomeAllowedForTerrain(TerrainType type, ResourceLocation biomeId) {
+        try {
+            for (Holder<Biome> holder : TerrainBiomeRules.getInstance().getAllowedBiomes(type)) {
+                if (holder.unwrapKey().isPresent() && holder.unwrapKey().get().location().equals(biomeId)) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * 基于气候的合理回退：寒冷→冰川谷，炎热干旱→沙丘，其余→平原。
+     * 替代原先将所有寒冷生物群系映射为 RIDGE（tier 5 山脊）的不合理逻辑。
+     */
+    private TerrainType getClimateFallbackTerrain(double temperature, double humidity) {
+        if (temperature < 0.2) {
+            return TerrainType.GLACIAL_VALLEY;
+        }
+        if (temperature > 0.7 && humidity < 0.3) {
+            return TerrainType.DUNE;
+        }
+        return TerrainType.PLAINS;
     }
 
     public TerrainType getTerrainForBiome(ResourceLocation biomeId) {
@@ -318,7 +377,9 @@ public class BiomeMapper {
 
             JsonObject biomeToTerrainJson = new JsonObject();
             for (Map.Entry<ResourceLocation, TerrainType> entry : this.biomeToTerrain.entrySet()) {
-                biomeToTerrainJson.addProperty(entry.getKey().toString(), entry.getValue().getId());
+                // Save terrain id with namespace so TerrainType.getById() can resolve it correctly.
+                // 保存带命名空间的地形 id，以便 TerrainType.getById() 正确解析。
+                biomeToTerrainJson.addProperty(entry.getKey().toString(), entry.getValue().getFullId());
             }
             root.add("biome_to_terrain", biomeToTerrainJson);
 
@@ -328,7 +389,9 @@ public class BiomeMapper {
                 for (ResourceLocation biomeId : entry.getValue()) {
                     biomeArray.add(biomeId.toString());
                 }
-                terrainToBiomesJson.add(entry.getKey().getId(), biomeArray);
+                // Save terrain id with namespace so TerrainType.getById() can resolve it correctly.
+                // 保存带命名空间的地形 id，以便 TerrainType.getById() 正确解析。
+                terrainToBiomesJson.add(entry.getKey().getFullId(), biomeArray);
             }
             root.add("terrain_to_biomes", terrainToBiomesJson);
 

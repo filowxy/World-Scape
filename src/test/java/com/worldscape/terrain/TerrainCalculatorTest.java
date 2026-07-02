@@ -68,14 +68,16 @@ class TerrainCalculatorTest {
         TerrainFieldSampler fs = TestUtils.createSampler(TestUtils.SEED_A);
 
         // When blend is null, calcHeightForType falls back to fbm-based calculation:
-        // baseHeight + sampleFbm(x, z, 4, 0.2) * 15.0, clamped to [-64, 400]
+        // baseHeight + sampleFbm(x, z, 4, 0.2) * 15.0, clamped to [-64, 380]
         double baseHeight = 150.0;
         double result = TerrainCalculator.calcHeightForType(100, 200, baseHeight,
             TerrainType.PLAINS, fs);
 
         double expectedFallback = fs.sampleFbm(100, 200, 4, 0.2) * 15.0;
+        // Use TERRAIN_HARD_CLAMP (380) to match production clamping in LandscapeChunkGenerator.
+        // 使用 TERRAIN_HARD_CLAMP（380）与 LandscapeChunkGenerator 的生产代码夹紧对齐。
         double expected = Math.max(WorldScapeConstants.MIN_TERRAIN_HEIGHT,
-            Math.min(WorldScapeConstants.MAX_TERRAIN_HEIGHT,
+            Math.min(WorldScapeConstants.TERRAIN_HARD_CLAMP,
                 baseHeight + expectedFallback));
 
         assertEquals(expected, result, TOL,

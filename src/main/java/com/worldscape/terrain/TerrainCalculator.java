@@ -4,7 +4,6 @@ import com.worldscape.terrain.NoiseSet;
 import com.worldscape.terrain.RegionController;
 import com.worldscape.terrain.TerrainFieldSampler;
 import com.worldscape.terrain.TerrainFunctionInterpreter;
-import com.worldscape.terrain.TerrainFunctionSchema;
 import com.worldscape.terrain.TerrainType;
 import com.worldscape.terrain.WorldScapeConstants;
 import org.slf4j.Logger;
@@ -112,7 +111,7 @@ public final class TerrainCalculator {
     // runtime by TerrainFunctionInterpreter. The old 29-branch if-else chain has
     // been replaced with this data-driven registry approach.
     public static double calcHeightForType(int worldX, int worldZ, double baseHeight, TerrainType type, TerrainFieldSampler fs, RegionController.TerrainBlendResult blend) {
-        TerrainFunctionSchema.FunctionDef functionDef = type.getFunctionDef();
+        FunctionDef functionDef = type.getFunctionDef();
         if (functionDef == null || blend == null) {
             LOGGER.warn("[WorldScape] FunctionDef is null or blend is null for terrain type: {}, using FBM fallback height. functionDef={}, blend={}",
                 // Fallback path: degraded but expected to function — log at WARN, not ERROR.

@@ -247,11 +247,11 @@ public class VoronoiControlPointManager {
                         ++pointIndex;
                         continue;
                     }
-                    int color = this.getTerrainTypeColor(tp.getTerrainType());
-                    VoronoiControlPoint vp = new VoronoiControlPoint(id, tp.getX(), tp.getZ(), color);
-                    vp.setLabel(tp.getTerrainType().name());
-                    vp.setWeight((float)(0.5 + tp.getElevationOffset() / 200.0));
-                    vp.setTerrainType(tp.getTerrainType().name());
+                    int color = this.getTerrainTypeColor(tp.terrainType);
+                    VoronoiControlPoint vp = new VoronoiControlPoint(id, tp.x, tp.z, color);
+                    vp.setLabel(tp.terrainType.name());
+                    vp.setWeight((float)(0.5 + tp.elevationOffset / 200.0));
+                    vp.setTerrainType(tp.terrainType.name());
                     this.addPoint(vp);
                     ++microPointCount;
                     ++pointIndex;

@@ -28,3 +28,10 @@ mandatory=true
 versionRange="[1.21.1,)"
 ordering="NONE"
 side="BOTH"
+
+[[dependencies.worldscape]]
+modId="kotlinforforge"
+mandatory=true
+versionRange="[5.10,)"
+ordering="NONE"
+side="BOTH"

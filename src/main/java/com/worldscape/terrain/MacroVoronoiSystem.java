@@ -1,7 +1,17 @@
 package com.worldscape.terrain;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.worldscape.terrain.MacroRegionInfo;
 import com.worldscape.util.SeedDeriver;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -13,7 +23,32 @@ import org.slf4j.LoggerFactory;
 public class MacroVoronoiSystem {
     private static final Logger LOGGER = LoggerFactory.getLogger(MacroVoronoiSystem.class);
     public static final int REGION_CELL_SIZE = 2048;
-    private static final int[] ELEVATION_BASE_HEIGHTS = new int[]{-80, -20, 50, 60, 160, 300};
+    // Legacy single-value midpoints per tier, kept for backward compatibility
+    // (e.g. transitionWidth estimation). Now updated to match range midpoints.
+    // 旧的单值中点（按层级），保留用于向后兼容（如过渡宽度估算），现已与范围中点对齐。
+    private static final int[] ELEVATION_BASE_HEIGHTS = new int[]{-80, -20, 50, 65, 165, 290};
+    // Tier base-height RANGES [min, max], with adjacent tiers overlapping so that
+    // boundary transitions can interpolate continuously within the overlap region.
+    // Defaults come from WorldScapeConstants; loadTierHeightConfig() can override
+    // them from JSON at startup. Terrain generation only reads these arrays (pure).
+    //
+    // 层级基准高度【范围】[min, max]，相邻层级范围有重叠，使边界过渡可在重叠区内
+    // 连续插值。默认值来自 WorldScapeConstants；loadTierHeightConfig() 可在启动时用
+    // JSON 覆盖。地形生成仅读取这些数组（纯函数，无文件 IO）。
+    private static final int[] TIER_MIN_HEIGHTS = new int[]{
+        WorldScapeConstants.TIER_0_MIN_HEIGHT, WorldScapeConstants.TIER_1_MIN_HEIGHT,
+        WorldScapeConstants.TIER_2_MIN_HEIGHT, WorldScapeConstants.TIER_3_MIN_HEIGHT,
+        WorldScapeConstants.TIER_4_MIN_HEIGHT, WorldScapeConstants.TIER_5_MIN_HEIGHT
+    };
+    private static final int[] TIER_MAX_HEIGHTS = new int[]{
+        WorldScapeConstants.TIER_0_MAX_HEIGHT, WorldScapeConstants.TIER_1_MAX_HEIGHT,
+        WorldScapeConstants.TIER_2_MAX_HEIGHT, WorldScapeConstants.TIER_3_MAX_HEIGHT,
+        WorldScapeConstants.TIER_4_MAX_HEIGHT, WorldScapeConstants.TIER_5_MAX_HEIGHT
+    };
+    // JSON config file for tunable tier height ranges (optional override).
+    // 可调层级高度范围的 JSON 配置文件（可选覆盖）。
+    private static final String TIER_HEIGHT_CONFIG_FILE = "config/worldscape/tier_heights.json";
+    private static volatile boolean tierHeightConfigLoaded = false;
     // Removed unused transition-width constants: HEIGHT_DIFF_TO_BANDWIDTH_FACTOR, MIN_TRANSITION_WIDTH,
     // MAX_TRANSITION_WIDTH, WATER_TRANSITION_MULTIPLIER, OCEAN_TIER_THRESHOLD.
     // They were dead code; actual transition logic used different hardcoded values or was removed.
@@ -127,14 +162,21 @@ public class MacroVoronoiSystem {
                 secondCellZ = nz;
             }
         }
+        // 使用层级高度范围 + tierNoise 驱动的 lerp，替代单一硬编码基准高度。
+        // 范围相邻层级有重叠，配合边界处 lerp 趋近极值，消除 Tier 边界的悬崖/断层。
+        // Lerp within tier height ranges (driven by tierNoise) instead of single hardcoded values.
+        // Adjacent-tier range overlap + boundary-approaching lerp eliminates cliff/fault artifacts.
+        double primaryBaseHeight = this.getTierBaseHeightLerped(primaryTier, nearestCellX, nearestCellZ);
         double blendWeight = 1.0;
         int transitionWidth = 800;
         int secondTier = primaryTier;
+        double secondBaseHeight = primaryBaseHeight;
         if (secondCellX != -1) {
             secondTier = this.getAdjustedElevationTier(secondCellX, secondCellZ);
+            secondBaseHeight = this.getTierBaseHeightLerped(secondTier, secondCellX, secondCellZ);
             int tierDiff = Math.abs(primaryTier - secondTier);
-            int primaryBase = MacroVoronoiSystem.getBaseHeightForTier(primaryTier);
-            int secondBase = MacroVoronoiSystem.getBaseHeightForTier(secondTier);
+            int primaryBase = (int) primaryBaseHeight;
+            int secondBase = (int) secondBaseHeight;
             int actualHeightDiff = Math.abs(primaryBase - secondBase);
             int calculatedWidth = (int)((double)actualHeightDiff * 10.0);
             // Let transitionWidth be naturally determined by height difference,
@@ -159,8 +201,6 @@ public class MacroVoronoiSystem {
             double edge1 = 0.5 + halfBand;
             blendWeight = 1.0 - SeedDeriver.smoothstep(edge0, edge1, distRatio);
         }
-        double primaryBaseHeight = MacroVoronoiSystem.getBaseHeightForTier(primaryTier);
-        double secondBaseHeight = MacroVoronoiSystem.getBaseHeightForTier(secondTier);
         double blendedBaseHeight = primaryBaseHeight * blendWeight + secondBaseHeight * (1.0 - blendWeight);
         MacroRegionInfo.TectonicType tectonic = this.determineTectonicType(nearestCellX, nearestCellZ, primaryTier);
         MacroRegionInfo.ClimateZone climate = this.determineClimateZone(nearestCellX, nearestCellZ);
@@ -258,6 +298,154 @@ public class MacroVoronoiSystem {
             return ELEVATION_BASE_HEIGHTS[5];
         }
         return ELEVATION_BASE_HEIGHTS[tier];
+    }
+
+    /**
+     * 返回层级的最低基准高度（范围下限）。
+     * Returns the minimum base height for the tier (range lower bound).
+     */
+    public static int getTierMinHeight(int tier) {
+        if (tier < 0) {
+            return TIER_MIN_HEIGHTS[0];
+        }
+        if (tier > 5) {
+            return TIER_MIN_HEIGHTS[5];
+        }
+        return TIER_MIN_HEIGHTS[tier];
+    }
+
+    /**
+     * 返回层级的最高基准高度（范围上限）。
+     * Returns the maximum base height for the tier (range upper bound).
+     */
+    public static int getTierMaxHeight(int tier) {
+        if (tier < 0) {
+            return TIER_MAX_HEIGHTS[0];
+        }
+        if (tier > 5) {
+            return TIER_MAX_HEIGHTS[5];
+        }
+        return TIER_MAX_HEIGHTS[tier];
+    }
+
+    /**
+     * 在层级高度范围 [minHeight, maxHeight] 内，用已有 tierNoise 连续噪声场驱动的
+     * 局部分数做 lerp，替代单一硬编码基准高度。局部分数在层级内归一化到 [0,1]，
+     * 边界处趋近极值；配合相邻层级范围的重叠区实现 Tier 边界的连续过渡，消除悬崖/断层。
+     * 不引入新噪声场（复用驱动层级分配的同一 tierNoise）。
+     * <p>
+     * Lerp within the tier height range [min, max] driven by the existing tierNoise
+     * continuous field, replacing the single hardcoded base value. The local fraction
+     * is normalized within the tier to [0,1], approaching extremes at tier boundaries;
+     * combined with adjacent-tier range overlap this yields continuous transitions
+     * across Tier boundaries, eliminating cliffs. No new noise field is introduced
+     * (reuses the same tierNoise that drives tier assignment).
+     */
+    private double getTierBaseHeightLerped(int tier, int cellX, int cellZ) {
+        double minHeight = MacroVoronoiSystem.getTierMinHeight(tier);
+        double maxHeight = MacroVoronoiSystem.getTierMaxHeight(tier);
+        // 复用驱动层级分配的同一连续噪声场，确保空间连续性且不引入新噪声场。
+        // Reuse the same continuous noise field that drives tier assignment for spatial coherence.
+        double noiseValue = this.tierNoise.getValue((double)cellX * 0.05, 0.0, (double)cellZ * 0.05);
+        // 层级在噪声空间的带宽为 1/3（见 getRawElevationTier 的 tier = (int)((n+1)*3) 映射）；
+        // 计算层级内的局部分数：层级下边界处→0，上边界处→1，使 lerp 输出在边界处趋近
+        // 该层级的极值，落入与相邻层级的重叠区。
+        // Tier band width in noise space is 1/3 (see getRawElevationTier mapping); compute the
+        // local fraction within the tier: 0 at the lower boundary, 1 at the upper boundary, so the
+        // lerp output approaches the tier's extreme at boundaries and lands in the overlap region
+        // with the adjacent tier.
+        double localFraction = (noiseValue + 1.0) * 3.0 - (double)tier;
+        if (localFraction < 0.0) {
+            localFraction = 0.0;
+        } else if (localFraction > 1.0) {
+            localFraction = 1.0;
+        }
+        return minHeight + (maxHeight - minHeight) * localFraction;
+    }
+
+    /**
+     * 从 JSON 配置文件加载层级高度范围（可选覆盖常量默认值）。
+     * 应在 mod 启动时（onCommonSetup）调用一次；若文件不存在则创建默认配置。
+     * 地形生成仅读取静态数组，此方法不在生成热路径中调用，保持生成纯函数。
+     * <p>
+     * Load tier height ranges from a JSON config file (optional override of constant defaults).
+     * Should be called once at mod startup (onCommonSetup); creates a default file if absent.
+     * Terrain generation only reads the static arrays — this method is NOT on the gen hot path,
+     * keeping generation a pure function.
+     * <p>
+     * JSON 格式 / JSON format:
+     * <pre>{@code
+     * { "tier_heights": [
+     *   { "tier": 0, "min": -120, "max": -40 },
+     *   ...
+     *   { "tier": 5, "min": 200, "max": 380 } ] }
+     * }</pre>
+     */
+    public static synchronized void loadTierHeightConfig() {
+        if (MacroVoronoiSystem.tierHeightConfigLoaded) {
+            return;
+        }
+        Path configPath = Paths.get(TIER_HEIGHT_CONFIG_FILE, new String[0]);
+        try {
+            if (!Files.exists(configPath, new LinkOption[0])) {
+                MacroVoronoiSystem.createDefaultTierHeightConfig(configPath);
+            }
+            String json = Files.readString(configPath);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            JsonArray arr = root.getAsJsonArray("tier_heights");
+            if (arr == null) {
+                LOGGER.warn("[World Scape] tier_heights.json missing 'tier_heights' array; using constant defaults");
+                MacroVoronoiSystem.tierHeightConfigLoaded = true;
+                return;
+            }
+            for (JsonElement el : arr) {
+                JsonObject entry = el.getAsJsonObject();
+                int tier = entry.get("tier").getAsInt();
+                int min = entry.get("min").getAsInt();
+                int max = entry.get("max").getAsInt();
+                if (tier < 0 || tier > 5) {
+                    LOGGER.warn("[World Scape] tier_heights.json: ignoring out-of-range tier {}", (Object)tier);
+                    continue;
+                }
+                if (max <= min) {
+                    LOGGER.warn("[World Scape] tier_heights.json: tier {} max ({}) <= min ({}); skipping", new Object[]{tier, max, min});
+                    continue;
+                }
+                TIER_MIN_HEIGHTS[tier] = min;
+                TIER_MAX_HEIGHTS[tier] = max;
+            }
+            LOGGER.info("[World Scape] Loaded tier height ranges from {}", (Object)configPath);
+        } catch (IOException e) {
+            LOGGER.warn("[World Scape] Failed to load tier height config ({}): {}; using constant defaults", new Object[]{configPath, e.getMessage()});
+        } catch (Exception e) {
+            LOGGER.warn("[World Scape] Malformed tier height config ({}): {}; using constant defaults", new Object[]{configPath, e.getMessage()});
+        }
+        MacroVoronoiSystem.tierHeightConfigLoaded = true;
+    }
+
+    /**
+     * 创建默认的层级高度范围 JSON 配置文件（基于 WorldScapeConstants 常量）。
+     * Create the default tier height range JSON config file (based on WorldScapeConstants).
+     */
+    private static void createDefaultTierHeightConfig(Path configPath) throws IOException {
+        Files.createDirectories(configPath.getParent());
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n");
+        sb.append("  \"_comment\": \"Tier base-height ranges [min,max]. Adjacent tiers MUST overlap for cliff-free transitions. / 层级基准高度范围 [min,max]，相邻层级必须重叠以消除悬崖。\",\n");
+        sb.append("  \"tier_heights\": [\n");
+        for (int tier = 0; tier <= 5; ++tier) {
+            // 此时数组尚未被 JSON 覆盖，持有 WorldScapeConstants 常量默认值。
+            // Arrays still hold WorldScapeConstants defaults (no JSON override applied yet).
+            sb.append("    { \"tier\": ").append(tier)
+              .append(", \"min\": ").append(TIER_MIN_HEIGHTS[tier])
+              .append(", \"max\": ").append(TIER_MAX_HEIGHTS[tier])
+              .append(" }");
+            if (tier < 5) sb.append(",");
+            sb.append("\n");
+        }
+        sb.append("  ]\n}\n");
+        Files.writeString(configPath, sb.toString(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        LOGGER.info("[World Scape] Created default tier height config at {}", (Object)configPath);
     }
 
     public static double getTierMinimumHeight(int tier) {

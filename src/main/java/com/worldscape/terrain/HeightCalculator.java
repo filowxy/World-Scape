@@ -15,11 +15,12 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
- * Calculates terrain height at a given (x, z) coordinate by combining
- * micro-height from nearby control points, macro-region base height,
- * and elevation tier adjustments. Supports river detection and blends
- * heights smoothly at macro-region boundaries using Voronoi-derived weights.
+ * @deprecated Dead in production. The real generation path is RegionController → TerrainCalculator.
+ * This class is retained for reference only; do not use it for new features.
+ * 生产中已废弃。实际生成路径为 RegionController → TerrainCalculator。
+ * 此类仅保留作参考，新功能请勿使用。
  */
+@Deprecated
 public class HeightCalculator {
     private final int seaLevel;
     private final ControlPointManager controlPointManager;
@@ -102,7 +103,7 @@ public class HeightCalculator {
         double totalHeight = 0.0;
         for (TerrainControlPoint point : points) {
             double distance = point.squaredDistanceTo(x, z);
-            double effectiveRadius = point.getRadius();
+            double effectiveRadius = point.influenceRadius;
             double sqrtDistance = Math.sqrt(distance);
             double normalizedDistance = Math.min(sqrtDistance / effectiveRadius, 1.0);
             double weight = (1.0 - normalizedDistance) * (1.0 - normalizedDistance);
@@ -114,7 +115,7 @@ public class HeightCalculator {
             // calculateHeight(context) always returns 0.0, causing microHeight to miss the
             // terrain-type base height, inconsistent with RegionController.calculateBlend's
             // elevationOffset + baseHeightForType.
-            double pointHeight = point.getElevationOffset() + this.getBaseHeightForTerrainType(point.getTerrainType());
+            double pointHeight = point.elevationOffset + this.getBaseHeightForTerrainType(point.terrainType);
             totalWeight += weight;
             totalHeight += weight * pointHeight;
         }
@@ -154,15 +155,9 @@ public class HeightCalculator {
 
     public static class HeightCache {
         public final List<TerrainControlPoint> controlPoints;
-        public final double n1;
-        public final double n2;
-        public final double n3;
 
-        public HeightCache(List<TerrainControlPoint> controlPoints, double n1, double n2, double n3) {
+        public HeightCache(List<TerrainControlPoint> controlPoints) {
             this.controlPoints = controlPoints;
-            this.n1 = n1;
-            this.n2 = n2;
-            this.n3 = n3;
         }
     }
 }

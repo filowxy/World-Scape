@@ -1,5 +1,6 @@
 package com.worldscape.util;
 
+import com.worldscape.terrain.Climate;
 import com.worldscape.terrain.WorldScapeConstants;
 import java.util.Objects;
 
@@ -14,6 +15,22 @@ public class ClimateUtils {
 
     public static double calculateClimateDistance(double temp1, double humidity1, double temp2, double humidity2) {
         return ClimateUtils.calculateClimateDistance(temp1, humidity1, 0.0, 0.0, temp2, humidity2, 0.0, 0.0);
+    }
+
+    /**
+     * Convert a JSON-loaded Climate into a ClimateProfile.
+     * Falls back to the hardcoded climate profile for the terrain type if the JSON climate is null.
+     * 将 JSON 加载的 Climate 转换为 ClimateProfile。若 JSON climate 为 null，则回退到该地形类型的硬编码气候档案。
+     *
+     * @param climate     the climate from JSON, may be null / 来自 JSON 的 climate，可能为 null
+     * @param terrainType the terrain type name for fallback / 用于回退的地形类型名称
+     * @return a ClimateProfile / 气候档案
+     */
+    public static ClimateProfile fromFunctionDefClimate(Climate climate, String terrainType) {
+        if (climate != null) {
+            return new ClimateProfile(climate.temperature, climate.humidity, climate.seasonality, climate.continentality);
+        }
+        return ClimateUtils.getTerrainClimateProfile(terrainType);
     }
 
     public static ClimateProfile getTerrainClimateProfile(String terrainType) {
@@ -108,46 +125,6 @@ public class ClimateUtils {
         return new ClimateProfile(profile1.getTemperature() * invT + profile2.getTemperature() * t, profile1.getHumidity() * invT + profile2.getHumidity() * t, profile1.getSeasonality() * invT + profile2.getSeasonality() * t, profile1.getContinentality() * invT + profile2.getContinentality() * t);
     }
 
-    public static class ClimateProfile {
-        private final double temperature;
-        private final double humidity;
-        private final double seasonality;
-        private final double continentality;
-
-        public ClimateProfile(double temperature, double humidity, double seasonality, double continentality) {
-            this.temperature = temperature;
-            this.humidity = humidity;
-            this.seasonality = seasonality;
-            this.continentality = continentality;
-        }
-
-        public ClimateProfile(double temperature, double humidity) {
-            this(temperature, humidity, WorldScapeConstants.DEFAULT_SEASONALITY, WorldScapeConstants.DEFAULT_CONTINENTALITY);
-        }
-
-        public double getTemperature() {
-            return this.temperature;
-        }
-
-        public double getHumidity() {
-            return this.humidity;
-        }
-
-        public double getSeasonality() {
-            return this.seasonality;
-        }
-
-        public double getContinentality() {
-            return this.continentality;
-        }
-
-        public double distanceTo(ClimateProfile other) {
-            return ClimateUtils.calculateClimateDistance(this.temperature, this.humidity, this.seasonality, this.continentality, other.temperature, other.humidity, other.seasonality, other.continentality);
-        }
-
-        public String toString() {
-            return String.format("ClimateProfile[temp=%.2f, humid=%.2f, season=%.2f, cont=%.2f]", this.temperature, this.humidity, this.seasonality, this.continentality);
-        }
-    }
+    // ClimateProfile migrated to Kotlin — see src/main/kotlin/com/worldscape/util/ClimateProfile.kt
 }
 

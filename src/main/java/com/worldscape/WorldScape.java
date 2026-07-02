@@ -4,6 +4,7 @@ import com.worldscape.config.ConfigManager;
 import com.worldscape.debug.TerrainDebugSystem;
 import com.worldscape.export.WorldSaveDataExporter;
 import com.worldscape.generator.LandscapeChunkGenerator;
+import com.worldscape.terrain.MacroVoronoiSystem;
 import com.worldscape.terrain.TerrainTypeReloadListener;
 import com.worldscape.voronoi.WorldScapeVoronoiSystem;
 import net.minecraft.client.Minecraft;
@@ -54,6 +55,17 @@ public class WorldScape {
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {
+        // Load tunable tier height ranges from JSON config (one-time, on main thread).
+        // Constants in WorldScapeConstants serve as fallback if the file is absent/malformed.
+        // 一次性从 JSON 配置加载可调层级高度范围（主线程执行）；
+        // 文件缺失或格式错误时以 WorldScapeConstants 中的常量为 fallback。
+        event.enqueueWork(MacroVoronoiSystem::loadTierHeightConfig);
+        // Load default terrain function definitions early so tests and offline tools can
+        // resolve function signatures before the server starts. Full datapack/config overrides
+        // are still loaded later via loadAll() in onServerStarting().
+        // 提前加载默认地形函数定义，使测试和离线工具在服务器启动前即可解析函数签名。
+        // 完整的数据包/配置覆盖仍由 onServerStarting() 中的 loadAll() 稍后加载。
+        TerrainTypeReloadListener.loadDefaults();
         LOGGER.info("[World Scape] Common setup complete");
     }
 

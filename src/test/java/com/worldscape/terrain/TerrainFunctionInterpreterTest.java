@@ -47,28 +47,28 @@ class TerrainFunctionInterpreterTest {
 
     // ─── Helper: Construct the HIGH_MOUNTAINS FunctionDef ─────────────────
 
-    private static TerrainFunctionSchema.FunctionDef createHighMountainsDef() {
+    private static FunctionDef createHighMountainsDef() {
         Map<String, Object> fbmParams = new HashMap<>();
         fbmParams.put("octaves", 6);
         fbmParams.put("gain", 0.5);
-        TerrainFunctionSchema.NoisePrimitive hm_fbm = new TerrainFunctionSchema.NoisePrimitive(
+        NoisePrimitive hm_fbm = new NoisePrimitive(
             "hm_fbm", "fbm", fbmParams, 200.0);
 
         Map<String, Object> domainParams = new HashMap<>();
         domainParams.put("warp_strength", 0.15);
-        TerrainFunctionSchema.NoisePrimitive hm_domain = new TerrainFunctionSchema.NoisePrimitive(
+        NoisePrimitive hm_domain = new NoisePrimitive(
             "hm_domain", "domain_rotated", domainParams, 15.0);
 
         Map<String, Object> turbParams = new HashMap<>();
         turbParams.put("strength", 0.6);
-        TerrainFunctionSchema.NoisePrimitive hm_turb = new TerrainFunctionSchema.NoisePrimitive(
+        NoisePrimitive hm_turb = new NoisePrimitive(
             "hm_turb", "turbulence", turbParams, 20.0);
 
-        List<TerrainFunctionSchema.NoisePrimitive> functions = List.of(hm_fbm, hm_domain, hm_turb);
-        TerrainFunctionSchema.Combinator combinator = new TerrainFunctionSchema.Combinator(
+        List<NoisePrimitive> functions = List.of(hm_fbm, hm_domain, hm_turb);
+        Combinator combinator = new Combinator(
             "add", List.of("hm_fbm", "hm_domain", "hm_turb"), null, null, 0.0, null, 0.0);
 
-        return new TerrainFunctionSchema.FunctionDef(
+        return new FunctionDef(
             "worldscape:high_mountains", 260, 512, new int[]{5}, 250.0,
             null, functions, combinator, "base + combined", null
         );
@@ -76,7 +76,7 @@ class TerrainFunctionInterpreterTest {
 
     // ─── Helper: Construct the RIDGE FunctionDef ──────────────────────────
 
-    private static TerrainFunctionSchema.FunctionDef createRidgeDef() {
+    private static FunctionDef createRidgeDef() {
         Map<String, Object> sineParams = new HashMap<>();
         sineParams.put("freq_x", 0.007);
         sineParams.put("freq_z", 0.004);
@@ -86,36 +86,36 @@ class TerrainFunctionInterpreterTest {
         sineParams.put("secondary_freq_z", 0.018);
         sineParams.put("gradient_sensitivity", 0.6);
         sineParams.put("gradient_half_factor", 0.5);
-        TerrainFunctionSchema.NoisePrimitive r_sine = new TerrainFunctionSchema.NoisePrimitive(
+        NoisePrimitive r_sine = new NoisePrimitive(
             "r_sine", "gradient_constrained_sine", sineParams, 1.0);
 
         Map<String, Object> fbmParams = new HashMap<>();
         fbmParams.put("octaves", 6);
         fbmParams.put("gain", 0.5);
-        TerrainFunctionSchema.NoisePrimitive r_fbm = new TerrainFunctionSchema.NoisePrimitive(
+        NoisePrimitive r_fbm = new NoisePrimitive(
             "r_fbm", "fbm", fbmParams, 150.0);
 
         Map<String, Object> turbParams = new HashMap<>();
         turbParams.put("strength", 0.6);
-        TerrainFunctionSchema.NoisePrimitive r_turb = new TerrainFunctionSchema.NoisePrimitive(
+        NoisePrimitive r_turb = new NoisePrimitive(
             "r_turb", "turbulence", turbParams, 15.0);
 
         Map<String, Object> domainParams = new HashMap<>();
         domainParams.put("warp_strength", 0.15);
-        TerrainFunctionSchema.NoisePrimitive r_domain = new TerrainFunctionSchema.NoisePrimitive(
+        NoisePrimitive r_domain = new NoisePrimitive(
             "r_domain", "domain_rotated", domainParams, 10.0);
 
-        List<TerrainFunctionSchema.NoisePrimitive> functions = List.of(r_sine, r_fbm, r_turb, r_domain);
-        TerrainFunctionSchema.Combinator combinator = new TerrainFunctionSchema.Combinator(
+        List<NoisePrimitive> functions = List.of(r_sine, r_fbm, r_turb, r_domain);
+        Combinator combinator = new Combinator(
             "add", List.of("r_sine", "r_fbm", "r_turb", "r_domain"), null, null, 0.0, null, 0.0);
 
         Map<String, Object> ctParams = new HashMap<>();
         ctParams.put("along", 1.5);
         ctParams.put("across", 0.7);
-        TerrainFunctionSchema.CoordinateTransform ct = new TerrainFunctionSchema.CoordinateTransform(
+        CoordinateTransform ct = new CoordinateTransform(
             "energy_stretched", ctParams);
 
-        return new TerrainFunctionSchema.FunctionDef(
+        return new FunctionDef(
             "worldscape:ridge", 140, 275, new int[]{5}, Double.MAX_VALUE,
             ct, functions, combinator, "base + combined", null
         );
@@ -125,7 +125,7 @@ class TerrainFunctionInterpreterTest {
 
     @Test
     void testHighMountainsDeterministic() {
-        TerrainFunctionSchema.FunctionDef def = createHighMountainsDef();
+        FunctionDef def = createHighMountainsDef();
         TerrainFieldSampler fs = TestUtils.createSampler(TestUtils.SEED_A);
         RegionController.TerrainBlendResult blend = createBlend(300.0, 4,
             TerrainType.HIGH_MOUNTAINS, 0.9);
@@ -139,7 +139,7 @@ class TerrainFunctionInterpreterTest {
     void testHighMountainsCrossSeed() {
         // Use a low blendedHeight to avoid the heightCap (250.0) masking seed differences.
         // If blendedHeight is too high, both seeded results will be capped at 250.0.
-        TerrainFunctionSchema.FunctionDef def = createHighMountainsDef();
+        FunctionDef def = createHighMountainsDef();
         TerrainFieldSampler fsA = TestUtils.createSampler(TestUtils.SEED_A);
         TerrainFieldSampler fsB = TestUtils.createSampler(TestUtils.SEED_B);
         RegionController.TerrainBlendResult blendA = createBlend(0.0, 4,
@@ -156,7 +156,7 @@ class TerrainFunctionInterpreterTest {
 
     @Test
     void testRidgeDeterministic() {
-        TerrainFunctionSchema.FunctionDef def = createRidgeDef();
+        FunctionDef def = createRidgeDef();
         TerrainFieldSampler fs = TestUtils.createSampler(TestUtils.SEED_A);
         RegionController.TerrainBlendResult blend = createBlend(200.0, 4,
             TerrainType.RIDGE, 0.9);
@@ -168,7 +168,7 @@ class TerrainFunctionInterpreterTest {
 
     @Test
     void testRidgeCrossSeed() {
-        TerrainFunctionSchema.FunctionDef def = createRidgeDef();
+        FunctionDef def = createRidgeDef();
         TerrainFieldSampler fsA = TestUtils.createSampler(TestUtils.SEED_A);
         TerrainFieldSampler fsB = TestUtils.createSampler(TestUtils.SEED_B);
         RegionController.TerrainBlendResult blendA = createBlend(200.0, 4,
@@ -200,9 +200,9 @@ class TerrainFunctionInterpreterTest {
             (x, z, params, fs, blend) -> 42.0);
 
         // Create a FunctionDef with a NoisePrimitive using the custom primitive
-        TerrainFunctionSchema.NoisePrimitive np = new TerrainFunctionSchema.NoisePrimitive(
+        NoisePrimitive np = new NoisePrimitive(
             "np1", "test_neg", new HashMap<>(), 2.0);
-        TerrainFunctionSchema.FunctionDef def = new TerrainFunctionSchema.FunctionDef(
+        FunctionDef def = new FunctionDef(
             "test:custom", -64, 512, null, Double.MAX_VALUE,
             null, List.of(np), null, "combined", null);
 
@@ -237,9 +237,9 @@ class TerrainFunctionInterpreterTest {
         Map<String, Object> fbmParams = new HashMap<>();
         fbmParams.put("octaves", 4);
         fbmParams.put("gain", 0.5);
-        TerrainFunctionSchema.NoisePrimitive np = new TerrainFunctionSchema.NoisePrimitive(
+        NoisePrimitive np = new NoisePrimitive(
             "builtin_test", "fbm", fbmParams, 1.0);
-        TerrainFunctionSchema.FunctionDef def = new TerrainFunctionSchema.FunctionDef(
+        FunctionDef def = new FunctionDef(
             "test:builtin", -64, 512, null, Double.MAX_VALUE,
             null, List.of(np), null, "combined", null);
 

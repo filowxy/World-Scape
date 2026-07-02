@@ -1,6 +1,6 @@
 package com.worldscape.terrain;
 
-import com.worldscape.terrain.TerrainFunctionSchema;
+import com.worldscape.WorldScape;
 import com.worldscape.terrain.TerrainTypeRegistry;
 import net.minecraft.resources.ResourceLocation;
 
@@ -54,7 +54,7 @@ public final class TerrainType {
     private final int minHeight;
     private final int maxHeight;
     private int[] tierWhitelist;
-    private TerrainFunctionSchema.FunctionDef functionDef;
+    private FunctionDef functionDef;
 
     /**
      * Private constructor for terrain type instances.
@@ -90,6 +90,18 @@ public final class TerrainType {
      */
     public String getId() {
         return this.id;
+    }
+
+    /**
+     * Returns the fully-qualified identifier string including the mod namespace.
+     * This is the format expected by ResourceLocation.parse() and used in persistence.
+     * 返回包含模组命名空间的完整限定标识符字符串。
+     * 这是 ResourceLocation.parse() 期望的格式，用于持久化存储。
+     *
+     * @return the full id (e.g. "worldscape:high_mountains") / 完整 id
+     */
+    public String getFullId() {
+        return WorldScape.MOD_ID + ":" + this.id;
     }
 
     /**
@@ -269,7 +281,7 @@ public final class TerrainType {
      *
      * @return the FunctionDef, or null / FunctionDef 或 null
      */
-    public TerrainFunctionSchema.FunctionDef getFunctionDef() {
+    public FunctionDef getFunctionDef() {
         return this.functionDef;
     }
 
@@ -279,7 +291,7 @@ public final class TerrainType {
      *
      * @param functionDef the FunctionDef to associate / 要关联的 FunctionDef
      */
-    public void setFunctionDef(TerrainFunctionSchema.FunctionDef functionDef) {
+    public void setFunctionDef(FunctionDef functionDef) {
         this.functionDef = functionDef;
     }
 

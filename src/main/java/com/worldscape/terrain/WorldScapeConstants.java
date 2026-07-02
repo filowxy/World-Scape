@@ -33,6 +33,30 @@ public final class WorldScapeConstants {
     public static final double OCEAN_TIER1_MACRO_DAMPING = 0.5;
     public static final double TIER_BASE_HEIGHT = 8.0;
     public static final double TIER_ADJUSTMENT_FACTOR = 0.15;
+    // @AESTHETIC: Tier base-height RANGES (replacing single hardcoded point values).
+    // Each tier now spans [min, max] instead of a single discrete height. Adjacent
+    // tiers overlap (e.g. Tier3 [20,110] ∩ Tier4 [90,240] = [90,110]), so boundary
+    // transitions can interpolate continuously within the overlap region instead
+    // of jumping between two fixed points — eliminating cliff/fault artifacts.
+    // Midpoints approximate the legacy single values to preserve overall terrain shape.
+    // See MacroVoronoiSystem#getTierBaseHeightLerped for the noise-driven lerp.
+    //
+    // 层级基准高度【范围】（替代单一硬编码点值）。每个层级现在跨度为 [min, max] 而非
+    // 单一离散高度。相邻层级范围有重叠（如 Tier3 [20,110] ∩ Tier4 [90,240] = [90,110]），
+    // 边界过渡可在重叠区内连续插值，而非在两个固定点之间跳变 — 消除悬崖/断层伪影。
+    // 中点近似旧的单值，以保留整体地形轮廓。插值驱动见 MacroVoronoiSystem#getTierBaseHeightLerped。
+    public static final int TIER_0_MIN_HEIGHT = -120;
+    public static final int TIER_0_MAX_HEIGHT = -40;   // deep ocean / 深海
+    public static final int TIER_1_MIN_HEIGHT = -70;
+    public static final int TIER_1_MAX_HEIGHT = 30;   // ocean / 海洋
+    public static final int TIER_2_MIN_HEIGHT = 10;
+    public static final int TIER_2_MAX_HEIGHT = 90;   // coast/lowland / 海岸/低地
+    public static final int TIER_3_MIN_HEIGHT = 20;
+    public static final int TIER_3_MAX_HEIGHT = 110;  // lowland / 低地
+    public static final int TIER_4_MIN_HEIGHT = 90;
+    public static final int TIER_4_MAX_HEIGHT = 240;  // hills/plateau / 丘陵/高原
+    public static final int TIER_5_MIN_HEIGHT = 200;
+    public static final int TIER_5_MAX_HEIGHT = 380;  // mountains / 山地（覆盖至高度带上限）
     public static final int FBM_OCTAVES = 6;
     public static final double FBM_LACUNARITY = 2.0;
     public static final double FBM_GAIN = 0.5;

@@ -31,9 +31,9 @@ import java.nio.file.Path;
  *   <li>Config directory: defined in ConfigManager (highest priority / 最高优先级)</li>
  * </ol>
  * <p>
- * Each terrain type entry is parsed into a {@link TerrainFunctionSchema.FunctionDef}
+ * Each terrain type entry is parsed into a {@link FunctionDef}
  * and associated with the corresponding {@link TerrainType} via {@link TerrainType#setFunctionDef}.
- * 每个地形类型条目被解析为 {@link TerrainFunctionSchema.FunctionDef}，
+ * 每个地形类型条目被解析为 {@link FunctionDef}，
  * 并通过 {@link TerrainType#setFunctionDef} 关联到对应的 {@link TerrainType}。
  */
 public final class TerrainTypeReloadListener {
@@ -153,10 +153,10 @@ public final class TerrainTypeReloadListener {
      * 从配置目录加载地形类型 JSON 定义。
      * <p>
      * Iterates over all {@code *.json} files in the given directory,
-     * parses each as a {@link TerrainFunctionSchema.FunctionDef},
+     * parses each as a {@link FunctionDef},
      * and overrides the corresponding TerrainType's function definition.
      * 遍历给定目录中的所有 {@code *.json} 文件，
-     * 将每个文件解析为 {@link TerrainFunctionSchema.FunctionDef}，
+     * 将每个文件解析为 {@link FunctionDef}，
      * 并覆盖对应 TerrainType 的函数定义。
      * <p>
      * Files in this directory have the highest priority and will
@@ -284,7 +284,7 @@ public final class TerrainTypeReloadListener {
      */
     private static boolean loadAndApplyFunctionDef(JsonObject typeObj, String typeId,
                                                     String sourceName, boolean isOverride) {
-        TerrainFunctionSchema.FunctionDef functionDef =
+        FunctionDef functionDef =
                 TerrainFunctionSchema.loadFromJsonObject(typeObj, typeId);
 
         if (functionDef == null) {
@@ -301,7 +301,7 @@ public final class TerrainTypeReloadListener {
             return false;
         }
 
-        TerrainFunctionSchema.FunctionDef existingDef = terrainType.getFunctionDef();
+        FunctionDef existingDef = terrainType.getFunctionDef();
 
         if (isOverride && existingDef != null) {
             WorldScape.LOGGER.warn("[World Scape] Overriding terrain type: {} from config", typeId);

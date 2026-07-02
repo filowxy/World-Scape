@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Interpreter engine for terrain type function definitions.
  * <p>
- * Evaluates {@link TerrainFunctionSchema.FunctionDef} against
+ * Evaluates {@link FunctionDef} against
  * {@link TerrainFieldSampler} noise functions to produce a terrain height value.
  * <p>
  * Supports coordinate transforms, multiple noise primitives, combinators,
@@ -116,7 +116,7 @@ public final class TerrainFunctionInterpreter {
      * @param blend  the terrain blend result from RegionController
      * @return the computed terrain height
      */
-    public static double evaluate(TerrainFunctionSchema.FunctionDef def, int worldX, int worldZ,
+    public static double evaluate(FunctionDef def, int worldX, int worldZ,
                                    TerrainFieldSampler fs, RegionController.TerrainBlendResult blend) {
         if (def == null || fs == null || blend == null) {
             WorldScape.LOGGER.warn("[World Scape] evaluate() called with null parameters: def={}, fs={}, blend={}",
@@ -132,7 +132,7 @@ public final class TerrainFunctionInterpreter {
         Map<String, Double> idToOutput = new HashMap<>();
         double lastOutput = 0.0;
 
-        for (TerrainFunctionSchema.NoisePrimitive primitive : def.functions) {
+        for (NoisePrimitive primitive : def.functions) {
             double value = evaluatePrimitive(primitive, (int)Math.round(tx), (int)Math.round(tz),
                     tx, tz, fs, blend, idToOutput);
             if (primitive.id != null) {
@@ -171,7 +171,7 @@ public final class TerrainFunctionInterpreter {
      * @param fs     terrain field sampler
      * @return double[2] {tx, tz}
      */
-    private static double[] applyCoordinateTransform(TerrainFunctionSchema.CoordinateTransform ct,
+    private static double[] applyCoordinateTransform(CoordinateTransform ct,
                                                       int worldX, int worldZ, TerrainFieldSampler fs) {
         if (ct == null || ct.type == null || CT_IDENTITY.equals(ct.type)) {
             return new double[]{worldX, worldZ};
@@ -207,7 +207,7 @@ public final class TerrainFunctionInterpreter {
      * @param idToOutput map of already-evaluated primitive ids to their outputs
      * @return the primitive's output value
      */
-    private static double evaluatePrimitive(TerrainFunctionSchema.NoisePrimitive primitive,
+    private static double evaluatePrimitive(NoisePrimitive primitive,
                                              int ix, int iz, double tx, double tz,
                                              TerrainFieldSampler fs,
                                              RegionController.TerrainBlendResult blend,
@@ -333,13 +333,13 @@ public final class TerrainFunctionInterpreter {
                 if (blend != null && blend.contributingPoints != null) {
                     double bestDistSq = Double.MAX_VALUE;
                     for (RegionController.PointWeight pw : blend.contributingPoints) {
-                        double dx = tx - pw.point.getX();
-                        double dz = tz - pw.point.getZ();
+                        double dx = tx - pw.point.x;
+                        double dz = tz - pw.point.z;
                         double distSq = dx * dx + dz * dz;
                         if (distSq < bestDistSq) {
                             bestDistSq = distSq;
-                            centerX = pw.point.getX();
-                            centerZ = pw.point.getZ();
+                            centerX = pw.point.x;
+                            centerZ = pw.point.z;
                         }
                     }
                 }
@@ -406,7 +406,7 @@ public final class TerrainFunctionInterpreter {
      * @param lastOutput   the output of the last primitive (fallback)
      * @return the combined value
      */
-    private static double applyCombinator(TerrainFunctionSchema.Combinator combinator,
+    private static double applyCombinator(Combinator combinator,
                                            Map<String, Double> idToOutput, double lastOutput) {
         if (combinator == null || combinator.type == null) {
             return lastOutput;

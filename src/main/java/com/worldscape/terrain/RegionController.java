@@ -8,6 +8,7 @@ import com.worldscape.terrain.NoiseSet;
 import com.worldscape.terrain.TerrainControlPoint;
 import com.worldscape.terrain.TerrainType;
 import com.worldscape.util.ClimateUtils;
+import com.worldscape.util.ClimateProfile;
 import com.worldscape.util.WorldScapeUtils;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -122,7 +123,7 @@ public class RegionController {
         for (TerrainControlPoint point : points) {
             double weight = point.calculateInfluence(x, z);
             if (!(weight > 0.0)) continue;
-            double pointHeight = point.getElevationOffset() + this.getBaseHeightForTerrainType(point.getTerrainType());
+            double pointHeight = point.elevationOffset + this.getBaseHeightForTerrainType(point.terrainType);
             weightedPoints.add(new PointWeight(point, weight, pointHeight));
             weightedHeightSum += weight * pointHeight;
             totalWeight += weight;
@@ -161,7 +162,7 @@ public class RegionController {
         // 将 finalHeight 限制在世界边界内以防止极端地形
         finalHeight = Math.max(WorldScapeConstants.MIN_TERRAIN_HEIGHT, Math.min(WorldScapeConstants.TERRAIN_HARD_CLAMP, finalHeight));
         TerrainBlendResult typeResult = this.determineDominantTerrainType(weightedPoints, totalWeight);
-        ClimateUtils.ClimateProfile blendedClimate = this.calculateBlendedClimate(weightedPoints, totalWeight, macroInfo.getElevationTier());
+        ClimateProfile blendedClimate = this.calculateBlendedClimate(weightedPoints, totalWeight, macroInfo.getElevationTier());
         return new TerrainBlendResult(finalHeight, macroInfo, weightedPoints, macroBaseHeight - microHeight, typeResult.dominantType, typeResult.dominantWeight, blendedClimate);
     }
 
@@ -169,36 +170,42 @@ public class RegionController {
         return a + (b - a) * Math.max(0.0, Math.min(1.0, t));
     }
 
-    private ClimateUtils.ClimateProfile calculateBlendedClimate(List<PointWeight> weightedPoints, double totalWeight, int elevationTier) {
+    private ClimateProfile calculateBlendedClimate(List<PointWeight> weightedPoints, double totalWeight, int elevationTier) {
         if (weightedPoints == null || weightedPoints.isEmpty() || totalWeight <= 0.0) {
             return this.getDefaultClimateForTier(elevationTier);
         }
         ArrayList<PointWeight> sorted = new ArrayList<PointWeight>(weightedPoints);
         sorted.sort((a, b) -> Double.compare(b.weight, a.weight));
-        TerrainType primaryType = ((PointWeight)sorted.get((int)0)).point.getTerrainType();
+        TerrainType primaryType = ((PointWeight)sorted.get((int)0)).point.terrainType;
         double primaryNormWeight = ((PointWeight)sorted.get((int)0)).weight / totalWeight;
-        ClimateUtils.ClimateProfile primaryClimate = ClimateUtils.getTerrainClimateProfile(primaryType.name());
+        // Prefer JSON-defined climate; fall back to hardcoded climate profile if absent.
+        // 优先使用 JSON 定义的气候；缺失时回退到硬编码气候档案。
+        ClimateProfile primaryClimate = ClimateUtils.fromFunctionDefClimate(
+                primaryType.getFunctionDef() != null ? primaryType.getFunctionDef().climate : null,
+                primaryType.name());
         if (sorted.size() < 2 || primaryNormWeight >= WorldScapeConstants.CLIMATE_BLEND_THRESHOLD) {
             return this.applyElevationCorrection(primaryClimate, elevationTier);
         }
-        TerrainType secondaryType = ((PointWeight)sorted.get((int)1)).point.getTerrainType();
+        TerrainType secondaryType = ((PointWeight)sorted.get((int)1)).point.terrainType;
         double secondaryNormWeight = ((PointWeight)sorted.get((int)1)).weight / totalWeight;
-        ClimateUtils.ClimateProfile secondaryClimate = ClimateUtils.getTerrainClimateProfile(secondaryType.name());
+        ClimateProfile secondaryClimate = ClimateUtils.fromFunctionDefClimate(
+                secondaryType.getFunctionDef() != null ? secondaryType.getFunctionDef().climate : null,
+                secondaryType.name());
         double blendT = secondaryNormWeight / (primaryNormWeight + secondaryNormWeight);
-        ClimateUtils.ClimateProfile blended = ClimateUtils.blendClimate(primaryClimate, secondaryClimate, blendT);
+        ClimateProfile blended = ClimateUtils.blendClimate(primaryClimate, secondaryClimate, blendT);
         return this.applyElevationCorrection(blended, elevationTier);
     }
 
-    private ClimateUtils.ClimateProfile applyElevationCorrection(ClimateUtils.ClimateProfile profile, int tier) {
+    private ClimateProfile applyElevationCorrection(ClimateProfile profile, int tier) {
         double adjustedTemp = ClimateUtils.adjustTemperatureForElevation(profile.getTemperature(), tier, 0.0);
-        return new ClimateUtils.ClimateProfile(adjustedTemp, profile.getHumidity(), profile.getSeasonality(), profile.getContinentality());
+        return new ClimateProfile(adjustedTemp, profile.getHumidity(), profile.getSeasonality(), profile.getContinentality());
     }
 
-    private ClimateUtils.ClimateProfile getDefaultClimateForTier(int tier) {
+    private ClimateProfile getDefaultClimateForTier(int tier) {
         return switch (tier) {
-            case 0, 1 -> new ClimateUtils.ClimateProfile(WorldScapeConstants.DEEP_OCEAN_TEMP, WorldScapeConstants.DEEP_OCEAN_HUMID, WorldScapeConstants.DEEP_OCEAN_SEASON, WorldScapeConstants.DEEP_OCEAN_CONT);
-            case 2 -> new ClimateUtils.ClimateProfile(WorldScapeConstants.COASTAL_TEMPERATE_TEMP, WorldScapeConstants.COASTAL_TEMPERATE_HUMID, WorldScapeConstants.COASTAL_TEMPERATE_SEASON, WorldScapeConstants.COASTAL_TEMPERATE_CONT);
-            default -> new ClimateUtils.ClimateProfile(WorldScapeConstants.PLAINS_TEMPERATURE, WorldScapeConstants.PLAINS_HUMIDITY, WorldScapeConstants.PLAINS_SEASONALITY, WorldScapeConstants.PLAINS_CONTINENTALITY);
+            case 0, 1 -> new ClimateProfile(WorldScapeConstants.DEEP_OCEAN_TEMP, WorldScapeConstants.DEEP_OCEAN_HUMID, WorldScapeConstants.DEEP_OCEAN_SEASON, WorldScapeConstants.DEEP_OCEAN_CONT);
+            case 2 -> new ClimateProfile(WorldScapeConstants.COASTAL_TEMPERATE_TEMP, WorldScapeConstants.COASTAL_TEMPERATE_HUMID, WorldScapeConstants.COASTAL_TEMPERATE_SEASON, WorldScapeConstants.COASTAL_TEMPERATE_CONT);
+            default -> new ClimateProfile(WorldScapeConstants.PLAINS_TEMPERATURE, WorldScapeConstants.PLAINS_HUMIDITY, WorldScapeConstants.PLAINS_SEASONALITY, WorldScapeConstants.PLAINS_CONTINENTALITY);
         };
     }
 
@@ -220,7 +227,7 @@ public class RegionController {
         java.util.Map<TerrainType, Double> typeWeights = new java.util.HashMap<>();
         for (PointWeight pw : weightedPoints) {
             double normalizedWeight = pw.weight / totalWeight;
-            TerrainType type = pw.point.getTerrainType();
+            TerrainType type = pw.point.terrainType;
             typeWeights.merge(type, normalizedWeight, Double::sum);
         }
         TerrainType maxType = null;
@@ -325,13 +332,13 @@ public class RegionController {
         public final double offsetBlend;
         public final TerrainType dominantType;
         public final double dominantWeight;
-        public final ClimateUtils.ClimateProfile blendedClimate;
+        public final ClimateProfile blendedClimate;
 
         TerrainBlendResult(double blendedHeight, MacroRegionInfo macroInfo, List<PointWeight> contributingPoints, double offsetBlend, TerrainType dominantType, double dominantWeight) {
             this(blendedHeight, macroInfo, contributingPoints, offsetBlend, dominantType, dominantWeight, null);
         }
 
-        TerrainBlendResult(double blendedHeight, MacroRegionInfo macroInfo, List<PointWeight> contributingPoints, double offsetBlend, TerrainType dominantType, double dominantWeight, ClimateUtils.ClimateProfile blendedClimate) {
+        TerrainBlendResult(double blendedHeight, MacroRegionInfo macroInfo, List<PointWeight> contributingPoints, double offsetBlend, TerrainType dominantType, double dominantWeight, ClimateProfile blendedClimate) {
             this.blendedHeight = blendedHeight;
             this.macroInfo = macroInfo;
             this.contributingPoints = contributingPoints;
@@ -341,11 +348,11 @@ public class RegionController {
             this.blendedClimate = blendedClimate != null ? blendedClimate : TerrainBlendResult.getDefaultClimateForTier(macroInfo != null ? macroInfo.getElevationTier() : 3);
         }
 
-        private static ClimateUtils.ClimateProfile getDefaultClimateForTier(int tier) {
+        private static ClimateProfile getDefaultClimateForTier(int tier) {
             return switch (tier) {
-                case 0, 1 -> new ClimateUtils.ClimateProfile(WorldScapeConstants.DEEP_OCEAN_TEMP, WorldScapeConstants.DEEP_OCEAN_HUMID, WorldScapeConstants.DEEP_OCEAN_SEASON, WorldScapeConstants.DEEP_OCEAN_CONT);
-                case 2 -> new ClimateUtils.ClimateProfile(WorldScapeConstants.COASTAL_TEMPERATE_TEMP, WorldScapeConstants.COASTAL_TEMPERATE_HUMID, WorldScapeConstants.COASTAL_TEMPERATE_SEASON, WorldScapeConstants.COASTAL_TEMPERATE_CONT);
-                default -> new ClimateUtils.ClimateProfile(WorldScapeConstants.PLAINS_TEMPERATURE, WorldScapeConstants.PLAINS_HUMIDITY, WorldScapeConstants.PLAINS_SEASONALITY, WorldScapeConstants.PLAINS_CONTINENTALITY);
+                case 0, 1 -> new ClimateProfile(WorldScapeConstants.DEEP_OCEAN_TEMP, WorldScapeConstants.DEEP_OCEAN_HUMID, WorldScapeConstants.DEEP_OCEAN_SEASON, WorldScapeConstants.DEEP_OCEAN_CONT);
+                case 2 -> new ClimateProfile(WorldScapeConstants.COASTAL_TEMPERATE_TEMP, WorldScapeConstants.COASTAL_TEMPERATE_HUMID, WorldScapeConstants.COASTAL_TEMPERATE_SEASON, WorldScapeConstants.COASTAL_TEMPERATE_CONT);
+                default -> new ClimateProfile(WorldScapeConstants.PLAINS_TEMPERATURE, WorldScapeConstants.PLAINS_HUMIDITY, WorldScapeConstants.PLAINS_SEASONALITY, WorldScapeConstants.PLAINS_CONTINENTALITY);
             };
         }
     }
