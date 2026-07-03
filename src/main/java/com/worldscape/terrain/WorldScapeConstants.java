@@ -266,6 +266,20 @@ public final class WorldScapeConstants {
     public static final int BIOME_CELL_SIZE = 4;
     public static final int BIOME_CELL_CENTER = 2;
 
+    // Noise scale factors for TerrainFieldSampler.
+    // Centralized here so the same frequency is reused everywhere it is needed.
+    // 1/4096 (energy main) ≈ 0.000244, 1/1024 (energy detail) ≈ 0.000977,
+    // 1/256 (energy detail2) ≈ 0.003906, 1/2048 (moisture) ≈ 0.000488.
+    // 噪声缩放因子集中在此处，方便统一调参。
+    // 主能量 1/4096 ≈ 0.000244，细节 1/1024 ≈ 0.000977，
+    // 二级细节 1/256 ≈ 0.003906，湿度 1/2048 ≈ 0.000488。
+    public static final double ENERGY_MAIN_SCALE = 2.44140625E-4;
+    public static final double ENERGY_DETAIL_SCALE = 9.765625E-4;
+    public static final double ENERGY_DETAIL2_SCALE = 0.00390625;
+    public static final double MOISTURE_SCALE = 4.8828125E-4;
+    public static final double ENERGY_DETAIL_WEIGHT = 0.3;
+    public static final double ENERGY_TO_OFFSET_SCALE = 50.0;
+
     private WorldScapeConstants() {
     }
 }

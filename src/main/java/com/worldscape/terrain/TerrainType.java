@@ -296,8 +296,13 @@ public final class TerrainType {
     }
 
     static {
-        // Set tier whitelists for each terrain type
-        // 为每种地形类型设置层级白名单
+        // Static Java tier whitelist kept as a startup-time safety net.
+        // The single source of truth is defaults.json (loaded into FunctionDef
+        // via TerrainTypeReloadListener); isValidForTier() prefers FunctionDef
+        // and only falls back to this field when FunctionDef is not yet loaded.
+        // 静态 Java 层级白名单作为启动期安全网保留。
+        // 单一真实来源是 defaults.json（通过 TerrainTypeReloadListener 加载到 FunctionDef）；
+        // isValidForTier() 优先使用 FunctionDef，仅在 FunctionDef 尚未加载时回退到本字段。
         TRENCH.tierWhitelist = new int[]{0};
         SEA_PLATEAU.tierWhitelist = new int[]{0, 1};
         // BEACH and DELTA are on Tier 2 (base height ~50) so they can generate

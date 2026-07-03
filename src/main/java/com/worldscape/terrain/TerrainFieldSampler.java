@@ -23,15 +23,18 @@ public class TerrainFieldSampler {
     private final NormalNoise domainAngle;
     private final NormalNoise domainOffsetX;
     private final NormalNoise domainOffsetZ;
-    private static final double ENERGY_MAIN_SCALE = 2.44140625E-4;
-    private static final double ENERGY_DETAIL_SCALE = 9.765625E-4;
-    private static final double ENERGY_DETAIL2_SCALE = 0.00390625;
-    private static final double MOISTURE_SCALE = 4.8828125E-4;
-    private static final double ENERGY_DETAIL_WEIGHT = 0.3;
+    // Noise scale factors are defined in WorldScapeConstants so they can be
+    // tuned in one place. Local aliases are kept for readability.
+    // 噪声缩放因子集中在 WorldScapeConstants 中以便统一调参。本地别名保留以提高可读性。
+    private static final double ENERGY_MAIN_SCALE = WorldScapeConstants.ENERGY_MAIN_SCALE;
+    private static final double ENERGY_DETAIL_SCALE = WorldScapeConstants.ENERGY_DETAIL_SCALE;
+    private static final double ENERGY_DETAIL2_SCALE = WorldScapeConstants.ENERGY_DETAIL2_SCALE;
+    private static final double MOISTURE_SCALE = WorldScapeConstants.MOISTURE_SCALE;
+    private static final double ENERGY_DETAIL_WEIGHT = WorldScapeConstants.ENERGY_DETAIL_WEIGHT;
     private final long worldSeed;
     private static final List<Double> TIER_THRESHOLDS = List.of(Double.valueOf(-1.405), Double.valueOf(-0.674), Double.valueOf(0.0), Double.valueOf(0.842), Double.valueOf(1.645));
     public static final int NO_MACRO_TIER_CONSTRAINT = -1;
-    private static final double ENERGY_TO_OFFSET_SCALE = 50.0;
+    private static final double ENERGY_TO_OFFSET_SCALE = WorldScapeConstants.ENERGY_TO_OFFSET_SCALE;
     // Thread-safe noise result caches to avoid redundant fBm/turbulence/domain_rotated recomputation.
     // Uses ConcurrentHashMap with computeIfAbsent for lock-free reads. Entries bounded by
     // periodic clear in getOrCreate() to prevent unbounded growth on long-running servers.
@@ -41,10 +44,10 @@ public class TerrainFieldSampler {
     private final ConcurrentHashMap<NoiseCacheKey, Double> turbulenceCache = new ConcurrentHashMap<>(256);
     private final ConcurrentHashMap<NoiseCacheKey, Double> domainRotatedCache = new ConcurrentHashMap<>(256);
 
-    // Cache hit/miss counters for runtime monitoring.
-    // Reset via clearNoiseCaches(). Access via getCacheHits() / getCacheMisses().
-    // 缓存命中/未命中计数器，用于运行时监控。通过 clearNoiseCaches() 重置，
-    // 通过 getCacheHits() / getCacheMisses() 访问。
+    // Cache miss counter for runtime monitoring.
+    // Reset via clearNoiseCaches(). Access via getCacheMisses().
+    // 缓存未命中计数器，用于运行时监控。通过 clearNoiseCaches() 重置，
+    // 通过 getCacheMisses() 访问。
     private final AtomicLong cacheMisses = new AtomicLong(0);
     // LRU 缓存，最大容量 8，避免多世界长期运行导致内存泄漏
     // LRU cache with max capacity 8, preventing memory leak on long-running multi-world servers

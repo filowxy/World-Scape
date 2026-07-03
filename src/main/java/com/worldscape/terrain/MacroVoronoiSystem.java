@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 
 public class MacroVoronoiSystem {
     private static final Logger LOGGER = LoggerFactory.getLogger(MacroVoronoiSystem.class);
-    public static final int REGION_CELL_SIZE = 2048;
+    public static final int REGION_CELL_SIZE = WorldScapeConstants.MACRO_CELL_SIZE;
     // Legacy single-value midpoints per tier, kept for backward compatibility
     // (e.g. transitionWidth estimation). Now updated to match range midpoints.
     // 旧的单值中点（按层级），保留用于向后兼容（如过渡宽度估算），现已与范围中点对齐。
